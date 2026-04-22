@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { Plus, ArrowUpRight } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowUpRight, Loader2 } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { supabase, type LbEvent, type LbRoomSection } from "@/integrations/supabase/client";
 import { AdminShell, FillBar, StatusBadge, formatDate } from "@/components/lb/AdminShell";
 
@@ -8,30 +10,44 @@ export const Route = createFileRoute("/")({
   component: EventListPage,
 });
 
-type EventWithSections = LbEvent & {
+type PlanningEvent = {
+  id: string;
+  title: string;
+  partner1_name: string | null;
+  partner2_name: string | null;
+  wedding_date: string | null;
+  arrival_date: string | null;
+  departure_date: string | null;
+  status: string;
+};
+
+type EventWithBlock = PlanningEvent & {
+  block: LbEvent | null;
   sections: Array<Pick<LbRoomSection, "id" | "section_name" | "total_rooms" | "is_active">>;
   bookedCounts: Record<string, number>;
 };
 
-async function fetchEvents(): Promise<EventWithSections[]> {
-  const { data: events, error } = await supabase
-    .from("lb_events")
-    .select("*")
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  if (!events?.length) return [];
+async function fetchEvents(): Promise<EventWithBlock[]> {
+  // 1. Pull every planning-hub event.
+  const { data: planningEvents, error: peErr } = await supabase
+    .from("events")
+    .select("id, title, partner1_name, partner2_name, wedding_date, arrival_date, departure_date, status")
+    .order("wedding_date", { ascending: true, nullsFirst: false });
+  if (peErr) throw peErr;
+  if (!planningEvents?.length) return [];
 
-  const ids = events.map((e) => e.id);
-  const { data: sections } = await supabase
-    .from("lb_room_sections")
-    .select("id, event_id, section_name, total_rooms, is_active, sort_order")
-    .in("event_id", ids)
-    .order("sort_order");
+  const ids = planningEvents.map((e) => e.id);
 
-  const { data: bookings } = await supabase
-    .from("lb_bookings")
-    .select("section_id, payment_status")
-    .in("event_id", ids);
+  // 2. Pull whatever lodging blocks already exist for these events.
+  const [{ data: blocks }, { data: sections }, { data: bookings }] = await Promise.all([
+    supabase.from("lb_events").select("*").in("id", ids),
+    supabase
+      .from("lb_room_sections")
+      .select("id, event_id, section_name, total_rooms, is_active, sort_order")
+      .in("event_id", ids)
+      .order("sort_order"),
+    supabase.from("lb_bookings").select("section_id, payment_status").in("event_id", ids),
+  ]);
 
   const counts: Record<string, number> = {};
   (bookings ?? []).forEach((b) => {
@@ -40,15 +56,31 @@ async function fetchEvents(): Promise<EventWithSections[]> {
     }
   });
 
-  return events.map((e) => ({
-    ...(e as LbEvent),
+  return (planningEvents as PlanningEvent[]).map((e) => ({
+    ...e,
+    block: ((blocks ?? []) as LbEvent[]).find((b) => b.id === e.id) ?? null,
     sections: (sections ?? []).filter((s) => s.event_id === e.id),
     bookedCounts: counts,
   }));
 }
 
 function EventListPage() {
-  const { data, isLoading } = useQuery({ queryKey: ["lb_events"], queryFn: fetchEvents });
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { data, isLoading } = useQuery({ queryKey: ["planning_events_with_blocks"], queryFn: fetchEvents });
+
+  const ensureBlock = useMutation({
+    mutationFn: async (eventId: string) => {
+      const { error } = await supabase.rpc("lb_ensure_block_for_event", { _event_id: eventId });
+      if (error) throw error;
+      return eventId;
+    },
+    onSuccess: (eventId) => {
+      queryClient.invalidateQueries({ queryKey: ["planning_events_with_blocks"] });
+      navigate({ to: "/events/$eventId/edit", params: { eventId } });
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Could not open block"),
+  });
 
   return (
     <AdminShell>
@@ -58,16 +90,10 @@ function EventListPage() {
             Lodging Blocks
           </h1>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Each block holds the four houses on the estate. Open one to set rates, share booking
-            links, and watch the rooms fill.
+            One block per wedding on the calendar. Open an event to set rates, share booking links,
+            and watch the four houses fill.
           </p>
         </div>
-        <Link
-          to="/events/new"
-          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm tracking-wide text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          <Plus className="h-4 w-4" /> New Event
-        </Link>
       </div>
 
       {isLoading ? (
@@ -78,14 +104,8 @@ function EventListPage() {
         <div className="rounded-lg border border-dashed border-border bg-card/60 p-16 text-center">
           <h2 className="font-serif text-2xl text-foreground">The calendar is quiet.</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Create your first lodging block.
+            No weddings on the planning hub yet. Once an event is booked, it'll appear here.
           </p>
-          <Link
-            to="/events/new"
-            className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm text-primary-foreground hover:bg-primary/90"
-          >
-            <Plus className="h-4 w-4" /> New Event
-          </Link>
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-border bg-card">
@@ -102,42 +122,66 @@ function EventListPage() {
             <tbody>
               {data.map((e) => {
                 const activeSections = e.sections.filter((s) => s.is_active);
+                const couple = [e.partner1_name, e.partner2_name].filter(Boolean).join(" & ") || e.title;
+                const isPending = ensureBlock.isPending && ensureBlock.variables === e.id;
                 return (
                   <tr key={e.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                     <td className="px-5 py-5">
-                      <div className="font-serif text-lg text-foreground">{e.couple_names}</div>
-                      <div className="text-xs text-muted-foreground">{e.wedding_name}</div>
+                      <div className="font-serif text-lg text-foreground">{couple}</div>
+                      <div className="text-xs text-muted-foreground">{e.title}</div>
                     </td>
                     <td className="px-5 py-5 text-foreground/80">{formatDate(e.wedding_date)}</td>
                     <td className="px-5 py-5">
-                      <div className="flex max-w-xs flex-col gap-1.5">
-                        {(activeSections.length ? activeSections : e.sections).map((s) => {
-                          const filled = e.bookedCounts[s.id] ?? 0;
-                          return (
-                            <div key={s.id} className="flex items-center gap-3">
-                              <span className="w-32 truncate text-xs text-muted-foreground">
-                                {s.section_name}
-                              </span>
-                              <FillBar filled={filled} total={s.total_rooms} className="flex-1" />
-                              <span className="w-10 text-right text-[11px] tabular-nums text-muted-foreground">
-                                {filled}/{s.total_rooms}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      {e.sections.length === 0 ? (
+                        <span className="text-xs italic text-muted-foreground">
+                          Not yet configured
+                        </span>
+                      ) : (
+                        <div className="flex max-w-xs flex-col gap-1.5">
+                          {(activeSections.length ? activeSections : e.sections).map((s) => {
+                            const filled = e.bookedCounts[s.id] ?? 0;
+                            return (
+                              <div key={s.id} className="flex items-center gap-3">
+                                <span className="w-32 truncate text-xs text-muted-foreground">
+                                  {s.section_name}
+                                </span>
+                                <FillBar filled={filled} total={s.total_rooms} className="flex-1" />
+                                <span className="w-10 text-right text-[11px] tabular-nums text-muted-foreground">
+                                  {filled}/{s.total_rooms}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </td>
                     <td className="px-5 py-5">
-                      <StatusBadge status={e.status} />
+                      <StatusBadge status={e.block?.status ?? "draft"} />
                     </td>
                     <td className="px-5 py-5 text-right">
-                      <Link
-                        to="/events/$eventId"
-                        params={{ eventId: e.id }}
-                        className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-primary hover:text-accent"
-                      >
-                        Open <ArrowUpRight className="h-3.5 w-3.5" />
-                      </Link>
+                      {e.block ? (
+                        <Link
+                          to="/events/$eventId"
+                          params={{ eventId: e.id }}
+                          className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-primary hover:text-accent"
+                        >
+                          Open <ArrowUpRight className="h-3.5 w-3.5" />
+                        </Link>
+                      ) : (
+                        <button
+                          onClick={() => ensureBlock.mutate(e.id)}
+                          disabled={isPending}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-1.5 text-[11px] uppercase tracking-wider text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
+                        >
+                          {isPending ? (
+                            <>
+                              <Loader2 className="h-3 w-3 animate-spin" /> Opening…
+                            </>
+                          ) : (
+                            <>Set up block</>
+                          )}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

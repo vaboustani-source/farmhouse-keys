@@ -1031,6 +1031,107 @@ export type Database = {
           },
         ]
       }
+      form_assignments: {
+        Row: {
+          created_at: string | null
+          event_id: string | null
+          form_id: string | null
+          id: string
+          status: string | null
+          submitted_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_id?: string | null
+          form_id?: string | null
+          id?: string
+          status?: string | null
+          submitted_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_id?: string | null
+          form_id?: string | null
+          id?: string
+          status?: string | null
+          submitted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_assignments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_assignments_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_responses: {
+        Row: {
+          assignment_id: string | null
+          id: string
+          responses: Json
+          updated_at: string | null
+        }
+        Insert: {
+          assignment_id?: string | null
+          id?: string
+          responses?: Json
+          updated_at?: string | null
+        }
+        Update: {
+          assignment_id?: string | null
+          id?: string
+          responses?: Json
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_responses_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: true
+            referencedRelation: "form_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      forms: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          fields: Json
+          id: string
+          is_template: boolean | null
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          fields?: Json
+          id?: string
+          is_template?: boolean | null
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          fields?: Json
+          id?: string
+          is_template?: boolean | null
+          title?: string
+        }
+        Relationships: []
+      }
       gfh_resources: {
         Row: {
           category: string | null

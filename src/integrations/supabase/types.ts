@@ -1028,6 +1028,42 @@ export type Database = {
           },
         ]
       }
+      gfh_resources: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          file_name: string | null
+          file_url: string | null
+          id: string
+          sort_order: number | null
+          title: string
+          visible: boolean | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          sort_order?: number | null
+          title: string
+          visible?: boolean | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          sort_order?: number | null
+          title?: string
+          visible?: boolean | null
+        }
+        Relationships: []
+      }
       lb_bookings: {
         Row: {
           addon_amount: number

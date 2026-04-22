@@ -10,33 +10,103 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as EventsNewRouteImport } from './routes/events.new'
+import { Route as EventsEventIdIndexRouteImport } from './routes/events.$eventId.index'
+import { Route as EventsEventIdPaymentsRouteImport } from './routes/events.$eventId.payments'
+import { Route as EventsEventIdEditRouteImport } from './routes/events.$eventId.edit'
+import { Route as EventsEventIdSectionsSectionIdRouteImport } from './routes/events.$eventId.sections.$sectionId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EventsNewRoute = EventsNewRouteImport.update({
+  id: '/events/new',
+  path: '/events/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsEventIdIndexRoute = EventsEventIdIndexRouteImport.update({
+  id: '/events/$eventId/',
+  path: '/events/$eventId/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsEventIdPaymentsRoute = EventsEventIdPaymentsRouteImport.update({
+  id: '/events/$eventId/payments',
+  path: '/events/$eventId/payments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsEventIdEditRoute = EventsEventIdEditRouteImport.update({
+  id: '/events/$eventId/edit',
+  path: '/events/$eventId/edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsEventIdSectionsSectionIdRoute =
+  EventsEventIdSectionsSectionIdRouteImport.update({
+    id: '/events/$eventId/sections/$sectionId',
+    path: '/events/$eventId/sections/$sectionId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/events/new': typeof EventsNewRoute
+  '/events/$eventId/edit': typeof EventsEventIdEditRoute
+  '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
+  '/events/$eventId/': typeof EventsEventIdIndexRoute
+  '/events/$eventId/sections/$sectionId': typeof EventsEventIdSectionsSectionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/events/new': typeof EventsNewRoute
+  '/events/$eventId/edit': typeof EventsEventIdEditRoute
+  '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
+  '/events/$eventId': typeof EventsEventIdIndexRoute
+  '/events/$eventId/sections/$sectionId': typeof EventsEventIdSectionsSectionIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/events/new': typeof EventsNewRoute
+  '/events/$eventId/edit': typeof EventsEventIdEditRoute
+  '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
+  '/events/$eventId/': typeof EventsEventIdIndexRoute
+  '/events/$eventId/sections/$sectionId': typeof EventsEventIdSectionsSectionIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/events/new'
+    | '/events/$eventId/edit'
+    | '/events/$eventId/payments'
+    | '/events/$eventId/'
+    | '/events/$eventId/sections/$sectionId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/events/new'
+    | '/events/$eventId/edit'
+    | '/events/$eventId/payments'
+    | '/events/$eventId'
+    | '/events/$eventId/sections/$sectionId'
+  id:
+    | '__root__'
+    | '/'
+    | '/events/new'
+    | '/events/$eventId/edit'
+    | '/events/$eventId/payments'
+    | '/events/$eventId/'
+    | '/events/$eventId/sections/$sectionId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  EventsNewRoute: typeof EventsNewRoute
+  EventsEventIdEditRoute: typeof EventsEventIdEditRoute
+  EventsEventIdPaymentsRoute: typeof EventsEventIdPaymentsRoute
+  EventsEventIdIndexRoute: typeof EventsEventIdIndexRoute
+  EventsEventIdSectionsSectionIdRoute: typeof EventsEventIdSectionsSectionIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +118,51 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/events/new': {
+      id: '/events/new'
+      path: '/events/new'
+      fullPath: '/events/new'
+      preLoaderRoute: typeof EventsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events/$eventId/': {
+      id: '/events/$eventId/'
+      path: '/events/$eventId'
+      fullPath: '/events/$eventId/'
+      preLoaderRoute: typeof EventsEventIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events/$eventId/payments': {
+      id: '/events/$eventId/payments'
+      path: '/events/$eventId/payments'
+      fullPath: '/events/$eventId/payments'
+      preLoaderRoute: typeof EventsEventIdPaymentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events/$eventId/edit': {
+      id: '/events/$eventId/edit'
+      path: '/events/$eventId/edit'
+      fullPath: '/events/$eventId/edit'
+      preLoaderRoute: typeof EventsEventIdEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events/$eventId/sections/$sectionId': {
+      id: '/events/$eventId/sections/$sectionId'
+      path: '/events/$eventId/sections/$sectionId'
+      fullPath: '/events/$eventId/sections/$sectionId'
+      preLoaderRoute: typeof EventsEventIdSectionsSectionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  EventsNewRoute: EventsNewRoute,
+  EventsEventIdEditRoute: EventsEventIdEditRoute,
+  EventsEventIdPaymentsRoute: EventsEventIdPaymentsRoute,
+  EventsEventIdIndexRoute: EventsEventIdIndexRoute,
+  EventsEventIdSectionsSectionIdRoute: EventsEventIdSectionsSectionIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

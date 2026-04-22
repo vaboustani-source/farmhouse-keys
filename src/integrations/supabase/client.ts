@@ -68,3 +68,19 @@ export type LbBooking = {
   booked_at: string;
   room_assignment: string | null;
 };
+
+export type GuestInvitation = {
+  id: string;
+  event_id: string;
+  section_id: string;
+  guest_email: string;
+  guest_name: string;
+  invite_group: string;
+  room_allocation: number;
+  rooms_booked: number;
+  secondary_booking_for: string | null;
+  invited_by_couple_at: string;
+  last_accessed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};

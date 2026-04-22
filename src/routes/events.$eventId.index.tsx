@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Copy, Pencil, Receipt } from "lucide-react";
+import { Copy, Pencil, Receipt, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase, type LbBooking, type LbEvent, type LbRoomSection } from "@/integrations/supabase/client";
 import { AdminShell, FillBar, StatusBadge, formatDate, formatMoney } from "@/components/lb/AdminShell";
@@ -66,6 +66,13 @@ function EventDetailPage() {
           </div>
         </div>
         <div className="flex gap-3">
+          <Link
+            to="/events/$eventId/guests"
+            params={{ eventId }}
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm hover:bg-muted"
+          >
+            <Users className="h-4 w-4" /> Guest list
+          </Link>
           <Link
             to="/events/$eventId/payments"
             params={{ eventId }}

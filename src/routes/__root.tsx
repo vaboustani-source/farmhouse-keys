@@ -2,6 +2,7 @@ import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/r
 import { Toaster } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
+import { AuthProvider } from "@/lib/useAuth";
 
 import appCss from "../styles.css?url";
 
@@ -72,8 +73,10 @@ function RootComponent() {
   }));
   return (
     <QueryClientProvider client={client}>
-      <Outlet />
-      <Toaster position="top-right" richColors closeButton />
+      <AuthProvider>
+        <Outlet />
+        <Toaster position="top-right" richColors closeButton />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

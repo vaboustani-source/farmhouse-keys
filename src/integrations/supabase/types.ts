@@ -802,6 +802,7 @@ export type Database = {
           event_id: string | null
           id: string
           role_in_event: string
+          tab_access: Json | null
           user_id: string | null
         }
         Insert: {
@@ -811,6 +812,7 @@ export type Database = {
           event_id?: string | null
           id?: string
           role_in_event: string
+          tab_access?: Json | null
           user_id?: string | null
         }
         Update: {
@@ -820,6 +822,7 @@ export type Database = {
           event_id?: string | null
           id?: string
           role_in_event?: string
+          tab_access?: Json | null
           user_id?: string | null
         }
         Relationships: [

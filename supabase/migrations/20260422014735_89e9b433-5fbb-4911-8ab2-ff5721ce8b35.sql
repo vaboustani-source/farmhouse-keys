@@ -1,0 +1,1 @@
+SELECT public.lb_ensure_block_for_event('f5f8807c-dd9f-4d4c-8dfc-57c0f99ad4b1'::uuid);

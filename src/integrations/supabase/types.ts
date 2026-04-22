@@ -1168,6 +1168,69 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_invitations: {
+        Row: {
+          created_at: string
+          event_id: string
+          guest_email: string
+          guest_name: string
+          id: string
+          invite_group: string
+          invited_by_couple_at: string
+          last_accessed_at: string | null
+          room_allocation: number
+          rooms_booked: number
+          secondary_booking_for: string | null
+          section_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          guest_email: string
+          guest_name: string
+          id?: string
+          invite_group?: string
+          invited_by_couple_at?: string
+          last_accessed_at?: string | null
+          room_allocation?: number
+          rooms_booked?: number
+          secondary_booking_for?: string | null
+          section_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          guest_email?: string
+          guest_name?: string
+          id?: string
+          invite_group?: string
+          invited_by_couple_at?: string
+          last_accessed_at?: string | null
+          room_allocation?: number
+          rooms_booked?: number
+          secondary_booking_for?: string | null
+          section_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_invitations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "lb_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_invitations_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "lb_room_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lb_bookings: {
         Row: {
           addon_amount: number

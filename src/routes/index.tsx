@@ -1,7 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight, Loader2 } from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase, type LbEvent, type LbRoomSection } from "@/integrations/supabase/client";
 import { AdminShell, FillBar, StatusBadge, formatDate } from "@/components/lb/AdminShell";

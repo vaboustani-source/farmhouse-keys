@@ -2324,6 +2324,10 @@ export type Database = {
         Args: { _event_id: string; _user_id: string }
         Returns: boolean
       }
+      lb_ensure_block_for_event: {
+        Args: { _event_id: string }
+        Returns: string
+      }
       seed_checklist: { Args: { p_event_id: string }; Returns: undefined }
       seed_milestones: {
         Args: { p_event_id: string; p_wedding_date: string }

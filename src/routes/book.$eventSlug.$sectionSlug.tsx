@@ -399,11 +399,8 @@ function ReviewStep({
         </div>
       )}
 
-      {/* Card 3: Secondary guest */}
-      {!secondary && (
-        <>
-        {/* Cot / 3rd guest */}
-        <div className="mt-4 rounded-md border border-[#E8E2D9] bg-white p-6">
+      {/* Cot / 3rd guest */}
+      <div className="mt-4 rounded-md border border-[#E8E2D9] bg-white p-6">
           <label className="flex cursor-pointer items-start justify-between gap-4">
             <div className="flex-1">
               <div className="font-serif text-xl">Add a 3rd guest</div>
@@ -423,7 +420,10 @@ function ReviewStep({
               className="mt-1 h-5 w-5 accent-[#2C3E2D]"
             />
           </label>
-        </div>
+      </div>
+
+      {/* Card 3: Secondary guest */}
+      {!secondary && (
         <div className="mt-4 rounded-md border border-[#E8E2D9] bg-white p-6">
           <h2 className="font-serif text-xl">Covering a room for someone else?</h2>
           <p className="mt-1 text-xs text-[#6B6B6B]">You may add one additional guest's room to this reservation.</p>
@@ -445,7 +445,6 @@ function ReviewStep({
           </form>
           {secondaryLookupErr && <p className="mt-2 text-xs text-[#6B6B6B]">{secondaryLookupErr}</p>}
         </div>
-        </>
       )}
 
       {secondary && (

@@ -15,7 +15,10 @@ import { Route as EventsEventIdIndexRouteImport } from './routes/events.$eventId
 import { Route as EventsEventIdPaymentsRouteImport } from './routes/events.$eventId.payments'
 import { Route as EventsEventIdGuestsRouteImport } from './routes/events.$eventId.guests'
 import { Route as EventsEventIdEditRouteImport } from './routes/events.$eventId.edit'
+import { Route as BookEventSlugSectionSlugRouteImport } from './routes/book.$eventSlug.$sectionSlug'
+import { Route as ApiPublicStripeWebhookRouteImport } from './routes/api/public/stripe-webhook'
 import { Route as EventsEventIdSectionsSectionIdRouteImport } from './routes/events.$eventId.sections.$sectionId'
+import { Route as BookEventSlugSectionSlugConfirmationRouteImport } from './routes/book.$eventSlug.$sectionSlug.confirmation'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -47,39 +50,65 @@ const EventsEventIdEditRoute = EventsEventIdEditRouteImport.update({
   path: '/events/$eventId/edit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BookEventSlugSectionSlugRoute =
+  BookEventSlugSectionSlugRouteImport.update({
+    id: '/book/$eventSlug/$sectionSlug',
+    path: '/book/$eventSlug/$sectionSlug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicStripeWebhookRoute = ApiPublicStripeWebhookRouteImport.update({
+  id: '/api/public/stripe-webhook',
+  path: '/api/public/stripe-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EventsEventIdSectionsSectionIdRoute =
   EventsEventIdSectionsSectionIdRouteImport.update({
     id: '/events/$eventId/sections/$sectionId',
     path: '/events/$eventId/sections/$sectionId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const BookEventSlugSectionSlugConfirmationRoute =
+  BookEventSlugSectionSlugConfirmationRouteImport.update({
+    id: '/confirmation',
+    path: '/confirmation',
+    getParentRoute: () => BookEventSlugSectionSlugRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/events/new': typeof EventsNewRoute
+  '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
+  '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
+  '/book/$eventSlug/$sectionSlug/confirmation': typeof BookEventSlugSectionSlugConfirmationRoute
   '/events/$eventId/sections/$sectionId': typeof EventsEventIdSectionsSectionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/events/new': typeof EventsNewRoute
+  '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
+  '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
   '/events/$eventId': typeof EventsEventIdIndexRoute
+  '/book/$eventSlug/$sectionSlug/confirmation': typeof BookEventSlugSectionSlugConfirmationRoute
   '/events/$eventId/sections/$sectionId': typeof EventsEventIdSectionsSectionIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/events/new': typeof EventsNewRoute
+  '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
+  '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
+  '/book/$eventSlug/$sectionSlug/confirmation': typeof BookEventSlugSectionSlugConfirmationRoute
   '/events/$eventId/sections/$sectionId': typeof EventsEventIdSectionsSectionIdRoute
 }
 export interface FileRouteTypes {
@@ -87,34 +116,45 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/events/new'
+    | '/api/public/stripe-webhook'
+    | '/book/$eventSlug/$sectionSlug'
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
     | '/events/$eventId/'
+    | '/book/$eventSlug/$sectionSlug/confirmation'
     | '/events/$eventId/sections/$sectionId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/events/new'
+    | '/api/public/stripe-webhook'
+    | '/book/$eventSlug/$sectionSlug'
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
     | '/events/$eventId'
+    | '/book/$eventSlug/$sectionSlug/confirmation'
     | '/events/$eventId/sections/$sectionId'
   id:
     | '__root__'
     | '/'
     | '/events/new'
+    | '/api/public/stripe-webhook'
+    | '/book/$eventSlug/$sectionSlug'
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
     | '/events/$eventId/'
+    | '/book/$eventSlug/$sectionSlug/confirmation'
     | '/events/$eventId/sections/$sectionId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EventsNewRoute: typeof EventsNewRoute
+  ApiPublicStripeWebhookRoute: typeof ApiPublicStripeWebhookRoute
+  BookEventSlugSectionSlugRoute: typeof BookEventSlugSectionSlugRouteWithChildren
   EventsEventIdEditRoute: typeof EventsEventIdEditRoute
   EventsEventIdGuestsRoute: typeof EventsEventIdGuestsRoute
   EventsEventIdPaymentsRoute: typeof EventsEventIdPaymentsRoute
@@ -166,6 +206,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdEditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/book/$eventSlug/$sectionSlug': {
+      id: '/book/$eventSlug/$sectionSlug'
+      path: '/book/$eventSlug/$sectionSlug'
+      fullPath: '/book/$eventSlug/$sectionSlug'
+      preLoaderRoute: typeof BookEventSlugSectionSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/stripe-webhook': {
+      id: '/api/public/stripe-webhook'
+      path: '/api/public/stripe-webhook'
+      fullPath: '/api/public/stripe-webhook'
+      preLoaderRoute: typeof ApiPublicStripeWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/events/$eventId/sections/$sectionId': {
       id: '/events/$eventId/sections/$sectionId'
       path: '/events/$eventId/sections/$sectionId'
@@ -173,12 +227,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdSectionsSectionIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/book/$eventSlug/$sectionSlug/confirmation': {
+      id: '/book/$eventSlug/$sectionSlug/confirmation'
+      path: '/confirmation'
+      fullPath: '/book/$eventSlug/$sectionSlug/confirmation'
+      preLoaderRoute: typeof BookEventSlugSectionSlugConfirmationRouteImport
+      parentRoute: typeof BookEventSlugSectionSlugRoute
+    }
   }
 }
+
+interface BookEventSlugSectionSlugRouteChildren {
+  BookEventSlugSectionSlugConfirmationRoute: typeof BookEventSlugSectionSlugConfirmationRoute
+}
+
+const BookEventSlugSectionSlugRouteChildren: BookEventSlugSectionSlugRouteChildren =
+  {
+    BookEventSlugSectionSlugConfirmationRoute:
+      BookEventSlugSectionSlugConfirmationRoute,
+  }
+
+const BookEventSlugSectionSlugRouteWithChildren =
+  BookEventSlugSectionSlugRoute._addFileChildren(
+    BookEventSlugSectionSlugRouteChildren,
+  )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EventsNewRoute: EventsNewRoute,
+  ApiPublicStripeWebhookRoute: ApiPublicStripeWebhookRoute,
+  BookEventSlugSectionSlugRoute: BookEventSlugSectionSlugRouteWithChildren,
   EventsEventIdEditRoute: EventsEventIdEditRoute,
   EventsEventIdGuestsRoute: EventsEventIdGuestsRoute,
   EventsEventIdPaymentsRoute: EventsEventIdPaymentsRoute,

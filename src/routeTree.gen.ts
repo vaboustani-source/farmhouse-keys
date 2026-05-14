@@ -15,6 +15,7 @@ import { Route as EventsEventIdIndexRouteImport } from './routes/events.$eventId
 import { Route as EventsEventIdPaymentsRouteImport } from './routes/events.$eventId.payments'
 import { Route as EventsEventIdGuestsRouteImport } from './routes/events.$eventId.guests'
 import { Route as EventsEventIdEditRouteImport } from './routes/events.$eventId.edit'
+import { Route as ApiPublicStripeWebhookRouteImport } from './routes/api/public/stripe-webhook'
 import { Route as EventsEventIdSectionsSectionIdRouteImport } from './routes/events.$eventId.sections.$sectionId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -47,6 +48,11 @@ const EventsEventIdEditRoute = EventsEventIdEditRouteImport.update({
   path: '/events/$eventId/edit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicStripeWebhookRoute = ApiPublicStripeWebhookRouteImport.update({
+  id: '/api/public/stripe-webhook',
+  path: '/api/public/stripe-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EventsEventIdSectionsSectionIdRoute =
   EventsEventIdSectionsSectionIdRouteImport.update({
     id: '/events/$eventId/sections/$sectionId',
@@ -57,6 +63,7 @@ const EventsEventIdSectionsSectionIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/events/new': typeof EventsNewRoute
+  '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/events/new': typeof EventsNewRoute
+  '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/events/new': typeof EventsNewRoute
+  '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/events/new'
+    | '/api/public/stripe-webhook'
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/events/new'
+    | '/api/public/stripe-webhook'
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/events/new'
+    | '/api/public/stripe-webhook'
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
@@ -115,6 +127,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EventsNewRoute: typeof EventsNewRoute
+  ApiPublicStripeWebhookRoute: typeof ApiPublicStripeWebhookRoute
   EventsEventIdEditRoute: typeof EventsEventIdEditRoute
   EventsEventIdGuestsRoute: typeof EventsEventIdGuestsRoute
   EventsEventIdPaymentsRoute: typeof EventsEventIdPaymentsRoute
@@ -166,6 +179,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdEditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/stripe-webhook': {
+      id: '/api/public/stripe-webhook'
+      path: '/api/public/stripe-webhook'
+      fullPath: '/api/public/stripe-webhook'
+      preLoaderRoute: typeof ApiPublicStripeWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/events/$eventId/sections/$sectionId': {
       id: '/events/$eventId/sections/$sectionId'
       path: '/events/$eventId/sections/$sectionId'
@@ -179,6 +199,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EventsNewRoute: EventsNewRoute,
+  ApiPublicStripeWebhookRoute: ApiPublicStripeWebhookRoute,
   EventsEventIdEditRoute: EventsEventIdEditRoute,
   EventsEventIdGuestsRoute: EventsEventIdGuestsRoute,
   EventsEventIdPaymentsRoute: EventsEventIdPaymentsRoute,
@@ -188,3 +209,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

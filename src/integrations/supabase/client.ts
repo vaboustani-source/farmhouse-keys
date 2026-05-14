@@ -43,6 +43,8 @@ export type LbRoomSection = {
   tax_percent: number;
   payment_schedule: "full_upfront" | "deposit_50_balance_50" | "full" | "split_50_50";
   nights: number;
+  cot_1night_rate: number;
+  cot_2night_rate: number;
 };
 
 export type LbSectionAddon = {
@@ -75,6 +77,8 @@ export type LbBooking = {
   payment_status: "pending" | "paid" | "failed";
   booked_at: string;
   room_assignment: string | null;
+  cot_requested: boolean;
+  cot_fee: number;
 };
 
 export type GuestInvitation = {

@@ -6,7 +6,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  return new Stripe(key, { apiVersion: "2024-06-20" as Stripe.LatestApiVersion });
+  return new Stripe(key);
 }
 
 function getAppBaseUrl() {
@@ -76,6 +76,16 @@ export const getSectionAddons = createServerFn({ method: "POST" })
 
 /* ───────────── Create Stripe Checkout Session ───────────── */
 
+type CheckoutLineItem = {
+  quantity: number;
+  price_data: {
+    currency: string;
+    unit_amount: number;
+    tax_behavior?: "exclusive" | "inclusive" | "unspecified";
+    product_data: { name: string; tax_code?: string };
+  };
+};
+
 const lineItemsForBooking = async (
   bookingId: string,
   addonIds: string[],
@@ -107,7 +117,7 @@ const lineItemsForBooking = async (
   const nightly = Number(section.guest_nightly_rate) || 0;
   const baseAmount = nightly * nights;
 
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+  const lineItems: CheckoutLineItem[] = [];
   const prefix = labelPrefix ? `${labelPrefix} — ` : "";
 
   lineItems.push({
@@ -211,21 +221,17 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
     let isSplit = primary.booking.payment_schedule === "split_50_50";
     if (isSplit) {
       // Recompute as 50% deposit single-line items per category.
-      const halfFor = (
-        items: Stripe.Checkout.SessionCreateParams.LineItem[],
-      ): Stripe.Checkout.SessionCreateParams.LineItem[] =>
+      const halfFor = (items: CheckoutLineItem[]): CheckoutLineItem[] =>
         items.map((li) => ({
           ...li,
-          price_data: li.price_data
-            ? {
-                ...li.price_data,
-                unit_amount: Math.round((li.price_data.unit_amount ?? 0) * 0.5),
-                product_data: {
-                  ...li.price_data.product_data!,
-                  name: `${li.price_data.product_data!.name} (50% deposit)`,
-                },
-              }
-            : undefined,
+          price_data: {
+            ...li.price_data,
+            unit_amount: Math.round(li.price_data.unit_amount * 0.5),
+            product_data: {
+              ...li.price_data.product_data,
+              name: `${li.price_data.product_data.name} (50% deposit)`,
+            },
+          },
         }));
       appliedAmounts = halfFor(allLineItems);
     }
@@ -237,7 +243,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
-      line_items: appliedAmounts,
+      line_items: appliedAmounts as unknown as Stripe.Checkout.SessionCreateParams.LineItem[],
       customer_email: primary.booking.guest_email,
       automatic_tax: { enabled: true },
       success_url: successUrl,

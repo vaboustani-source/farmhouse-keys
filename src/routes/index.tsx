@@ -24,6 +24,7 @@ type EventWithBlock = PlanningEvent & {
   block: LbEvent | null;
   sections: Array<Pick<LbRoomSection, "id" | "section_name" | "total_rooms" | "is_active">>;
   bookedCounts: Record<string, number>;
+  guestsConfirmed: number;
 };
 
 async function fetchEvents(): Promise<EventWithBlock[]> {
@@ -45,13 +46,17 @@ async function fetchEvents(): Promise<EventWithBlock[]> {
       .select("id, event_id, section_name, total_rooms, is_active, sort_order")
       .in("event_id", ids)
       .order("sort_order"),
-    supabase.from("lb_bookings").select("section_id, payment_status").in("event_id", ids),
+    supabase.from("lb_bookings").select("event_id, section_id, payment_status").in("event_id", ids),
   ]);
 
   const counts: Record<string, number> = {};
+  const guestCounts: Record<string, number> = {};
   (bookings ?? []).forEach((b) => {
     if (b.payment_status === "paid" || b.payment_status === "pending") {
       counts[b.section_id] = (counts[b.section_id] ?? 0) + 1;
+    }
+    if (b.payment_status === "paid" || b.payment_status === "covered") {
+      guestCounts[b.event_id] = (guestCounts[b.event_id] ?? 0) + 1;
     }
   });
 
@@ -60,6 +65,7 @@ async function fetchEvents(): Promise<EventWithBlock[]> {
     block: ((blocks ?? []) as LbEvent[]).find((b) => b.id === e.id) ?? null,
     sections: (sections ?? []).filter((s) => s.event_id === e.id),
     bookedCounts: counts,
+    guestsConfirmed: guestCounts[e.id] ?? 0,
   }));
 }
 
@@ -114,6 +120,7 @@ function EventListPage() {
                 <th className="px-5 py-4 font-medium">Couple</th>
                 <th className="px-5 py-4 font-medium">Wedding Date</th>
                 <th className="px-5 py-4 font-medium">Section Fill</th>
+                <th className="px-5 py-4 font-medium">Guests</th>
                 <th className="px-5 py-4 font-medium">Status</th>
                 <th className="px-5 py-4" />
               </tr>
@@ -153,6 +160,9 @@ function EventListPage() {
                           })}
                         </div>
                       )}
+                    </td>
+                    <td className="px-5 py-5">
+                      <GuestOccupancy confirmed={e.guestsConfirmed} />
                     </td>
                     <td className="px-5 py-5">
                       <StatusBadge status={e.block?.status ?? "draft"} />

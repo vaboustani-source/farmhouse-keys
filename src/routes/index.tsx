@@ -9,6 +9,39 @@ export const Route = createFileRoute("/")({
   component: EventListPage,
 });
 
+const GUEST_CAPACITY = 40;
+
+function GuestOccupancy({ confirmed }: { confirmed: number }) {
+  const capped = Math.min(confirmed, GUEST_CAPACITY);
+  const pct = (capped / GUEST_CAPACITY) * 100;
+  const isFull = confirmed >= GUEST_CAPACITY;
+  const barColor = isFull
+    ? "bg-primary"
+    : confirmed >= 20
+      ? "bg-accent"
+      : "bg-muted-foreground/40";
+  return (
+    <div className="min-w-[140px] max-w-[180px]">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs tabular-nums text-foreground/80">
+          {confirmed} / {GUEST_CAPACITY} guests confirmed
+        </span>
+        {isFull && (
+          <span className="inline-flex items-center rounded-full border border-primary bg-primary px-2 py-0.5 text-[10px] uppercase tracking-wider text-primary-foreground">
+            Full
+          </span>
+        )}
+      </div>
+      <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-border">
+        <div
+          className={`h-full rounded-full ${barColor} transition-all`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 type PlanningEvent = {
   id: string;
   title: string;

@@ -243,7 +243,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
-      line_items: appliedAmounts as unknown as Stripe.Checkout.SessionCreateParams.LineItem[],
+      line_items: appliedAmounts as never,
       customer_email: primary.booking.guest_email,
       automatic_tax: { enabled: true },
       success_url: successUrl,

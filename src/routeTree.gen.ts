@@ -18,6 +18,7 @@ import { Route as EventsEventIdEditRouteImport } from './routes/events.$eventId.
 import { Route as BookEventSlugSectionSlugRouteImport } from './routes/book.$eventSlug.$sectionSlug'
 import { Route as ApiPublicStripeWebhookRouteImport } from './routes/api/public/stripe-webhook'
 import { Route as EventsEventIdSectionsSectionIdRouteImport } from './routes/events.$eventId.sections.$sectionId'
+import { Route as BookEventSlugSectionSlugConfirmationRouteImport } from './routes/book.$eventSlug.$sectionSlug.confirmation'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -66,27 +67,35 @@ const EventsEventIdSectionsSectionIdRoute =
     path: '/events/$eventId/sections/$sectionId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const BookEventSlugSectionSlugConfirmationRoute =
+  BookEventSlugSectionSlugConfirmationRouteImport.update({
+    id: '/confirmation',
+    path: '/confirmation',
+    getParentRoute: () => BookEventSlugSectionSlugRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/events/new': typeof EventsNewRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
-  '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRoute
+  '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
+  '/book/$eventSlug/$sectionSlug/confirmation': typeof BookEventSlugSectionSlugConfirmationRoute
   '/events/$eventId/sections/$sectionId': typeof EventsEventIdSectionsSectionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/events/new': typeof EventsNewRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
-  '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRoute
+  '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
   '/events/$eventId': typeof EventsEventIdIndexRoute
+  '/book/$eventSlug/$sectionSlug/confirmation': typeof BookEventSlugSectionSlugConfirmationRoute
   '/events/$eventId/sections/$sectionId': typeof EventsEventIdSectionsSectionIdRoute
 }
 export interface FileRoutesById {
@@ -94,11 +103,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/events/new': typeof EventsNewRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
-  '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRoute
+  '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
+  '/book/$eventSlug/$sectionSlug/confirmation': typeof BookEventSlugSectionSlugConfirmationRoute
   '/events/$eventId/sections/$sectionId': typeof EventsEventIdSectionsSectionIdRoute
 }
 export interface FileRouteTypes {
@@ -112,6 +122,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
     | '/events/$eventId/'
+    | '/book/$eventSlug/$sectionSlug/confirmation'
     | '/events/$eventId/sections/$sectionId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -123,6 +134,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
     | '/events/$eventId'
+    | '/book/$eventSlug/$sectionSlug/confirmation'
     | '/events/$eventId/sections/$sectionId'
   id:
     | '__root__'
@@ -134,6 +146,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
     | '/events/$eventId/'
+    | '/book/$eventSlug/$sectionSlug/confirmation'
     | '/events/$eventId/sections/$sectionId'
   fileRoutesById: FileRoutesById
 }
@@ -141,7 +154,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EventsNewRoute: typeof EventsNewRoute
   ApiPublicStripeWebhookRoute: typeof ApiPublicStripeWebhookRoute
-  BookEventSlugSectionSlugRoute: typeof BookEventSlugSectionSlugRoute
+  BookEventSlugSectionSlugRoute: typeof BookEventSlugSectionSlugRouteWithChildren
   EventsEventIdEditRoute: typeof EventsEventIdEditRoute
   EventsEventIdGuestsRoute: typeof EventsEventIdGuestsRoute
   EventsEventIdPaymentsRoute: typeof EventsEventIdPaymentsRoute
@@ -214,14 +227,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdSectionsSectionIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/book/$eventSlug/$sectionSlug/confirmation': {
+      id: '/book/$eventSlug/$sectionSlug/confirmation'
+      path: '/confirmation'
+      fullPath: '/book/$eventSlug/$sectionSlug/confirmation'
+      preLoaderRoute: typeof BookEventSlugSectionSlugConfirmationRouteImport
+      parentRoute: typeof BookEventSlugSectionSlugRoute
+    }
   }
 }
+
+interface BookEventSlugSectionSlugRouteChildren {
+  BookEventSlugSectionSlugConfirmationRoute: typeof BookEventSlugSectionSlugConfirmationRoute
+}
+
+const BookEventSlugSectionSlugRouteChildren: BookEventSlugSectionSlugRouteChildren =
+  {
+    BookEventSlugSectionSlugConfirmationRoute:
+      BookEventSlugSectionSlugConfirmationRoute,
+  }
+
+const BookEventSlugSectionSlugRouteWithChildren =
+  BookEventSlugSectionSlugRoute._addFileChildren(
+    BookEventSlugSectionSlugRouteChildren,
+  )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EventsNewRoute: EventsNewRoute,
   ApiPublicStripeWebhookRoute: ApiPublicStripeWebhookRoute,
-  BookEventSlugSectionSlugRoute: BookEventSlugSectionSlugRoute,
+  BookEventSlugSectionSlugRoute: BookEventSlugSectionSlugRouteWithChildren,
   EventsEventIdEditRoute: EventsEventIdEditRoute,
   EventsEventIdGuestsRoute: EventsEventIdGuestsRoute,
   EventsEventIdPaymentsRoute: EventsEventIdPaymentsRoute,

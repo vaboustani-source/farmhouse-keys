@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -286,17 +286,7 @@ function ReviewStep({
         return;
       }
       setSecondary(res.booking);
-      // Load their section addons (need sectionId — get from a fetch)
-      // Use admin RPC: we need section addons but only have booking_id; do a follow-up
-      const { data: secBk } = await fetch(
-        `/api/_section_for_booking?id=${res.booking.booking_id}`,
-      ).then((r) => r.json()).catch(() => ({ data: null }));
-      // Fallback: skip addon-fetch if it fails — we still get base price
-      if (secBk?.section_id) {
-        const { addons } = await fetchAddons({ data: { sectionId: secBk.section_id } });
-        setSecondaryAddons(addons);
-        setSecondarySelectedIds(addons.filter((a) => a.is_required).map((a) => a.id));
-      }
+      // Secondary add-ons skipped for now — only base lodging is covered.
     } finally {
       setLookingUpSecondary(false);
     }

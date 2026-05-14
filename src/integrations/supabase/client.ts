@@ -35,6 +35,12 @@ export type LbRoomSection = {
   booking_link_slug: string | null;
   is_active: boolean;
   sort_order: number;
+  internal_nightly_rate: number;
+  couple_contribution: number;
+  guest_nightly_rate: number | null;
+  resort_fee_percent: number;
+  payment_schedule: "full" | "split_50_50";
+  nights: number;
 };
 
 export type LbSectionAddon = {

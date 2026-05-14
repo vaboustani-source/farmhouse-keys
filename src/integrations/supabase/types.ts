@@ -1399,9 +1399,11 @@ export type Database = {
           nights: number
           payment_schedule: string
           price_per_night: number
+          processing_fee_percent: number
           resort_fee_percent: number
           section_name: string
           sort_order: number
+          tax_percent: number
           total_rooms: number
           updated_at: string
         }
@@ -1418,9 +1420,11 @@ export type Database = {
           nights?: number
           payment_schedule?: string
           price_per_night?: number
+          processing_fee_percent?: number
           resort_fee_percent?: number
           section_name: string
           sort_order?: number
+          tax_percent?: number
           total_rooms?: number
           updated_at?: string
         }
@@ -1437,9 +1441,11 @@ export type Database = {
           nights?: number
           payment_schedule?: string
           price_per_night?: number
+          processing_fee_percent?: number
           resort_fee_percent?: number
           section_name?: string
           sort_order?: number
+          tax_percent?: number
           total_rooms?: number
           updated_at?: string
         }

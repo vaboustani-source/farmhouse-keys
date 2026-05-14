@@ -1237,17 +1237,25 @@ export type Database = {
           addons_selected: Json
           base_amount: number
           booked_at: string
+          covered_at: string | null
+          covered_by_booking_id: string | null
+          deposit_paid_at: string | null
           event_id: string
+          final_paid_at: string | null
           guest_email: string
           guest_name: string
           guest_phone: string | null
           id: string
+          is_primary: boolean
           nights_booked: number
+          payment_schedule: string
           payment_status: string
           resort_fee: number
           room_assignment: string | null
           section_id: string
           stripe_payment_id: string | null
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
           tax_amount: number
           total_amount: number
         }
@@ -1256,17 +1264,25 @@ export type Database = {
           addons_selected?: Json
           base_amount?: number
           booked_at?: string
+          covered_at?: string | null
+          covered_by_booking_id?: string | null
+          deposit_paid_at?: string | null
           event_id: string
+          final_paid_at?: string | null
           guest_email: string
           guest_name: string
           guest_phone?: string | null
           id?: string
+          is_primary?: boolean
           nights_booked?: number
+          payment_schedule?: string
           payment_status?: string
           resort_fee?: number
           room_assignment?: string | null
           section_id: string
           stripe_payment_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
           tax_amount?: number
           total_amount?: number
         }
@@ -1275,21 +1291,36 @@ export type Database = {
           addons_selected?: Json
           base_amount?: number
           booked_at?: string
+          covered_at?: string | null
+          covered_by_booking_id?: string | null
+          deposit_paid_at?: string | null
           event_id?: string
+          final_paid_at?: string | null
           guest_email?: string
           guest_name?: string
           guest_phone?: string | null
           id?: string
+          is_primary?: boolean
           nights_booked?: number
+          payment_schedule?: string
           payment_status?: string
           resort_fee?: number
           room_assignment?: string | null
           section_id?: string
           stripe_payment_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
           tax_amount?: number
           total_amount?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "lb_bookings_covered_by_booking_id_fkey"
+            columns: ["covered_by_booking_id"]
+            isOneToOne: false
+            referencedRelation: "lb_bookings"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lb_bookings_event_id_fkey"
             columns: ["event_id"]
@@ -1315,6 +1346,7 @@ export type Database = {
           id: string
           nights: number
           resort_fee_pct: number
+          slug: string | null
           status: string
           tax_pct: number
           updated_at: string
@@ -1329,6 +1361,7 @@ export type Database = {
           id?: string
           nights?: number
           resort_fee_pct?: number
+          slug?: string | null
           status?: string
           tax_pct?: number
           updated_at?: string
@@ -1343,6 +1376,7 @@ export type Database = {
           id?: string
           nights?: number
           resort_fee_pct?: number
+          slug?: string | null
           status?: string
           tax_pct?: number
           updated_at?: string
@@ -1354,11 +1388,18 @@ export type Database = {
       lb_room_sections: {
         Row: {
           booking_link_slug: string | null
+          couple_contribution: number
           created_at: string
+          custom_contributions: Json | null
           event_id: string
+          guest_nightly_rate: number | null
           id: string
+          internal_nightly_rate: number
           is_active: boolean
+          nights: number
+          payment_schedule: string
           price_per_night: number
+          resort_fee_percent: number
           section_name: string
           sort_order: number
           total_rooms: number
@@ -1366,11 +1407,18 @@ export type Database = {
         }
         Insert: {
           booking_link_slug?: string | null
+          couple_contribution?: number
           created_at?: string
+          custom_contributions?: Json | null
           event_id: string
+          guest_nightly_rate?: number | null
           id?: string
+          internal_nightly_rate?: number
           is_active?: boolean
+          nights?: number
+          payment_schedule?: string
           price_per_night?: number
+          resort_fee_percent?: number
           section_name: string
           sort_order?: number
           total_rooms?: number
@@ -1378,11 +1426,18 @@ export type Database = {
         }
         Update: {
           booking_link_slug?: string | null
+          couple_contribution?: number
           created_at?: string
+          custom_contributions?: Json | null
           event_id?: string
+          guest_nightly_rate?: number | null
           id?: string
+          internal_nightly_rate?: number
           is_active?: boolean
+          nights?: number
+          payment_schedule?: string
           price_per_night?: number
+          resort_fee_percent?: number
           section_name?: string
           sort_order?: number
           total_rooms?: number
@@ -2494,6 +2549,50 @@ export type Database = {
       lb_ensure_block_for_event: {
         Args: { _event_id: string }
         Returns: string
+      }
+      lookup_guest_booking: {
+        Args: { p_email: string; p_event_slug: string; p_section_slug: string }
+        Returns: {
+          addon_amount: number
+          addons_selected: Json
+          base_amount: number
+          booking_id: string
+          booking_link_slug: string
+          check_in_date: string
+          check_out_date: string
+          couple_names: string
+          covered_at: string
+          deposit_paid_at: string
+          event_id: string
+          final_paid_at: string
+          guest_email: string
+          guest_name: string
+          guest_nightly_rate: number
+          is_primary: boolean
+          nights: number
+          payment_schedule: string
+          payment_status: string
+          resort_fee: number
+          resort_fee_percent: number
+          section_id: string
+          section_name: string
+          tax_amount: number
+          total_amount: number
+          wedding_date: string
+          wedding_name: string
+        }[]
+      }
+      lookup_secondary_guest: {
+        Args: { p_email: string; p_event_slug: string }
+        Returns: {
+          booking_id: string
+          guest_name: string
+          guest_nightly_rate: number
+          nights: number
+          payment_status: string
+          resort_fee_percent: number
+          section_name: string
+        }[]
       }
       seed_checklist: { Args: { p_event_id: string }; Returns: undefined }
       seed_milestones: {

@@ -9,6 +9,39 @@ export const Route = createFileRoute("/")({
   component: EventListPage,
 });
 
+const GUEST_CAPACITY = 40;
+
+function GuestOccupancy({ confirmed }: { confirmed: number }) {
+  const capped = Math.min(confirmed, GUEST_CAPACITY);
+  const pct = (capped / GUEST_CAPACITY) * 100;
+  const isFull = confirmed >= GUEST_CAPACITY;
+  const barColor = isFull
+    ? "bg-primary"
+    : confirmed >= 20
+      ? "bg-accent"
+      : "bg-muted-foreground/40";
+  return (
+    <div className="min-w-[140px] max-w-[180px]">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs tabular-nums text-foreground/80">
+          {confirmed} / {GUEST_CAPACITY} guests confirmed
+        </span>
+        {isFull && (
+          <span className="inline-flex items-center rounded-full border border-primary bg-primary px-2 py-0.5 text-[10px] uppercase tracking-wider text-primary-foreground">
+            Full
+          </span>
+        )}
+      </div>
+      <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-border">
+        <div
+          className={`h-full rounded-full ${barColor} transition-all`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 type PlanningEvent = {
   id: string;
   title: string;
@@ -24,6 +57,7 @@ type EventWithBlock = PlanningEvent & {
   block: LbEvent | null;
   sections: Array<Pick<LbRoomSection, "id" | "section_name" | "total_rooms" | "is_active">>;
   bookedCounts: Record<string, number>;
+  guestsConfirmed: number;
 };
 
 async function fetchEvents(): Promise<EventWithBlock[]> {
@@ -45,13 +79,17 @@ async function fetchEvents(): Promise<EventWithBlock[]> {
       .select("id, event_id, section_name, total_rooms, is_active, sort_order")
       .in("event_id", ids)
       .order("sort_order"),
-    supabase.from("lb_bookings").select("section_id, payment_status").in("event_id", ids),
+    supabase.from("lb_bookings").select("event_id, section_id, payment_status").in("event_id", ids),
   ]);
 
   const counts: Record<string, number> = {};
+  const guestCounts: Record<string, number> = {};
   (bookings ?? []).forEach((b) => {
     if (b.payment_status === "paid" || b.payment_status === "pending") {
       counts[b.section_id] = (counts[b.section_id] ?? 0) + 1;
+    }
+    if (b.payment_status === "paid" || b.payment_status === "covered") {
+      guestCounts[b.event_id] = (guestCounts[b.event_id] ?? 0) + 1;
     }
   });
 
@@ -60,6 +98,7 @@ async function fetchEvents(): Promise<EventWithBlock[]> {
     block: ((blocks ?? []) as LbEvent[]).find((b) => b.id === e.id) ?? null,
     sections: (sections ?? []).filter((s) => s.event_id === e.id),
     bookedCounts: counts,
+    guestsConfirmed: guestCounts[e.id] ?? 0,
   }));
 }
 
@@ -114,6 +153,7 @@ function EventListPage() {
                 <th className="px-5 py-4 font-medium">Couple</th>
                 <th className="px-5 py-4 font-medium">Wedding Date</th>
                 <th className="px-5 py-4 font-medium">Section Fill</th>
+                <th className="px-5 py-4 font-medium">Guests</th>
                 <th className="px-5 py-4 font-medium">Status</th>
                 <th className="px-5 py-4" />
               </tr>
@@ -153,6 +193,9 @@ function EventListPage() {
                           })}
                         </div>
                       )}
+                    </td>
+                    <td className="px-5 py-5">
+                      <GuestOccupancy confirmed={e.guestsConfirmed} />
                     </td>
                     <td className="px-5 py-5">
                       <StatusBadge status={e.block?.status ?? "draft"} />

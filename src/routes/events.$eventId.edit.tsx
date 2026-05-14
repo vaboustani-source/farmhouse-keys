@@ -267,6 +267,46 @@ function SectionCard({
                 onChange={(e) => saveSection({ price_per_night: parseFloat(e.target.value) || 0 })}
               />
             </Field>
+            <Field label="Internal nightly rate ($)">
+              <input
+                type="number"
+                min={0}
+                step={1}
+                className="lb-input"
+                value={local.internal_nightly_rate ?? 0}
+                onChange={(e) => saveSection({ internal_nightly_rate: parseFloat(e.target.value) || 0 })}
+              />
+            </Field>
+            <Field label="Couple contribution / night ($)">
+              <input
+                type="number"
+                min={0}
+                step={1}
+                className="lb-input"
+                value={local.couple_contribution ?? 0}
+                onChange={(e) => saveSection({ couple_contribution: parseFloat(e.target.value) || 0 })}
+              />
+            </Field>
+            <Field label="Resort fee %">
+              <input
+                type="number"
+                min={0}
+                step={0.5}
+                className="lb-input"
+                value={local.resort_fee_percent ?? 0}
+                onChange={(e) => saveSection({ resort_fee_percent: parseFloat(e.target.value) || 0 })}
+              />
+            </Field>
+            <Field label="Payment schedule">
+              <select
+                className="lb-input"
+                value={local.payment_schedule ?? "full"}
+                onChange={(e) => saveSection({ payment_schedule: e.target.value as LbRoomSection["payment_schedule"] })}
+              >
+                <option value="full">Pay in full upfront</option>
+                <option value="split_50_50">50% deposit, 50% balance</option>
+              </select>
+            </Field>
             <div className="sm:col-span-2 rounded-md border border-border bg-background/60 p-4">
               <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Live preview · per guest</div>
               <div className="mt-2 grid grid-cols-2 gap-y-1 text-sm">
@@ -281,6 +321,14 @@ function SectionCard({
                   {formatMoney(previewTotal)}
                 </span>
               </div>
+              {(local.internal_nightly_rate ?? 0) > 0 && (
+                <div className="mt-3 border-t border-border pt-2 text-[11px] text-muted-foreground">
+                  Guest rate after couple contribution:{" "}
+                  <span className="tabular-nums text-foreground">
+                    {formatMoney(Math.max((local.internal_nightly_rate ?? 0) - (local.couple_contribution ?? 0), 0))}/night
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

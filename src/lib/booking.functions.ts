@@ -190,6 +190,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
       secondaryAddonIds: z.array(z.string().uuid()).max(20).default([]),
       eventSlug: z.string().min(1).max(120),
       sectionSlug: z.string().min(1).max(120),
+      cotRequested: z.boolean().default(false),
     }).parse,
   )
   .handler(async ({ data }) => {
@@ -211,7 +212,34 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
       );
     }
 
-    const allLineItems = [...primary.lineItems, ...(secondary?.lineItems ?? [])];
+    // Cot fee — flat rate based on the primary booking's nights.
+    let cotFee = 0;
+    const cotLineItems: CheckoutLineItem[] = [];
+    if (data.cotRequested) {
+      const { data: secRow } = await supabaseAdmin
+        .from("lb_room_sections")
+        .select("cot_1night_rate, cot_2night_rate")
+        .eq("id", primary.booking.section_id)
+        .single();
+      cotFee =
+        primary.nights <= 1
+          ? Number(secRow?.cot_1night_rate ?? 100)
+          : Number(secRow?.cot_2night_rate ?? 150);
+      cotLineItems.push({
+        quantity: 1,
+        price_data: {
+          currency: "usd",
+          unit_amount: Math.round(cotFee * 100),
+          tax_behavior: "exclusive",
+          product_data: {
+            name: `3rd guest / cot setup (${primary.nights} night${primary.nights === 1 ? "" : "s"})`,
+            tax_code: "txcd_20030000",
+          },
+        },
+      });
+    }
+
+    const allLineItems = [...primary.lineItems, ...cotLineItems, ...(secondary?.lineItems ?? [])];
 
     // Determine deposit vs full. If schedule is split_50_50 we still charge full at
     // checkout, but webhook will mark deposit_paid + final still owed. The "manual
@@ -256,6 +284,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         event_slug: data.eventSlug,
         section_slug: data.sectionSlug,
         payment_schedule: isSplit ? "split_50_50" : "full",
+        cot_requested: data.cotRequested ? "1" : "0",
       },
     });
 
@@ -267,7 +296,9 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         base_amount: primary.baseAmount,
         addon_amount: primary.addonAmount,
         resort_fee: primary.resortFee,
-        total_amount: primary.baseAmount + primary.addonAmount + primary.resortFee,
+        total_amount: primary.baseAmount + primary.addonAmount + primary.resortFee + cotFee,
+        cot_requested: data.cotRequested,
+        cot_fee: cotFee,
         addons_selected: primary.selected.map((a) => ({ id: a.id, name: a.addon_name, price: Number(a.addon_price) })),
       })
       .eq("id", data.bookingId);

@@ -117,7 +117,14 @@ function PaymentSummaryPage() {
             {bookings.map((b) => (
               <tr key={b.id} className="border-b border-border last:border-0">
                 <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(b.booked_at).toLocaleString()}</td>
-                <td className="px-4 py-3">{b.guest_name}</td>
+                <td className="px-4 py-3">
+                  <span>{b.guest_name}</span>
+                  {b.cot_requested && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-900">
+                      🛏️ Cot
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{b.stripe_payment_id ?? "—"}</td>
                 <td className="px-4 py-3 text-xs uppercase tracking-wider">{b.payment_status}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{formatMoney(b.total_amount)}</td>

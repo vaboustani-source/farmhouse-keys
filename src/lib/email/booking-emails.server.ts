@@ -102,21 +102,27 @@ export async function sendAdminNotification(opts: {
   paymentType: "deposit" | "full";
   weddingName: string;
   secondaryGuestName?: string | null;
+  cotRequested?: boolean;
+  cotFee?: number;
+  checkIn?: string;
+  checkOut?: string;
 }) {
   const to = process.env.BRANDON_NOTIFICATION_EMAIL;
   if (!to) return;
   const body = `
-    <h2 style="font-family:'Cormorant Garamond',serif; font-size:24px; margin:0 0 16px;">New lodging payment</h2>
+    <h2 style="font-family:'Cormorant Garamond',serif; font-size:24px; margin:0 0 16px;">New lodging payment${opts.cotRequested ? " · 🛏️ COT REQUESTED" : ""}</h2>
+    ${opts.cotRequested ? `<div style="background:#C9A84C; color:#1A1A1A; padding:12px; margin-bottom:16px; font-family:'Jost',sans-serif; font-size:14px; text-align:center; letter-spacing:0.08em; text-transform:uppercase;">3rd guest / cot setup requested · ${fmtMoney(opts.cotFee ?? 0)}</div>` : ""}
     <table style="font-family:'Jost',sans-serif; font-size:14px; width:100%; border-collapse:collapse;">
       <tr><td style="padding:6px 0; color:#6B6B6B;">Wedding</td><td style="padding:6px 0; text-align:right;">${opts.weddingName}</td></tr>
       <tr><td style="padding:6px 0; color:#6B6B6B;">Guest</td><td style="padding:6px 0; text-align:right;">${opts.guestName}</td></tr>
       ${opts.secondaryGuestName ? `<tr><td style="padding:6px 0; color:#6B6B6B;">Covering</td><td style="padding:6px 0; text-align:right;">${opts.secondaryGuestName}</td></tr>` : ""}
       <tr><td style="padding:6px 0; color:#6B6B6B;">Section</td><td style="padding:6px 0; text-align:right;">${opts.sectionName}</td></tr>
+      ${opts.checkIn ? `<tr><td style="padding:6px 0; color:#6B6B6B;">Dates</td><td style="padding:6px 0; text-align:right;">${fmtDate(opts.checkIn)} → ${fmtDate(opts.checkOut)}</td></tr>` : ""}
       <tr><td style="padding:6px 0; color:#6B6B6B;">Type</td><td style="padding:6px 0; text-align:right;">${opts.paymentType === "deposit" ? "Deposit (50%)" : "Paid in full"}</td></tr>
       <tr><td style="padding:6px 0; color:#6B6B6B;">Amount</td><td style="padding:6px 0; text-align:right;">${fmtMoney(opts.amount)}</td></tr>
     </table>
   `;
-  await getResend().emails.send({ from: FROM, to, subject: `[Lodging] ${opts.guestName} — ${opts.paymentType === "deposit" ? "Deposit" : "Paid"} ${fmtMoney(opts.amount)}`, html: wrap(body) });
+  await getResend().emails.send({ from: FROM, to, subject: `[Lodging${opts.cotRequested ? " · COT" : ""}] ${opts.guestName} — ${opts.paymentType === "deposit" ? "Deposit" : "Paid"} ${fmtMoney(opts.amount)}`, html: wrap(body) });
 }
 
 export async function sendPaymentFailedEmail(opts: { to: string; guestName: string; weddingName: string }) {

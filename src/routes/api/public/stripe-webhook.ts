@@ -79,7 +79,7 @@ export const Route = createFileRoute("/api/public/stripe-webhook")({
             // Fetch enriched data for emails
             const { data: bookings } = await supabaseAdmin
               .from("lb_bookings")
-              .select("id, guest_name, guest_email, total_amount, event_id, section_id")
+              .select("id, guest_name, guest_email, total_amount, event_id, section_id, cot_requested, cot_fee")
               .in("id", [primaryId, ...(secondaryId ? [secondaryId] : [])]);
 
             const primary = bookings?.find((b) => b.id === primaryId);
@@ -132,6 +132,10 @@ export const Route = createFileRoute("/api/public/stripe-webhook")({
                 paymentType: isSplit ? "deposit" : "full",
                 weddingName: ev?.wedding_name ?? "",
                 secondaryGuestName: secondary?.guest_name ?? null,
+                cotRequested: !!(primary as { cot_requested?: boolean }).cot_requested,
+                cotFee: Number((primary as { cot_fee?: number }).cot_fee ?? 0),
+                checkIn: ev?.check_in_date ?? "",
+                checkOut: ev?.check_out_date ?? "",
               });
 
               if (secondary) {

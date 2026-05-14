@@ -225,6 +225,15 @@ function ReviewStep({
   const [secondaryLookupErr, setSecondaryLookupErr] = useState<string | null>(null);
   const [lookingUpSecondary, setLookingUpSecondary] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [cotRequested, setCotRequested] = useState(false);
+
+  const cotFee = useMemo(() => {
+    if (!cotRequested) return 0;
+    const nights = booking.nights || 2;
+    return nights <= 1
+      ? Number(booking.cot_1night_rate ?? 100)
+      : Number(booking.cot_2night_rate ?? 150);
+  }, [cotRequested, booking]);
 
   useEffect(() => {
     fetchAddons({ data: { sectionId: booking.section_id } }).then(({ addons }) => {
@@ -264,6 +273,7 @@ function ReviewStep({
   }, [secondary, secondaryAddons, secondarySelectedIds]);
 
   const grandTotal = calc.total + (secondaryCalc?.total ?? 0);
+  const grandTotalWithCot = grandTotal + cotFee;
 
   const lookupSecondHandler = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -305,6 +315,7 @@ function ReviewStep({
           ),
           eventSlug,
           sectionSlug,
+          cotRequested,
         },
       });
       if (url) window.location.href = url;
@@ -314,8 +325,8 @@ function ReviewStep({
   };
 
   const isSplit = booking.payment_schedule === "split_50_50";
-  const dueToday = isSplit ? grandTotal * 0.5 : grandTotal;
-  const remainingDue = isSplit ? grandTotal * 0.5 : 0;
+  const dueToday = isSplit ? grandTotalWithCot * 0.5 : grandTotalWithCot;
+  const remainingDue = isSplit ? grandTotalWithCot * 0.5 : 0;
 
   return (
     <div>
@@ -387,6 +398,29 @@ function ReviewStep({
           </div>
         </div>
       )}
+
+      {/* Cot / 3rd guest */}
+      <div className="mt-4 rounded-md border border-[#E8E2D9] bg-white p-6">
+          <label className="flex cursor-pointer items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="font-serif text-xl">Add a 3rd guest</div>
+              <div className="mt-1 text-sm text-[#6B6B6B]">
+                Cot setup in your room — additional charge applies.
+              </div>
+              <div className="mt-2 text-xs text-[#6B6B6B]">
+                {(booking.nights || 2) <= 1
+                  ? `Flat ${fmtMoney(Number(booking.cot_1night_rate ?? 100))} for 1 night`
+                  : `Flat ${fmtMoney(Number(booking.cot_2night_rate ?? 150))} for ${booking.nights} nights`}
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={cotRequested}
+              onChange={(e) => setCotRequested(e.target.checked)}
+              className="mt-1 h-5 w-5 accent-[#2C3E2D]"
+            />
+          </label>
+      </div>
 
       {/* Card 3: Secondary guest */}
       {!secondary && (
@@ -477,11 +511,14 @@ function ReviewStep({
             value={fmtMoney(calc.resortFee + (secondaryCalc?.resortFee ?? 0))}
           />
           <Row label="NY Sales Tax (est. 8%)" value={fmtMoney(calc.tax + (secondaryCalc?.tax ?? 0))} />
+          {cotRequested && (
+            <Row label="3rd guest / cot setup" value={fmtMoney(cotFee)} />
+          )}
         </div>
         <div className="mt-4 border-t border-[#E8E2D9] pt-4">
           <div className="flex items-baseline justify-between">
             <div className="font-serif text-lg">Total</div>
-            <div className="font-serif text-2xl text-[#2C3E2D]">{fmtMoney(grandTotal)}</div>
+            <div className="font-serif text-2xl text-[#2C3E2D]">{fmtMoney(grandTotalWithCot)}</div>
           </div>
           {isSplit ? (
             <div className="mt-3 space-y-1 text-sm">

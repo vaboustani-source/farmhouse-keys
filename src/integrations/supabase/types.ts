@@ -2578,6 +2578,10 @@ export type Database = {
           booking_link_slug: string
           check_in_date: string
           check_out_date: string
+          cot_1night_rate: number
+          cot_2night_rate: number
+          cot_fee: number
+          cot_requested: boolean
           couple_names: string
           covered_at: string
           deposit_paid_at: string

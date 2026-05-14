@@ -511,11 +511,14 @@ function ReviewStep({
             value={fmtMoney(calc.resortFee + (secondaryCalc?.resortFee ?? 0))}
           />
           <Row label="NY Sales Tax (est. 8%)" value={fmtMoney(calc.tax + (secondaryCalc?.tax ?? 0))} />
+          {cotRequested && (
+            <Row label="3rd guest / cot setup" value={fmtMoney(cotFee)} />
+          )}
         </div>
         <div className="mt-4 border-t border-[#E8E2D9] pt-4">
           <div className="flex items-baseline justify-between">
             <div className="font-serif text-lg">Total</div>
-            <div className="font-serif text-2xl text-[#2C3E2D]">{fmtMoney(grandTotal)}</div>
+            <div className="font-serif text-2xl text-[#2C3E2D]">{fmtMoney(grandTotalWithCot)}</div>
           </div>
           {isSplit ? (
             <div className="mt-3 space-y-1 text-sm">

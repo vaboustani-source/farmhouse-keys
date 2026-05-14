@@ -39,7 +39,9 @@ export type LbRoomSection = {
   couple_contribution: number;
   guest_nightly_rate: number | null;
   resort_fee_percent: number;
-  payment_schedule: "full" | "split_50_50";
+  processing_fee_percent: number;
+  tax_percent: number;
+  payment_schedule: "full_upfront" | "deposit_50_balance_50" | "full" | "split_50_50";
   nights: number;
 };
 

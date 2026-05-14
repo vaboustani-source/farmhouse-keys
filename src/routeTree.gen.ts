@@ -15,6 +15,7 @@ import { Route as EventsEventIdIndexRouteImport } from './routes/events.$eventId
 import { Route as EventsEventIdPaymentsRouteImport } from './routes/events.$eventId.payments'
 import { Route as EventsEventIdGuestsRouteImport } from './routes/events.$eventId.guests'
 import { Route as EventsEventIdEditRouteImport } from './routes/events.$eventId.edit'
+import { Route as BookEventSlugSectionSlugRouteImport } from './routes/book.$eventSlug.$sectionSlug'
 import { Route as ApiPublicStripeWebhookRouteImport } from './routes/api/public/stripe-webhook'
 import { Route as EventsEventIdSectionsSectionIdRouteImport } from './routes/events.$eventId.sections.$sectionId'
 
@@ -48,6 +49,12 @@ const EventsEventIdEditRoute = EventsEventIdEditRouteImport.update({
   path: '/events/$eventId/edit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BookEventSlugSectionSlugRoute =
+  BookEventSlugSectionSlugRouteImport.update({
+    id: '/book/$eventSlug/$sectionSlug',
+    path: '/book/$eventSlug/$sectionSlug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicStripeWebhookRoute = ApiPublicStripeWebhookRouteImport.update({
   id: '/api/public/stripe-webhook',
   path: '/api/public/stripe-webhook',
@@ -64,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/events/new': typeof EventsNewRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
+  '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRoute
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
@@ -74,6 +82,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/events/new': typeof EventsNewRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
+  '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRoute
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
@@ -85,6 +94,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/events/new': typeof EventsNewRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
+  '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRoute
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/'
     | '/events/new'
     | '/api/public/stripe-webhook'
+    | '/book/$eventSlug/$sectionSlug'
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/'
     | '/events/new'
     | '/api/public/stripe-webhook'
+    | '/book/$eventSlug/$sectionSlug'
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
@@ -117,6 +129,7 @@ export interface FileRouteTypes {
     | '/'
     | '/events/new'
     | '/api/public/stripe-webhook'
+    | '/book/$eventSlug/$sectionSlug'
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
@@ -128,6 +141,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EventsNewRoute: typeof EventsNewRoute
   ApiPublicStripeWebhookRoute: typeof ApiPublicStripeWebhookRoute
+  BookEventSlugSectionSlugRoute: typeof BookEventSlugSectionSlugRoute
   EventsEventIdEditRoute: typeof EventsEventIdEditRoute
   EventsEventIdGuestsRoute: typeof EventsEventIdGuestsRoute
   EventsEventIdPaymentsRoute: typeof EventsEventIdPaymentsRoute
@@ -179,6 +193,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdEditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/book/$eventSlug/$sectionSlug': {
+      id: '/book/$eventSlug/$sectionSlug'
+      path: '/book/$eventSlug/$sectionSlug'
+      fullPath: '/book/$eventSlug/$sectionSlug'
+      preLoaderRoute: typeof BookEventSlugSectionSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/stripe-webhook': {
       id: '/api/public/stripe-webhook'
       path: '/api/public/stripe-webhook'
@@ -200,6 +221,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EventsNewRoute: EventsNewRoute,
   ApiPublicStripeWebhookRoute: ApiPublicStripeWebhookRoute,
+  BookEventSlugSectionSlugRoute: BookEventSlugSectionSlugRoute,
   EventsEventIdEditRoute: EventsEventIdEditRoute,
   EventsEventIdGuestsRoute: EventsEventIdGuestsRoute,
   EventsEventIdPaymentsRoute: EventsEventIdPaymentsRoute,

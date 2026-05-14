@@ -327,6 +327,26 @@ function SectionCard({
                 <option value="deposit_50_balance_50">50% deposit, 50% balance</option>
               </select>
             </Field>
+            <Field label="Cot — 1 night flat rate ($)">
+              <input
+                type="number"
+                min={0}
+                step={1}
+                className="lb-input"
+                value={local.cot_1night_rate ?? 100}
+                onChange={(e) => saveSection({ cot_1night_rate: parseFloat(e.target.value) || 0 })}
+              />
+            </Field>
+            <Field label="Cot — 2 night flat rate ($)">
+              <input
+                type="number"
+                min={0}
+                step={1}
+                className="lb-input"
+                value={local.cot_2night_rate ?? 150}
+                onChange={(e) => saveSection({ cot_2night_rate: parseFloat(e.target.value) || 0 })}
+              />
+            </Field>
             <div className="sm:col-span-2 rounded-md border border-border bg-background/60 p-4">
               <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Live preview · per guest</div>
               <div className="mt-2 grid grid-cols-2 gap-y-1 text-sm">

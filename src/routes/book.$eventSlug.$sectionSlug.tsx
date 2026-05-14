@@ -225,6 +225,15 @@ function ReviewStep({
   const [secondaryLookupErr, setSecondaryLookupErr] = useState<string | null>(null);
   const [lookingUpSecondary, setLookingUpSecondary] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [cotRequested, setCotRequested] = useState(false);
+
+  const cotFee = useMemo(() => {
+    if (!cotRequested) return 0;
+    const nights = booking.nights || 2;
+    return nights <= 1
+      ? Number(booking.cot_1night_rate ?? 100)
+      : Number(booking.cot_2night_rate ?? 150);
+  }, [cotRequested, booking]);
 
   useEffect(() => {
     fetchAddons({ data: { sectionId: booking.section_id } }).then(({ addons }) => {
@@ -264,6 +273,7 @@ function ReviewStep({
   }, [secondary, secondaryAddons, secondarySelectedIds]);
 
   const grandTotal = calc.total + (secondaryCalc?.total ?? 0);
+  const grandTotalWithCot = grandTotal + cotFee;
 
   const lookupSecondHandler = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -305,6 +315,7 @@ function ReviewStep({
           ),
           eventSlug,
           sectionSlug,
+          cotRequested,
         },
       });
       if (url) window.location.href = url;
@@ -314,8 +325,8 @@ function ReviewStep({
   };
 
   const isSplit = booking.payment_schedule === "split_50_50";
-  const dueToday = isSplit ? grandTotal * 0.5 : grandTotal;
-  const remainingDue = isSplit ? grandTotal * 0.5 : 0;
+  const dueToday = isSplit ? grandTotalWithCot * 0.5 : grandTotalWithCot;
+  const remainingDue = isSplit ? grandTotalWithCot * 0.5 : 0;
 
   return (
     <div>

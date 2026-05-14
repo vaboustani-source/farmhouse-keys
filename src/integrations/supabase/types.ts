@@ -1237,6 +1237,8 @@ export type Database = {
           addons_selected: Json
           base_amount: number
           booked_at: string
+          cot_fee: number
+          cot_requested: boolean
           covered_at: string | null
           covered_by_booking_id: string | null
           deposit_paid_at: string | null
@@ -1264,6 +1266,8 @@ export type Database = {
           addons_selected?: Json
           base_amount?: number
           booked_at?: string
+          cot_fee?: number
+          cot_requested?: boolean
           covered_at?: string | null
           covered_by_booking_id?: string | null
           deposit_paid_at?: string | null
@@ -1291,6 +1295,8 @@ export type Database = {
           addons_selected?: Json
           base_amount?: number
           booked_at?: string
+          cot_fee?: number
+          cot_requested?: boolean
           covered_at?: string | null
           covered_by_booking_id?: string | null
           deposit_paid_at?: string | null
@@ -1388,6 +1394,8 @@ export type Database = {
       lb_room_sections: {
         Row: {
           booking_link_slug: string | null
+          cot_1night_rate: number
+          cot_2night_rate: number
           couple_contribution: number
           created_at: string
           custom_contributions: Json | null
@@ -1409,6 +1417,8 @@ export type Database = {
         }
         Insert: {
           booking_link_slug?: string | null
+          cot_1night_rate?: number
+          cot_2night_rate?: number
           couple_contribution?: number
           created_at?: string
           custom_contributions?: Json | null
@@ -1430,6 +1440,8 @@ export type Database = {
         }
         Update: {
           booking_link_slug?: string | null
+          cot_1night_rate?: number
+          cot_2night_rate?: number
           couple_contribution?: number
           created_at?: string
           custom_contributions?: Json | null

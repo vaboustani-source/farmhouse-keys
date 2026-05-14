@@ -43,6 +43,10 @@ function EventDetailPage() {
   const totalRevenue = paidBookings.reduce((s, b) => s + Number(b.total_amount), 0);
   const totalRoomsBooked = bookings.filter((b) => b.payment_status !== "failed").length;
   const totalRoomsCapacity = sections.filter((s) => s.is_active).reduce((s, x) => s + x.total_rooms, 0);
+  const guestsConfirmed = bookings.filter(
+    (b) => b.payment_status === "paid" || (b.payment_status as string) === "covered",
+  ).length;
+  const GUEST_CAPACITY = 40;
 
   const copyLink = (slug: string | null) => {
     if (!slug) return;
@@ -94,6 +98,14 @@ function EventDetailPage() {
         <Stat label="Rooms booked" value={`${totalRoomsBooked} / ${totalRoomsCapacity || "—"}`} />
         <Stat label="Revenue collected" value={formatMoney(totalRevenue)} />
         <Stat label="Reservations" value={`${bookings.length}`} />
+      </div>
+
+      <div className="mb-10 rounded-lg border border-border bg-card px-6 py-8 text-center">
+        <div className="font-serif text-5xl text-foreground">
+          {guestsConfirmed} <span className="text-muted-foreground">of</span> {GUEST_CAPACITY}{" "}
+          <span className="text-foreground">guests confirmed</span>
+        </div>
+        <div className="mt-2 text-sm text-muted-foreground">across all four lodging sections</div>
       </div>
 
       <h2 className="mb-4 font-serif text-2xl text-foreground">Sections</h2>

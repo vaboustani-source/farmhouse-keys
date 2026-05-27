@@ -324,7 +324,9 @@ function ReviewStep({
     }
   };
 
-  const isSplit = booking.payment_schedule === "split_50_50";
+  const isSplit =
+    booking.payment_schedule === "split_50_50" ||
+    booking.payment_schedule === "deposit_50_balance_50";
   const dueToday = isSplit ? grandTotalWithCot * 0.5 : grandTotalWithCot;
   const remainingDue = isSplit ? grandTotalWithCot * 0.5 : 0;
 

@@ -179,7 +179,6 @@ function EventDetailPage() {
                   </button>
                 </div>
               )}
-              <div className="mt-4 flex justify-end">
               <div className="mt-4 flex items-center justify-between gap-3">
                 <button
                   onClick={() => toggleActive(s)}

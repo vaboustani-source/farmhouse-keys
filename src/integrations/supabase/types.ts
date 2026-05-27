@@ -1254,6 +1254,8 @@ export type Database = {
           payment_status: string
           reminder_count: number
           reminder_sent_at: string | null
+          removed: boolean
+          removed_at: string | null
           resort_fee: number
           room_assignment: string | null
           section_id: string
@@ -1285,6 +1287,8 @@ export type Database = {
           payment_status?: string
           reminder_count?: number
           reminder_sent_at?: string | null
+          removed?: boolean
+          removed_at?: string | null
           resort_fee?: number
           room_assignment?: string | null
           section_id: string
@@ -1316,6 +1320,8 @@ export type Database = {
           payment_status?: string
           reminder_count?: number
           reminder_sent_at?: string | null
+          removed?: boolean
+          removed_at?: string | null
           resort_fee?: number
           room_assignment?: string | null
           section_id?: string

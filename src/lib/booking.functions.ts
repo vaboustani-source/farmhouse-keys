@@ -245,8 +245,18 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
     // checkout, but webhook will mark deposit_paid + final still owed. The "manual
     // reminder" model: we'll send a reminder email later — guest pays again then.
     // For split, primary booking gets charged 50% now via custom amount.
+    // Read section's payment schedule (source of truth) — fall back to booking.
+    const { data: scheduleRow } = await supabaseAdmin
+      .from("lb_room_sections")
+      .select("payment_schedule")
+      .eq("id", primary.booking.section_id)
+      .single();
+    const effectiveSchedule =
+      scheduleRow?.payment_schedule ?? primary.booking.payment_schedule;
     let appliedAmounts = allLineItems;
-    let isSplit = primary.booking.payment_schedule === "split_50_50";
+    const isSplit =
+      effectiveSchedule === "split_50_50" ||
+      effectiveSchedule === "deposit_50_balance_50";
     if (isSplit) {
       // Recompute as 50% deposit single-line items per category.
       const halfFor = (items: CheckoutLineItem[]): CheckoutLineItem[] =>

@@ -35,7 +35,9 @@ export const Route = createFileRoute("/api/public/stripe-webhook")({
             const metadata = session.metadata ?? {};
             const primaryId = metadata.primary_booking_id;
             const secondaryId = metadata.secondary_booking_id || null;
-            const isSplit = metadata.payment_schedule === "split_50_50";
+            const isSplit =
+              metadata.payment_schedule === "split_50_50" ||
+              metadata.payment_schedule === "deposit_50_balance_50";
             if (!primaryId) {
               return new Response("ok", { status: 200 });
             }

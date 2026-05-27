@@ -180,6 +180,17 @@ function EventDetailPage() {
                 </div>
               )}
               <div className="mt-4 flex justify-end">
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <button
+                  onClick={() => toggleActive(s)}
+                  className={`text-[11px] uppercase tracking-[0.16em] transition-colors ${
+                    s.is_active
+                      ? "text-muted-foreground hover:text-foreground"
+                      : "text-primary hover:text-accent"
+                  }`}
+                >
+                  {s.is_active ? "Move to draft" : "Activate block"}
+                </button>
                 <Link
                   to="/events/$eventId/sections/$sectionId"
                   params={{ eventId, sectionId: s.id }}

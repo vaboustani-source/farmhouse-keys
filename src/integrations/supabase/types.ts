@@ -1528,12 +1528,50 @@ export type Database = {
           },
         ]
       }
+      lb_sync_log: {
+        Row: {
+          action: string
+          created_at: string
+          direction: string
+          event_id: string | null
+          guest_email: string | null
+          id: string
+          lb_booking_id: string | null
+          lodging_assignment_id: string | null
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          direction: string
+          event_id?: string | null
+          guest_email?: string | null
+          id?: string
+          lb_booking_id?: string | null
+          lodging_assignment_id?: string | null
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          direction?: string
+          event_id?: string | null
+          guest_email?: string | null
+          id?: string
+          lb_booking_id?: string | null
+          lodging_assignment_id?: string | null
+          reason?: string | null
+        }
+        Relationships: []
+      }
       lodging_assignments: {
         Row: {
           assigned_guest_email: string | null
           assigned_guest_name: string | null
           brandon_notes: string | null
+          deposit_paid_at: string | null
           event_id: string | null
+          final_paid_at: string | null
           host_pays: boolean | null
           id: string
           invoice_1_sent: boolean | null
@@ -1542,13 +1580,20 @@ export type Database = {
           payment_completed_date: string | null
           payment_method: string | null
           payment_mode: string | null
+          payment_status: string | null
+          removed: boolean
+          removed_at: string | null
           room_id: string | null
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
         }
         Insert: {
           assigned_guest_email?: string | null
           assigned_guest_name?: string | null
           brandon_notes?: string | null
+          deposit_paid_at?: string | null
           event_id?: string | null
+          final_paid_at?: string | null
           host_pays?: boolean | null
           id?: string
           invoice_1_sent?: boolean | null
@@ -1557,13 +1602,20 @@ export type Database = {
           payment_completed_date?: string | null
           payment_method?: string | null
           payment_mode?: string | null
+          payment_status?: string | null
+          removed?: boolean
+          removed_at?: string | null
           room_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
         }
         Update: {
           assigned_guest_email?: string | null
           assigned_guest_name?: string | null
           brandon_notes?: string | null
+          deposit_paid_at?: string | null
           event_id?: string | null
+          final_paid_at?: string | null
           host_pays?: boolean | null
           id?: string
           invoice_1_sent?: boolean | null
@@ -1572,7 +1624,12 @@ export type Database = {
           payment_completed_date?: string | null
           payment_method?: string | null
           payment_mode?: string | null
+          payment_status?: string | null
+          removed?: boolean
+          removed_at?: string | null
           room_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
         }
         Relationships: [
           {
@@ -2566,6 +2623,10 @@ export type Database = {
       }
       lb_ensure_block_for_event: {
         Args: { _event_id: string }
+        Returns: string
+      }
+      lb_section_name_for_room_type: {
+        Args: { _room_type: string }
         Returns: string
       }
       lookup_guest_booking: {

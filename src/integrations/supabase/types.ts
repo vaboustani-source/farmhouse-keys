@@ -1252,6 +1252,8 @@ export type Database = {
           nights_booked: number
           payment_schedule: string
           payment_status: string
+          reminder_count: number
+          reminder_sent_at: string | null
           resort_fee: number
           room_assignment: string | null
           section_id: string
@@ -1281,6 +1283,8 @@ export type Database = {
           nights_booked?: number
           payment_schedule?: string
           payment_status?: string
+          reminder_count?: number
+          reminder_sent_at?: string | null
           resort_fee?: number
           room_assignment?: string | null
           section_id: string
@@ -1310,6 +1314,8 @@ export type Database = {
           nights_booked?: number
           payment_schedule?: string
           payment_status?: string
+          reminder_count?: number
+          reminder_sent_at?: string | null
           resort_fee?: number
           room_assignment?: string | null
           section_id?: string
@@ -1347,6 +1353,7 @@ export type Database = {
         Row: {
           check_in_date: string | null
           check_out_date: string | null
+          couple_access_token: string
           couple_names: string
           created_at: string
           id: string
@@ -1362,6 +1369,7 @@ export type Database = {
         Insert: {
           check_in_date?: string | null
           check_out_date?: string | null
+          couple_access_token?: string
           couple_names: string
           created_at?: string
           id?: string
@@ -1377,6 +1385,7 @@ export type Database = {
         Update: {
           check_in_date?: string | null
           check_out_date?: string | null
+          couple_access_token?: string
           couple_names?: string
           created_at?: string
           id?: string
@@ -2675,6 +2684,18 @@ export type Database = {
           payment_status: string
           resort_fee_percent: number
           section_name: string
+        }[]
+      }
+      lookup_tracker_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          bookings: Json
+          check_in_date: string
+          check_out_date: string
+          couple_names: string
+          event_id: string
+          sections: Json
+          wedding_name: string
         }[]
       }
       seed_checklist: { Args: { p_event_id: string }; Returns: undefined }

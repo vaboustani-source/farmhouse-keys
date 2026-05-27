@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TrackerAccessTokenRouteImport } from './routes/tracker.$accessToken'
 import { Route as EventsNewRouteImport } from './routes/events.new'
 import { Route as EventsEventIdIndexRouteImport } from './routes/events.$eventId.index'
 import { Route as EventsEventIdPaymentsRouteImport } from './routes/events.$eventId.payments'
@@ -23,6 +24,11 @@ import { Route as BookEventSlugSectionSlugConfirmationRouteImport } from './rout
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrackerAccessTokenRoute = TrackerAccessTokenRouteImport.update({
+  id: '/tracker/$accessToken',
+  path: '/tracker/$accessToken',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EventsNewRoute = EventsNewRouteImport.update({
@@ -77,6 +83,7 @@ const BookEventSlugSectionSlugConfirmationRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/events/new': typeof EventsNewRoute
+  '/tracker/$accessToken': typeof TrackerAccessTokenRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
   '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
@@ -89,6 +96,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/events/new': typeof EventsNewRoute
+  '/tracker/$accessToken': typeof TrackerAccessTokenRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
   '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/events/new': typeof EventsNewRoute
+  '/tracker/$accessToken': typeof TrackerAccessTokenRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
   '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/events/new'
+    | '/tracker/$accessToken'
     | '/api/public/stripe-webhook'
     | '/book/$eventSlug/$sectionSlug'
     | '/events/$eventId/edit'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/events/new'
+    | '/tracker/$accessToken'
     | '/api/public/stripe-webhook'
     | '/book/$eventSlug/$sectionSlug'
     | '/events/$eventId/edit'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/events/new'
+    | '/tracker/$accessToken'
     | '/api/public/stripe-webhook'
     | '/book/$eventSlug/$sectionSlug'
     | '/events/$eventId/edit'
@@ -153,6 +165,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EventsNewRoute: typeof EventsNewRoute
+  TrackerAccessTokenRoute: typeof TrackerAccessTokenRoute
   ApiPublicStripeWebhookRoute: typeof ApiPublicStripeWebhookRoute
   BookEventSlugSectionSlugRoute: typeof BookEventSlugSectionSlugRouteWithChildren
   EventsEventIdEditRoute: typeof EventsEventIdEditRoute
@@ -169,6 +182,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tracker/$accessToken': {
+      id: '/tracker/$accessToken'
+      path: '/tracker/$accessToken'
+      fullPath: '/tracker/$accessToken'
+      preLoaderRoute: typeof TrackerAccessTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/events/new': {
@@ -255,6 +275,7 @@ const BookEventSlugSectionSlugRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EventsNewRoute: EventsNewRoute,
+  TrackerAccessTokenRoute: TrackerAccessTokenRoute,
   ApiPublicStripeWebhookRoute: ApiPublicStripeWebhookRoute,
   BookEventSlugSectionSlugRoute: BookEventSlugSectionSlugRouteWithChildren,
   EventsEventIdEditRoute: EventsEventIdEditRoute,

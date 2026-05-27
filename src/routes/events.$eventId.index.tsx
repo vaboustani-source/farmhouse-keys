@@ -44,11 +44,13 @@ function EventDetailPage() {
   const { event, sections, bookings } = data;
   const paidBookings = bookings.filter((b) => b.payment_status === "paid");
   const totalRevenue = paidBookings.reduce((s, b) => s + Number(b.total_amount), 0);
-  const totalRoomsBooked = bookings.filter((b) => b.payment_status !== "failed").length;
+  const CONFIRMED_STATUSES = new Set(["paid", "deposit_paid", "covered"]);
+  const isConfirmed = (b: LbBooking) =>
+    CONFIRMED_STATUSES.has(b.payment_status as string) &&
+    (b as LbBooking & { removed?: boolean | null }).removed !== true;
+  const totalRoomsBooked = bookings.filter(isConfirmed).length;
   const totalRoomsCapacity = sections.filter((s) => s.is_active).reduce((s, x) => s + x.total_rooms, 0);
-  const guestsConfirmed = bookings.filter(
-    (b) => b.payment_status === "paid" || (b.payment_status as string) === "covered",
-  ).length;
+  const guestsConfirmed = bookings.filter(isConfirmed).length;
   const GUEST_CAPACITY = 40;
 
   const copyLink = (slug: string | null) => {
@@ -139,7 +141,7 @@ function EventDetailPage() {
       <h2 className="mb-4 font-serif text-2xl text-foreground">Sections</h2>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {sections.map((s) => {
-          const filled = bookings.filter((b) => b.section_id === s.id && b.payment_status !== "failed").length;
+          const filled = bookings.filter((b) => b.section_id === s.id && isConfirmed(b)).length;
           const url = s.booking_link_slug ? `${window.location.origin}/book/${s.booking_link_slug}` : null;
           return (
             <div key={s.id} className="rounded-lg border border-border bg-card p-6">

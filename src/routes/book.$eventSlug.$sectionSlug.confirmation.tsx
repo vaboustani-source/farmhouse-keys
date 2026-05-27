@@ -42,6 +42,14 @@ function ConfirmationPage() {
       if (ready || attempts >= 8) {
         setBookings(bookings);
         setLoading(false);
+        if (ready) {
+          // Clear any in-flight booking session state for this event/section.
+          try {
+            Object.keys(sessionStorage)
+              .filter((k) => k.startsWith("gfh_booking_"))
+              .forEach((k) => sessionStorage.removeItem(k));
+          } catch {}
+        }
       } else {
         attempts++;
         setTimeout(tick, 1500);

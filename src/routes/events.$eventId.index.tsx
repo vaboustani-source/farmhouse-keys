@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { Copy, Pencil, Receipt, Users } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Copy, Pencil, Receipt, RefreshCw, Users } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { supabase, type LbBooking, type LbEvent, type LbRoomSection } from "@/integrations/supabase/client";
 import { AdminShell, FillBar, StatusBadge, formatDate, formatMoney } from "@/components/lb/AdminShell";
@@ -25,10 +26,12 @@ async function fetchDetail(id: string) {
 
 function EventDetailPage() {
   const { eventId } = Route.useParams();
+  const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["lb_event_detail", eventId],
     queryFn: () => fetchDetail(eventId),
   });
+  const [regenConfirm, setRegenConfirm] = useState(false);
 
   if (isLoading || !data) {
     return (
@@ -53,6 +56,31 @@ function EventDetailPage() {
     const url = `${window.location.origin}/book/${slug}`;
     navigator.clipboard.writeText(url);
     toast.success("Link copied — ready to send");
+  };
+
+  const trackerUrl =
+    typeof window !== "undefined" && (event as LbEvent & { couple_access_token?: string }).couple_access_token
+      ? `${window.location.origin}/tracker/${(event as LbEvent & { couple_access_token?: string }).couple_access_token}`
+      : null;
+
+  const copyTracker = () => {
+    if (!trackerUrl) return;
+    navigator.clipboard.writeText(trackerUrl);
+    toast.success("Tracker link copied — send this to the couple");
+  };
+
+  const regenerateToken = async () => {
+    const { error } = await supabase
+      .from("lb_events")
+      .update({ couple_access_token: crypto.randomUUID() })
+      .eq("id", eventId);
+    if (error) {
+      toast.error("Couldn't regenerate the link");
+      return;
+    }
+    toast.success("New tracker link generated");
+    setRegenConfirm(false);
+    queryClient.invalidateQueries({ queryKey: ["lb_event_detail", eventId] });
   };
 
   return (
@@ -147,6 +175,56 @@ function EventDetailPage() {
             </div>
           );
         })}
+      </div>
+
+      <div className="mt-10 rounded-lg border border-border bg-card p-6">
+        <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+          Couple tracker link
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          A public, read-only page the couple can revisit to watch their guest list fill up.
+        </p>
+        {trackerUrl ? (
+          <div className="mt-4 flex items-center gap-2 rounded border border-border bg-background/60 px-2.5 py-1.5">
+            <code className="flex-1 truncate text-[11px] text-muted-foreground">{trackerUrl}</code>
+            <button
+              onClick={copyTracker}
+              className="inline-flex items-center gap-1 text-xs text-primary hover:text-accent"
+            >
+              <Copy className="h-3 w-3" /> Copy
+            </button>
+          </div>
+        ) : (
+          <p className="mt-4 text-xs text-muted-foreground">No tracker token on this event yet.</p>
+        )}
+        <div className="mt-4">
+          {regenConfirm ? (
+            <div className="flex items-center gap-3 rounded border border-border bg-background/60 px-3 py-2">
+              <span className="text-xs text-foreground">
+                The old link will stop working. Continue?
+              </span>
+              <button
+                onClick={regenerateToken}
+                className="rounded bg-primary px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-primary-foreground hover:bg-primary/90"
+              >
+                Regenerate
+              </button>
+              <button
+                onClick={() => setRegenConfirm(false)}
+                className="rounded border border-border px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setRegenConfirm(true)}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <RefreshCw className="h-3 w-3" /> Regenerate link
+            </button>
+          )}
+        </div>
       </div>
     </AdminShell>
   );

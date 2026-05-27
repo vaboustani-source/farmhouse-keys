@@ -60,6 +60,20 @@ function EventDetailPage() {
     toast.success("Link copied — ready to send");
   };
 
+  const toggleActive = async (s: LbRoomSection) => {
+    const next = !s.is_active;
+    const { error } = await supabase
+      .from("lb_room_sections")
+      .update({ is_active: next })
+      .eq("id", s.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(next ? "Booking block activated" : "Moved back to draft");
+    queryClient.invalidateQueries({ queryKey: ["lb_event_detail", eventId] });
+  };
+
   const trackerUrl =
     typeof window !== "undefined" && (event as LbEvent & { couple_access_token?: string }).couple_access_token
       ? `${window.location.origin}/tracker/${(event as LbEvent & { couple_access_token?: string }).couple_access_token}`

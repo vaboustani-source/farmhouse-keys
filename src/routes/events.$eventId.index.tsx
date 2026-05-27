@@ -60,6 +60,20 @@ function EventDetailPage() {
     toast.success("Link copied — ready to send");
   };
 
+  const toggleActive = async (s: LbRoomSection) => {
+    const next = !s.is_active;
+    const { error } = await supabase
+      .from("lb_room_sections")
+      .update({ is_active: next })
+      .eq("id", s.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(next ? "Booking block activated" : "Moved back to draft");
+    queryClient.invalidateQueries({ queryKey: ["lb_event_detail", eventId] });
+  };
+
   const trackerUrl =
     typeof window !== "undefined" && (event as LbEvent & { couple_access_token?: string }).couple_access_token
       ? `${window.location.origin}/tracker/${(event as LbEvent & { couple_access_token?: string }).couple_access_token}`
@@ -165,7 +179,17 @@ function EventDetailPage() {
                   </button>
                 </div>
               )}
-              <div className="mt-4 flex justify-end">
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <button
+                  onClick={() => toggleActive(s)}
+                  className={`text-[11px] uppercase tracking-[0.16em] transition-colors ${
+                    s.is_active
+                      ? "text-muted-foreground hover:text-foreground"
+                      : "text-primary hover:text-accent"
+                  }`}
+                >
+                  {s.is_active ? "Move to draft" : "Activate block"}
+                </button>
                 <Link
                   to="/events/$eventId/sections/$sectionId"
                   params={{ eventId, sectionId: s.id }}

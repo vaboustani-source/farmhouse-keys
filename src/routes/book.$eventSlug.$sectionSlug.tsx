@@ -129,16 +129,20 @@ function EmailGate({
   eventSlug,
   sectionSlug,
   onMatched,
+  externalError,
 }: {
   eventSlug: string;
   sectionSlug: string;
   onMatched: (b: Booking) => void;
+  externalError?: string | null;
 }) {
   const lookup = useServerFn(lookupBooking);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [statusBooking, setStatusBooking] = useState<Booking | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const displayedError = error ?? externalError ?? null;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,10 +197,27 @@ function EmailGate({
         >
           {loading ? "Checking your invitation…" : "Continue"}
         </button>
-        {error && <p className="pt-2 text-sm text-[#6B6B6B]">{error}</p>}
+        {displayedError && <p className="pt-2 text-sm text-[#6B6B6B]">{displayedError}</p>}
       </form>
     </div>
   );
+}
+
+class ReviewErrorBoundary extends Component<
+  { children: ReactNode; onError: (err: Error) => void },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error) {
+    this.props.onError(error);
+  }
+  render() {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
 }
 
 function BookingStatusCard({ booking }: { booking: Booking }) {

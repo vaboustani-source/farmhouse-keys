@@ -213,9 +213,14 @@ function SectionCard({
     else onSaved();
   };
 
-  const baseTotal = local.price_per_night * event.nights;
-  const resort = baseTotal * (event.resort_fee_pct / 100);
-  const tax = (baseTotal + resort) * (event.tax_pct / 100);
+  const guestNightly = Math.max(
+    (local.internal_nightly_rate ?? 0) - (local.couple_contribution ?? 0),
+    0,
+  );
+  const nights = event.nights || 2;
+  const baseTotal = guestNightly * nights;
+  const resort = baseTotal * ((local.resort_fee_percent ?? 0) / 100);
+  const tax = (baseTotal + resort) * 0.08;
   const previewTotal = baseTotal + resort + tax;
 
   const bookingUrl = local.booking_link_slug
@@ -267,7 +272,7 @@ function SectionCard({
                 onChange={(e) => saveSection({ price_per_night: parseFloat(e.target.value) || 0 })}
               />
             </Field>
-            <Field label="Internal nightly rate ($)">
+            <Field label="Nightly Rate ($)">
               <input
                 type="number"
                 min={0}
@@ -277,7 +282,7 @@ function SectionCard({
                 onChange={(e) => saveSection({ internal_nightly_rate: parseFloat(e.target.value) || 0 })}
               />
             </Field>
-            <Field label="Couple contribution / night ($)">
+            <Field label="Couple Contribution ($)">
               <input
                 type="number"
                 min={0}
@@ -287,7 +292,7 @@ function SectionCard({
                 onChange={(e) => saveSection({ couple_contribution: parseFloat(e.target.value) || 0 })}
               />
             </Field>
-            <Field label="Resort fee %">
+            <Field label="Resort Fee %">
               <input
                 type="number"
                 min={0}
@@ -317,14 +322,14 @@ function SectionCard({
                 onChange={(e) => saveSection({ tax_percent: parseFloat(e.target.value) || 0 })}
               />
             </Field>
-            <Field label="Payment schedule">
+            <Field label="Payment Schedule">
               <select
                 className="lb-input"
                 value={local.payment_schedule ?? "deposit_50_balance_50"}
                 onChange={(e) => saveSection({ payment_schedule: e.target.value as LbRoomSection["payment_schedule"] })}
               >
-                <option value="full_upfront">Pay in full upfront</option>
-                <option value="deposit_50_balance_50">50% deposit, 50% balance</option>
+                <option value="full">Full payment at booking</option>
+                <option value="deposit_50_balance_50">50% now, 50% before arrival</option>
               </select>
             </Field>
             <Field label="Cot — 1 night flat rate ($)">
@@ -348,27 +353,25 @@ function SectionCard({
               />
             </Field>
             <div className="sm:col-span-2 rounded-md border border-border bg-background/60 p-4">
-              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Live preview · per guest</div>
-              <div className="mt-2 grid grid-cols-2 gap-y-1 text-sm">
-                <span className="text-muted-foreground">Base ({event.nights} nights)</span>
-                <span className="text-right tabular-nums">{formatMoney(baseTotal)}</span>
-                <span className="text-muted-foreground">Resort fee ({event.resort_fee_pct}%)</span>
-                <span className="text-right tabular-nums">{formatMoney(resort)}</span>
-                <span className="text-muted-foreground">NY tax ({event.tax_pct}%)</span>
-                <span className="text-right tabular-nums">{formatMoney(tax)}</span>
-                <span className="border-t border-border pt-1 font-serif text-base text-foreground">Total</span>
-                <span className="border-t border-border pt-1 text-right font-serif text-base tabular-nums text-foreground">
-                  {formatMoney(previewTotal)}
-                </span>
+              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                Guest-facing total (estimated)
               </div>
-              {(local.internal_nightly_rate ?? 0) > 0 && (
-                <div className="mt-3 border-t border-border pt-2 text-[11px] text-muted-foreground">
-                  Guest rate after couple contribution:{" "}
-                  <span className="tabular-nums text-foreground">
-                    {formatMoney(Math.max((local.internal_nightly_rate ?? 0) - (local.couple_contribution ?? 0), 0))}/night
-                  </span>
-                </div>
-              )}
+              <div className="mt-2 text-sm text-foreground">
+                Guests will see:{" "}
+                <span className="font-serif tabular-nums">{formatMoney(guestNightly)}</span>/night
+              </div>
+              <div className="mt-1 text-sm text-foreground">
+                {nights} nights + fees:{" "}
+                <span className="font-serif tabular-nums">{formatMoney(previewTotal)}</span> per room
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-y-1 text-xs text-muted-foreground">
+                <span>Base ({nights} × {formatMoney(guestNightly)})</span>
+                <span className="text-right tabular-nums">{formatMoney(baseTotal)}</span>
+                <span>Resort fee ({local.resort_fee_percent ?? 0}%)</span>
+                <span className="text-right tabular-nums">{formatMoney(resort)}</span>
+                <span>Tax (8% est.)</span>
+                <span className="text-right tabular-nums">{formatMoney(tax)}</span>
+              </div>
             </div>
           </div>
 

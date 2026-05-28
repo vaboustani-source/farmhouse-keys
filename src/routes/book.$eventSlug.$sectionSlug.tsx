@@ -130,11 +130,19 @@ function EmailGate({
         setError("We don't have a reservation held for that email. Please reach out to your planning team.");
         return;
       }
-      if (booking.payment_status === "pending" || booking.payment_status === "payment_failed") {
-        onMatched(booking);
-      } else {
-        setStatusBooking(booking);
+      try {
+        if (booking.payment_status === "pending" || booking.payment_status === "payment_failed") {
+          onMatched(booking);
+        } else {
+          setStatusBooking(booking);
+        }
+      } catch (transitionErr) {
+        console.error("Booking step transition failed", transitionErr, { booking });
+        setError("Something went wrong loading your reservation. Please try again.");
       }
+    } catch (lookupErr) {
+      console.error("lookupBooking failed", lookupErr);
+      setError("Something went wrong loading your reservation. Please try again.");
     } finally {
       setLoading(false);
     }

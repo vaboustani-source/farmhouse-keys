@@ -274,3 +274,189 @@ function Stat({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+function slugifySection(name: string, eventId: string) {
+  const base = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .split("-")[0] || "section";
+  return `${base}-${eventId.slice(0, 8)}`;
+}
+
+function ActivationControls({
+  event,
+  sections,
+  invitations,
+  eventId,
+  onChange,
+}: {
+  event: LbEvent;
+  sections: LbRoomSection[];
+  invitations: Array<{ section_id: string }>;
+  eventId: string;
+  onChange: () => void;
+}) {
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  useEffect(() => {
+    if (!showSuccess) return;
+    const t = setTimeout(() => setShowSuccess(false), 3000);
+    return () => clearTimeout(t);
+  }, [showSuccess]);
+
+  const sectionsToActivate = sections.filter(
+    (s) => (Number(s.price_per_night) || 0) > 0 || (Number(s.internal_nightly_rate) || 0) > 0,
+  );
+  const guestCounts = invitations.reduce<Record<string, number>>((acc, i) => {
+    acc[i.section_id] = (acc[i.section_id] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const check1 = sectionsToActivate.length > 0;
+  const check2 =
+    sectionsToActivate.length > 0 && sectionsToActivate.every((s) => (guestCounts[s.id] ?? 0) >= 1);
+  const check3 = !!event.check_in_date && !!event.check_out_date;
+  const allPass = check1 && check2 && check3;
+
+  const activate = async () => {
+    setBusy(true);
+    try {
+      const eventPatch: Partial<LbEvent> & { couple_access_token?: string } = { status: "active" };
+      if (!(event as LbEvent & { couple_access_token?: string }).couple_access_token) {
+        eventPatch.couple_access_token = crypto.randomUUID();
+      }
+      const { error: eErr } = await supabase.from("lb_events").update(eventPatch).eq("id", eventId);
+      if (eErr) throw eErr;
+
+      for (const s of sectionsToActivate) {
+        const patch: Partial<LbRoomSection> = { is_active: true };
+        if (!s.booking_link_slug) {
+          patch.booking_link_slug = slugifySection(s.section_name, eventId);
+        }
+        const { error: sErr } = await supabase.from("lb_room_sections").update(patch).eq("id", s.id);
+        if (sErr) throw sErr;
+      }
+      setShowConfirm(false);
+      setShowSuccess(true);
+      onChange();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not activate");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const closeReservations = async () => {
+    setBusy(true);
+    try {
+      const { error: eErr } = await supabase
+        .from("lb_events")
+        .update({ status: "closed" })
+        .eq("id", eventId);
+      if (eErr) throw eErr;
+      const { error: sErr } = await supabase
+        .from("lb_room_sections")
+        .update({ is_active: false })
+        .eq("event_id", eventId);
+      if (sErr) throw sErr;
+      setShowCloseConfirm(false);
+      onChange();
+      toast.success("Reservations closed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not close");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mb-6">
+      {showSuccess && (
+        <div className="mb-4 rounded-lg border border-emerald-800 bg-emerald-800 px-5 py-3 text-sm font-medium text-white">
+          Reservations are open.
+        </div>
+      )}
+
+      {event.status === "draft" && !showConfirm && (
+        <button
+          onClick={() => setShowConfirm(true)}
+          className="inline-flex items-center gap-2 rounded-full bg-emerald-800 px-6 py-3 text-sm font-medium uppercase tracking-wider text-white shadow-sm hover:bg-emerald-900"
+        >
+          Activate Block
+        </button>
+      )}
+
+      {event.status === "draft" && showConfirm && (
+        <div className="rounded-lg border border-border bg-card p-6">
+          <div className="font-serif text-xl text-foreground">Ready to open reservations?</div>
+          <ul className="mt-4 space-y-2 text-sm">
+            <CheckItem ok={check1} label="All active sections have a nightly rate set" />
+            <CheckItem ok={check2} label="All active sections have at least 1 guest on the list" />
+            <CheckItem ok={check3} label="Check-in and check-out dates are set" />
+          </ul>
+          <div className="mt-6 flex items-center gap-3">
+            <button
+              onClick={activate}
+              disabled={!allPass || busy}
+              className="inline-flex items-center gap-2 rounded-full bg-emerald-800 px-5 py-2.5 text-sm font-medium uppercase tracking-wider text-white hover:bg-emerald-900 disabled:opacity-40"
+            >
+              {busy ? "Activating…" : "Activate — Open Reservations"}
+            </button>
+            <button
+              onClick={() => setShowConfirm(false)}
+              className="text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
+            >
+              Not yet
+            </button>
+          </div>
+        </div>
+      )}
+
+      {event.status === "active" && !showCloseConfirm && (
+        <button
+          onClick={() => setShowCloseConfirm(true)}
+          className="inline-flex items-center gap-2 rounded-full border border-red-600 px-5 py-2.5 text-sm font-medium uppercase tracking-wider text-red-600 hover:bg-red-50"
+        >
+          Close Reservations
+        </button>
+      )}
+
+      {event.status === "active" && showCloseConfirm && (
+        <div className="rounded-lg border border-red-300 bg-red-50 p-6">
+          <div className="font-serif text-lg text-foreground">Close reservations?</div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Guests with existing bookings will not be affected. New bookings will be blocked.
+          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              onClick={closeReservations}
+              disabled={busy}
+              className="rounded-full border border-red-600 bg-red-600 px-5 py-2 text-sm font-medium uppercase tracking-wider text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {busy ? "Closing…" : "Close reservations"}
+            </button>
+            <button
+              onClick={() => setShowCloseConfirm(false)}
+              className="text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CheckItem({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <li className={`flex items-center gap-2 ${ok ? "text-foreground" : "text-red-600"}`}>
+      {ok ? <Check className="h-4 w-4 text-emerald-700" /> : <X className="h-4 w-4 text-red-600" />}
+      <span>{label}</span>
+    </li>
+  );
+}

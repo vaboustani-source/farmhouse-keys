@@ -8,6 +8,7 @@ import {
   createCheckoutSession,
 } from "@/lib/booking.functions";
 import { ReviewErrorBoundary } from "@/components/ReviewErrorBoundary";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/book/$eventSlug/$sectionSlug")({
   component: BookingFlow,
@@ -137,7 +138,6 @@ function EmailGate({
   onMatched: (b: Booking) => void;
   externalError?: string | null;
 }) {
-  const lookup = useServerFn(lookupBooking);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [statusBooking, setStatusBooking] = useState<Booking | null>(null);
@@ -150,7 +150,13 @@ function EmailGate({
     setLoading(true);
     setError(null);
     try {
-      const { booking } = await lookup({ data: { email: email.trim(), eventSlug, sectionSlug } });
+      const { data: rows, error: rpcErr } = await supabase.rpc("lookup_guest_booking", {
+        p_email: email.trim(),
+        p_event_slug: eventSlug,
+        p_section_slug: sectionSlug,
+      });
+      if (rpcErr) throw rpcErr;
+      const booking = (rows?.[0] ?? null) as Booking | null;
       if (!booking) {
         setError("We don't have a reservation held for that email. Please reach out to your planning team.");
         return;
@@ -245,7 +251,6 @@ function ReviewStep({
   onBack: () => void;
 }) {
   const fetchAddons = useServerFn(getSectionAddons);
-  const lookupSecond = useServerFn(lookupSecondaryGuest);
   const checkout = useServerFn(createCheckoutSession);
 
   const [addons, setAddons] = useState<Addon[]>([]);
@@ -313,22 +318,29 @@ function ReviewStep({
     setSecondaryLookupErr(null);
     setLookingUpSecondary(true);
     try {
-      const res = await lookupSecond({
-        data: { email: secondaryEmail.trim(), eventSlug, excludeBookingId: booking.booking_id },
+      const { data: rows, error: rpcErr } = await supabase.rpc("lookup_secondary_guest", {
+        p_email: secondaryEmail.trim(),
+        p_event_slug: eventSlug,
       });
-      if ((res as { sameAsPrimary?: boolean }).sameAsPrimary) {
+      if (rpcErr) {
+        console.error("lookup_secondary_guest failed", rpcErr);
+        setSecondaryLookupErr("Something went wrong. Please try again.");
+        return;
+      }
+      const row = (rows?.[0] ?? null) as SecondaryBooking | null;
+      if (row && row.booking_id === booking.booking_id) {
         setSecondaryLookupErr("That's you — enter a different guest's email.");
         return;
       }
-      if (!res.booking) {
+      if (!row) {
         setSecondaryLookupErr("That email isn't on the guest list for this weekend.");
         return;
       }
-      if (res.booking.payment_status !== "pending") {
+      if (row.payment_status !== "pending") {
         setSecondaryLookupErr("This guest's room is already reserved.");
         return;
       }
-      setSecondary(res.booking);
+      setSecondary(row);
       // Secondary add-ons skipped for now — only base lodging is covered.
     } finally {
       setLookingUpSecondary(false);

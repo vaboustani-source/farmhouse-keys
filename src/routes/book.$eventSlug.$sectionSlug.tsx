@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Component, type ReactNode, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   lookupBooking,
@@ -7,6 +7,7 @@ import {
   getSectionAddons,
   createCheckoutSession,
 } from "@/lib/booking.functions";
+import { ReviewErrorBoundary } from "@/components/ReviewErrorBoundary";
 
 export const Route = createFileRoute("/book/$eventSlug/$sectionSlug")({
   component: BookingFlow,
@@ -201,23 +202,6 @@ function EmailGate({
       </form>
     </div>
   );
-}
-
-class ReviewErrorBoundary extends Component<
-  { children: ReactNode; onError: (err: Error) => void },
-  { hasError: boolean }
-> {
-  state = { hasError: false };
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  componentDidCatch(error: Error) {
-    this.props.onError(error);
-  }
-  render() {
-    if (this.state.hasError) return null;
-    return this.props.children;
-  }
 }
 
 function BookingStatusCard({ booking }: { booking: Booking }) {

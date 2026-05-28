@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Pencil, Receipt, RefreshCw, Users } from "lucide-react";
-import { useState } from "react";
+import { Check, Copy, Pencil, Receipt, RefreshCw, Users, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase, type LbBooking, type LbEvent, type LbRoomSection } from "@/integrations/supabase/client";
 import { AdminShell, FillBar, StatusBadge, formatDate, formatMoney } from "@/components/lb/AdminShell";
@@ -11,16 +11,18 @@ export const Route = createFileRoute("/events/$eventId/")({
 });
 
 async function fetchDetail(id: string) {
-  const [evt, sec, bk] = await Promise.all([
+  const [evt, sec, bk, gi] = await Promise.all([
     supabase.from("lb_events").select("*").eq("id", id).single(),
     supabase.from("lb_room_sections").select("*").eq("event_id", id).order("sort_order"),
     supabase.from("lb_bookings").select("*").eq("event_id", id),
+    supabase.from("guest_invitations").select("section_id").eq("event_id", id),
   ]);
   if (evt.error) throw evt.error;
   return {
     event: evt.data as LbEvent,
     sections: (sec.data ?? []) as LbRoomSection[],
     bookings: (bk.data ?? []) as LbBooking[],
+    invitations: (gi.data ?? []) as Array<{ section_id: string }>,
   };
 }
 
@@ -41,7 +43,7 @@ function EventDetailPage() {
     );
   }
 
-  const { event, sections, bookings } = data;
+  const { event, sections, bookings, invitations } = data;
   const paidBookings = bookings.filter((b) => b.payment_status === "paid");
   const totalRevenue = paidBookings.reduce((s, b) => s + Number(b.total_amount), 0);
   const CONFIRMED_STATUSES = new Set(["paid", "deposit_paid", "covered"]);
@@ -137,6 +139,14 @@ function EventDetailPage() {
           </Link>
         </div>
       </div>
+
+      <ActivationControls
+        event={event}
+        sections={sections}
+        invitations={invitations}
+        eventId={eventId}
+        onChange={() => queryClient.invalidateQueries({ queryKey: ["lb_event_detail", eventId] })}
+      />
 
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Stat label="Rooms booked" value={`${totalRoomsBooked} / ${totalRoomsCapacity || "—"}`} />

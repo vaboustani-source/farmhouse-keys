@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { Component, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   lookupBooking,
@@ -55,6 +55,7 @@ function BookingFlow() {
   const { eventSlug, sectionSlug } = Route.useParams();
   const [step, setStep] = useState<1 | 2>(1);
   const [booking, setBooking] = useState<Booking | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   // Restore session
   useEffect(() => {
@@ -82,20 +83,39 @@ function BookingFlow() {
             <EmailGate
               eventSlug={eventSlug}
               sectionSlug={sectionSlug}
+              externalError={reviewError}
               onMatched={(b) => {
-                setBooking(b);
-                sessionStorage.setItem(`gfh_booking_${eventSlug}_${sectionSlug}`, JSON.stringify(b));
-                if (b.payment_status === "pending" || b.payment_status === "payment_failed") setStep(2);
+                try {
+                  setReviewError(null);
+                  setBooking(b);
+                  sessionStorage.setItem(`gfh_booking_${eventSlug}_${sectionSlug}`, JSON.stringify(b));
+                  if (b.payment_status === "pending" || b.payment_status === "payment_failed") setStep(2);
+                } catch (err) {
+                  console.error("Failed to enter review step", err, { booking: b });
+                  setReviewError(
+                    "Something went wrong loading your reservation. Please try again.",
+                  );
+                }
               }}
             />
           )}
           {step === 2 && booking && (
-            <ReviewStep
-              booking={booking}
-              eventSlug={eventSlug}
-              sectionSlug={sectionSlug}
-              onBack={() => setStep(1)}
-            />
+            <ReviewErrorBoundary
+              onError={(err) => {
+                console.error("ReviewStep crashed", err);
+                setReviewError(
+                  "Something went wrong loading your reservation. Please try again.",
+                );
+                setStep(1);
+              }}
+            >
+              <ReviewStep
+                booking={booking}
+                eventSlug={eventSlug}
+                sectionSlug={sectionSlug}
+                onBack={() => setStep(1)}
+              />
+            </ReviewErrorBoundary>
           )}
         </div>
       </div>

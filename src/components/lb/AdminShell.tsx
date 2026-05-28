@@ -162,9 +162,9 @@ function SignInScreen({
 export function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     draft: "bg-muted text-muted-foreground border-border",
-    active: "bg-accent/20 text-accent-foreground border-accent/40",
-    closed: "bg-primary/10 text-primary border-primary/30",
-    full: "bg-primary text-primary-foreground border-primary",
+    active: "bg-amber-100 text-amber-800 border-amber-300",
+    closed: "bg-emerald-50 text-emerald-900 border-emerald-300",
+    full: "bg-emerald-800 text-white border-emerald-800",
   };
   const label = status.charAt(0).toUpperCase() + status.slice(1);
   return (

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { Component, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   lookupBooking,
@@ -55,6 +55,7 @@ function BookingFlow() {
   const { eventSlug, sectionSlug } = Route.useParams();
   const [step, setStep] = useState<1 | 2>(1);
   const [booking, setBooking] = useState<Booking | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   // Restore session
   useEffect(() => {
@@ -82,20 +83,39 @@ function BookingFlow() {
             <EmailGate
               eventSlug={eventSlug}
               sectionSlug={sectionSlug}
+              externalError={reviewError}
               onMatched={(b) => {
-                setBooking(b);
-                sessionStorage.setItem(`gfh_booking_${eventSlug}_${sectionSlug}`, JSON.stringify(b));
-                if (b.payment_status === "pending" || b.payment_status === "payment_failed") setStep(2);
+                try {
+                  setReviewError(null);
+                  setBooking(b);
+                  sessionStorage.setItem(`gfh_booking_${eventSlug}_${sectionSlug}`, JSON.stringify(b));
+                  if (b.payment_status === "pending" || b.payment_status === "payment_failed") setStep(2);
+                } catch (err) {
+                  console.error("Failed to enter review step", err, { booking: b });
+                  setReviewError(
+                    "Something went wrong loading your reservation. Please try again.",
+                  );
+                }
               }}
             />
           )}
           {step === 2 && booking && (
-            <ReviewStep
-              booking={booking}
-              eventSlug={eventSlug}
-              sectionSlug={sectionSlug}
-              onBack={() => setStep(1)}
-            />
+            <ReviewErrorBoundary
+              onError={(err) => {
+                console.error("ReviewStep crashed", err);
+                setReviewError(
+                  "Something went wrong loading your reservation. Please try again.",
+                );
+                setStep(1);
+              }}
+            >
+              <ReviewStep
+                booking={booking}
+                eventSlug={eventSlug}
+                sectionSlug={sectionSlug}
+                onBack={() => setStep(1)}
+              />
+            </ReviewErrorBoundary>
           )}
         </div>
       </div>
@@ -109,16 +129,20 @@ function EmailGate({
   eventSlug,
   sectionSlug,
   onMatched,
+  externalError,
 }: {
   eventSlug: string;
   sectionSlug: string;
   onMatched: (b: Booking) => void;
+  externalError?: string | null;
 }) {
   const lookup = useServerFn(lookupBooking);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [statusBooking, setStatusBooking] = useState<Booking | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const displayedError = error ?? externalError ?? null;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,11 +154,19 @@ function EmailGate({
         setError("We don't have a reservation held for that email. Please reach out to your planning team.");
         return;
       }
-      if (booking.payment_status === "pending" || booking.payment_status === "payment_failed") {
-        onMatched(booking);
-      } else {
-        setStatusBooking(booking);
+      try {
+        if (booking.payment_status === "pending" || booking.payment_status === "payment_failed") {
+          onMatched(booking);
+        } else {
+          setStatusBooking(booking);
+        }
+      } catch (transitionErr) {
+        console.error("Booking step transition failed", transitionErr, { booking });
+        setError("Something went wrong loading your reservation. Please try again.");
       }
+    } catch (lookupErr) {
+      console.error("lookupBooking failed", lookupErr);
+      setError("Something went wrong loading your reservation. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -165,10 +197,27 @@ function EmailGate({
         >
           {loading ? "Checking your invitation…" : "Continue"}
         </button>
-        {error && <p className="pt-2 text-sm text-[#6B6B6B]">{error}</p>}
+        {displayedError && <p className="pt-2 text-sm text-[#6B6B6B]">{displayedError}</p>}
       </form>
     </div>
   );
+}
+
+class ReviewErrorBoundary extends Component<
+  { children: ReactNode; onError: (err: Error) => void },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error) {
+    this.props.onError(error);
+  }
+  render() {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
 }
 
 function BookingStatusCard({ booking }: { booking: Booking }) {

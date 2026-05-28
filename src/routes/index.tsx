@@ -198,7 +198,13 @@ function EventListPage() {
                       <GuestOccupancy confirmed={e.guestsConfirmed} />
                     </td>
                     <td className="px-5 py-5">
-                      <StatusBadge status={e.block?.status ?? "draft"} />
+                      <StatusBadge
+                        status={
+                          e.guestsConfirmed >= GUEST_CAPACITY && e.block?.status === "active"
+                            ? "full"
+                            : (e.block?.status ?? "draft")
+                        }
+                      />
                     </td>
                     <td className="px-5 py-5 text-right">
                       {e.block ? (

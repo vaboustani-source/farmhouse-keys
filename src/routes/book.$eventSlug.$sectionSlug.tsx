@@ -365,6 +365,7 @@ function ReviewStep({
   const [submitting, setSubmitting] = useState(false);
   const [cotRequested, setCotRequested] = useState(false);
   const [reserveError, setReserveError] = useState<string | null>(null);
+  const [agreedToCancellation, setAgreedToCancellation] = useState(false);
 
   const cotFee = useMemo(() => {
     if (!cotRequested) return 0;

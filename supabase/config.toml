@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.charge-additional]
 verify_jwt = false
+
+[functions.create-setup-intent]
+verify_jwt = false

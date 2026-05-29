@@ -45,7 +45,7 @@ function useEventCounts(eventId: string) {
     };
     load();
     const channel = supabase
-      .channel(`lb_bookings_nav_${eventId}`)
+      .channel(`lb_bookings_nav_${eventId}_${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "lb_bookings", filter: `event_id=eq.${eventId}` },

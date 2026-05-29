@@ -604,3 +604,55 @@ export function adminNotificationEmail(p: AdminNotificationEmailProps): { subjec
 
   return { subject, html };
 }
+
+// ─────────────────────────────────────────────────────────────
+// EMAIL 8 — Check-in Reminder (7 days before arrival)
+// ─────────────────────────────────────────────────────────────
+
+export interface CheckInReminderEmailProps {
+  guestFirstName: string;
+  weddingName: string;
+  sectionName: string;
+  checkInDate: string;
+  checkOutDate: string;
+  nights: number;
+  checkInTime?: string;
+  checkOutTime?: string;
+  propertyAddress?: string;
+  cotRequested?: boolean;
+}
+
+export function checkInReminderEmail(p: CheckInReminderEmailProps): { subject: string; html: string } {
+  const subject = "Your stay at Gilbertsville Farmhouse is in one week";
+  const checkInTime = p.checkInTime || "3:00 PM";
+  const checkOutTime = p.checkOutTime || "11:00 AM";
+  const propertyAddress = p.propertyAddress || "424 County Highway 18, South New Berlin, NY 13843";
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(propertyAddress)}`;
+  const addressLink = `<a href="${mapsUrl}" target="_blank" style="color:#2C3E2D;text-decoration:underline;">${propertyAddress}</a>`;
+
+  const html = baseTemplate(`
+    ${statusBadge('See you soon', 'confirmed')}
+    <div style="margin-top:24px;">
+      ${heading('Your weekend is almost here.')}
+      ${subheading(p.weddingName)}
+    </div>
+
+    ${body(`${p.guestFirstName}, your stay at the estate is just one week away. Here are the details for your arrival.`)}
+
+    ${rule()}
+
+    ${detailTable(`
+      ${detailRow('Arrival', `${p.checkInDate} after ${checkInTime}`)}
+      ${detailRow('Departure', `${p.checkOutDate} by ${checkOutTime}`)}
+      ${detailRow('Lodging', p.sectionName)}
+      ${detailRow('Address', addressLink)}
+      ${p.cotRequested ? detailRow('Cot', 'A cot will be ready in your room') : ''}
+    `)}
+
+    ${goldRule()}
+
+    ${body(`We'll have everything ready for your arrival. If you have any questions before you get here, reach out to your planning team.`)}
+  `);
+
+  return { subject, html };
+}

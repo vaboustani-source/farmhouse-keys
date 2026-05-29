@@ -5,8 +5,8 @@ import {
   lookupBooking,
   lookupSecondaryGuest,
   getSectionAddons,
-  createCheckoutSession,
 } from "@/lib/booking.functions";
+import { createCheckoutSession } from "@/lib/checkout";
 import { ReviewErrorBoundary } from "@/components/ReviewErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -251,7 +251,6 @@ function ReviewStep({
   onBack: () => void;
 }) {
   const fetchAddons = useServerFn(getSectionAddons);
-  const checkout = useServerFn(createCheckoutSession);
 
   const [addons, setAddons] = useState<Addon[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);

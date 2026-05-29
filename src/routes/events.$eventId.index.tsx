@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Pencil, Receipt, RefreshCw, Users, X } from "lucide-react";
+import { Check, Copy, Download, Pencil, Receipt, RefreshCw, Users, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase, type LbBooking, type LbEvent, type LbRoomSection } from "@/integrations/supabase/client";
 import { AdminShell, FillBar, StatusBadge, formatDate, formatMoney } from "@/components/lb/AdminShell";
+import { exportGuestManifest, exportRoomAssignments } from "@/lib/exportManifest";
 
 export const Route = createFileRoute("/events/$eventId/")({
   component: EventDetailPage,
@@ -123,6 +124,18 @@ function EventDetailPage() {
           </div>
         </div>
         <div className="flex gap-3">
+          <button
+            onClick={() => exportGuestManifest(event, sections, bookings)}
+            className="inline-flex items-center gap-2 rounded-full border border-emerald-800 px-4 py-2 text-sm text-emerald-800 hover:bg-emerald-50"
+          >
+            <Download className="h-4 w-4" /> Export Manifest
+          </button>
+          <button
+            onClick={() => exportRoomAssignments(event, sections, bookings)}
+            className="inline-flex items-center gap-2 rounded-full border border-emerald-800 px-4 py-2 text-sm text-emerald-800 hover:bg-emerald-50"
+          >
+            <Download className="h-4 w-4" /> Room Assignment Sheet
+          </button>
           <Link
             to="/events/$eventId/guests"
             params={{ eventId }}

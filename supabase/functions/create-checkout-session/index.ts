@@ -208,7 +208,7 @@ serve(async (req) => {
           message:
             "Your reservation is already being processed on another device. Complete it there or wait 5 minutes to try again.",
         }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 

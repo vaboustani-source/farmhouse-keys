@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, Loader2 } from "lucide-react";
+import { ArrowUpRight, Copy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase, type LbEvent, type LbRoomSection } from "@/integrations/supabase/client";
 import { AdminShell, FillBar, StatusBadge, formatDate } from "@/components/lb/AdminShell";
@@ -73,7 +73,7 @@ async function fetchEvents(): Promise<EventWithBlock[]> {
 
   // 2. Pull whatever lodging blocks already exist for these events.
   const [{ data: blocks }, { data: sections }, { data: bookings }] = await Promise.all([
-    supabase.from("lb_events").select("*").in("id", ids),
+    supabase.from("lb_events").select("*, couple_access_token").in("id", ids),
     supabase
       .from("lb_room_sections")
       .select("id, event_id, section_name, total_rooms, is_active, sort_order")
@@ -208,13 +208,28 @@ function EventListPage() {
                     </td>
                     <td className="px-5 py-5 text-right">
                       {e.block ? (
-                        <Link
-                          to="/events/$eventId"
-                          params={{ eventId: e.id }}
-                          className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-primary hover:text-accent"
-                        >
-                          Open <ArrowUpRight className="h-3.5 w-3.5" />
-                        </Link>
+                        <div className="flex items-center justify-end gap-2">
+                          {(e.block as LbEvent & { couple_access_token?: string }).couple_access_token && (
+                            <button
+                              onClick={() => {
+                                const token = (e.block as LbEvent & { couple_access_token?: string }).couple_access_token!;
+                                navigator.clipboard.writeText(`${window.location.origin}/tracker/${token}`);
+                                toast.success("Tracker link copied");
+                              }}
+                              title="Copy couple tracker link"
+                              className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
+                            >
+                              <Copy className="h-3 w-3" /> Tracker
+                            </button>
+                          )}
+                          <Link
+                            to="/events/$eventId"
+                            params={{ eventId: e.id }}
+                            className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-[11px] uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
+                          >
+                            Open <ArrowUpRight className="h-3 w-3" />
+                          </Link>
+                        </div>
                       ) : (
                         <button
                           onClick={() => ensureBlock.mutate(e.id)}

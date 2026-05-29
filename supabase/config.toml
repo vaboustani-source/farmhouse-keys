@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.keep-alive]
 verify_jwt = false
+
+[functions.system-health-check]
+verify_jwt = false

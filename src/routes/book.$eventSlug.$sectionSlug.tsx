@@ -6,7 +6,7 @@ import {
   lookupSecondaryGuest,
   getSectionAddons,
 } from "@/lib/booking.functions";
-import { createCheckoutSession } from "@/lib/checkout";
+import { createCheckoutSession, checkSessionStatus } from "@/lib/checkout";
 import { ReviewErrorBoundary } from "@/components/ReviewErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -58,6 +58,8 @@ function BookingFlow() {
   const [step, setStep] = useState<1 | 2>(1);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [cancelledBanner, setCancelledBanner] = useState<string | null>(null);
+  const [checkingReturn, setCheckingReturn] = useState(false);
 
   // Restore session
   useEffect(() => {
@@ -71,6 +73,48 @@ function BookingFlow() {
     }
   }, [eventSlug, sectionSlug]);
 
+  // Handle returning from Stripe (cancel/back-button) or fresh load cleanup
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const cancelled = params.get("cancelled");
+    const sessionId = params.get("session_id");
+    const stripeSidKey = `gfh_stripe_session_${eventSlug}_${sectionSlug}`;
+
+    if (cancelled === "true" && sessionId) {
+      setCheckingReturn(true);
+      checkSessionStatus(sessionId)
+        .then(({ status }) => {
+          if (status === "complete") {
+            // Guest paid then hit back — send to confirmation
+            window.location.replace(
+              `/book/${eventSlug}/${sectionSlug}/confirmation?session_id=${sessionId}`,
+            );
+            return;
+          }
+          // 'expired' | 'open' | null → soft banner, allow fresh checkout
+          setCancelledBanner(
+            "Your previous session expired — your room is still available.",
+          );
+          sessionStorage.removeItem(stripeSidKey);
+          // Strip query params so a refresh doesn't re-trigger
+          const clean = `/book/${eventSlug}/${sectionSlug}`;
+          window.history.replaceState({}, "", clean);
+        })
+        .catch(() => {
+          setCancelledBanner(
+            "Your previous session expired — your room is still available.",
+          );
+          sessionStorage.removeItem(stripeSidKey);
+          window.history.replaceState({}, "", `/book/${eventSlug}/${sectionSlug}`);
+        })
+        .finally(() => setCheckingReturn(false));
+    } else {
+      // Fresh load (no cancelled param) — clear any stale Stripe session id
+      sessionStorage.removeItem(stripeSidKey);
+    }
+  }, [eventSlug, sectionSlug]);
+
   return (
     <div className="min-h-screen bg-[#FAF8F4] font-sans text-[#1A1A1A]">
       <div className="mx-auto max-w-2xl px-4 py-10 md:py-16">
@@ -78,6 +122,22 @@ function BookingFlow() {
         {step === 2 && booking && (
           <div className="mt-10">
             <ProgressDots step={2} />
+          </div>
+        )}
+        {checkingReturn && (
+          <div className="mt-6 rounded-md border border-[#E8E2D9] bg-white p-4 text-center text-xs uppercase tracking-[0.16em] text-[#6B6B6B]">
+            Checking your previous session…
+          </div>
+        )}
+        {cancelledBanner && step === 2 && (
+          <div className="mt-6 rounded-md border border-[#C9A84C]/40 bg-[#FBF6E7] p-4 text-sm text-[#7a6420]">
+            {cancelledBanner}
+            <button
+              onClick={() => setCancelledBanner(null)}
+              className="ml-3 text-xs uppercase tracking-[0.16em] text-[#7a6420]/70 hover:text-[#7a6420]"
+            >
+              Dismiss
+            </button>
           </div>
         )}
         <div className="mt-8">
@@ -349,7 +409,7 @@ function ReviewStep({
   const reserve = async () => {
     setSubmitting(true);
     try {
-      const { url } = await createCheckoutSession({
+      const { url, alreadyPaid, redirectUrl } = await createCheckoutSession({
         bookingId: booking.booking_id,
         addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
         secondaryBookingId: secondary?.booking_id ?? null,
@@ -360,7 +420,19 @@ function ReviewStep({
         sectionSlug,
         cotRequested,
       });
-      if (url) window.location.href = url;
+      if (alreadyPaid && redirectUrl) {
+        window.location.href = redirectUrl;
+        return;
+      }
+      if (url) {
+        try {
+          sessionStorage.setItem(
+            `gfh_stripe_session_${eventSlug}_${sectionSlug}`,
+            new URL(url).searchParams.get("session_id") ?? "",
+          );
+        } catch {}
+        window.location.href = url;
+      }
     } finally {
       setSubmitting(false);
     }

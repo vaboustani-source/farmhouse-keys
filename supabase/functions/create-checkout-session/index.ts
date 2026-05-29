@@ -155,6 +155,39 @@ serve(async (req) => {
       cotRequested = false,
     } = data;
 
+    // ── Double-booking guard ─────────────────────────────────────
+    const { data: existingBk } = await supabaseAdmin
+      .from("lb_bookings")
+      .select("payment_status, stripe_session_id")
+      .eq("id", bookingId)
+      .single();
+
+    if (existingBk?.payment_status === "deposit_paid" || existingBk?.payment_status === "paid") {
+      const baseUrl = getAppBaseUrl(req);
+      return new Response(
+        JSON.stringify({
+          already_paid: true,
+          redirect_url: `${baseUrl}/book/${eventSlug}/${sectionSlug}/confirmation`,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    if (existingBk?.payment_status === "pending" && existingBk?.stripe_session_id) {
+      try {
+        const existing = await stripe.checkout.sessions.retrieve(existingBk.stripe_session_id);
+        if (existing.status === "open" && existing.url) {
+          return new Response(
+            JSON.stringify({ url: existing.url, reused: true }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        // 'expired' or 'complete' → fall through and create a new session
+      } catch (_) {
+        // session not retrievable → create a fresh one
+      }
+    }
+
     const primary = await lineItemsForBooking(bookingId, addonIds);
 
     let secondary: Awaited<ReturnType<typeof lineItemsForBooking>> | null = null;
@@ -232,7 +265,7 @@ serve(async (req) => {
 
     const baseUrl = getAppBaseUrl(req);
     const successUrl = `${baseUrl}/book/${eventSlug}/${sectionSlug}/confirmation?session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${baseUrl}/book/${eventSlug}/${sectionSlug}`;
+    const cancelUrl = `${baseUrl}/book/${eventSlug}/${sectionSlug}?cancelled=true&session_id={CHECKOUT_SESSION_ID}`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -242,6 +275,7 @@ serve(async (req) => {
       automatic_tax: { enabled: true },
       success_url: successUrl,
       cancel_url: cancelUrl,
+      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
       customer_creation: isSplit ? "always" : undefined,
       payment_intent_data: isSplit
         ? { setup_future_usage: "off_session" }

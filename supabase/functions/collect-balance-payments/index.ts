@@ -103,6 +103,13 @@ Deno.serve(async (req) => {
 
   const summary = { charged: 0, failed: 0, reminders: 0, skipped: 0 };
 
+  // --- Cleanup stale PENDING_ session locks (>10 min old) ---
+  try {
+    await supabase.rpc("cleanup_stale_session_locks");
+  } catch (err) {
+    console.error("cleanup_stale_session_locks failed", err);
+  }
+
   // --- Reminders: check_in_date 37 days out ---
   {
     const { data: events } = await supabase

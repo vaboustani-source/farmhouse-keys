@@ -656,3 +656,49 @@ export function checkInReminderEmail(p: CheckInReminderEmailProps): { subject: s
 
   return { subject, html };
 }
+
+// ─────────────────────────────────────────────────────────────
+// EMAIL 9 — Additional Charge (admin-applied charge)
+// ─────────────────────────────────────────────────────────────
+
+export interface AdditionalChargeEmailProps {
+  guestFirstName: string;
+  weddingName: string;
+  amount: number;
+  description: string;
+  notes?: string;
+}
+
+function goldStatusBadge(text: string): string {
+  return `<span style="display:inline-block;padding:4px 12px;background-color:#C9A84C;
+    border-radius:2px;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:10px;
+    letter-spacing:2px;text-transform:uppercase;color:#1A1A1A;font-weight:500;">${text}</span>`;
+}
+
+export function additionalChargeEmail(p: AdditionalChargeEmailProps): { subject: string; html: string } {
+  const subject = "Additional charge from Gilbertsville Farmhouse";
+  const amountStr = p.amount.toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+  const html = baseTemplate(`
+    ${goldStatusBadge("Charge processed")}
+    <div style="margin-top:24px;">
+      ${heading("A charge has been applied.")}
+      ${subheading(p.weddingName)}
+    </div>
+
+    ${body(`${p.guestFirstName}, a charge has been processed on the card on file for your stay.`)}
+
+    ${rule()}
+
+    ${detailTable(`
+      ${detailRow("Amount", amountStr)}
+      ${detailRow("Description", p.description)}
+      ${detailRow("Applied to", "Card on file")}
+      ${p.notes ? detailRow("Notes", p.notes) : ""}
+    `)}
+
+    ${body(`If you have any questions about this charge, please reach out to your planning team.`)}
+  `);
+
+  return { subject, html };
+}

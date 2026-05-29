@@ -409,7 +409,7 @@ function ReviewStep({
   const reserve = async () => {
     setSubmitting(true);
     try {
-      const { url } = await createCheckoutSession({
+      const { url, alreadyPaid, redirectUrl } = await createCheckoutSession({
         bookingId: booking.booking_id,
         addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
         secondaryBookingId: secondary?.booking_id ?? null,
@@ -420,7 +420,19 @@ function ReviewStep({
         sectionSlug,
         cotRequested,
       });
-      if (url) window.location.href = url;
+      if (alreadyPaid && redirectUrl) {
+        window.location.href = redirectUrl;
+        return;
+      }
+      if (url) {
+        try {
+          sessionStorage.setItem(
+            `gfh_stripe_session_${eventSlug}_${sectionSlug}`,
+            new URL(url).searchParams.get("session_id") ?? "",
+          );
+        } catch {}
+        window.location.href = url;
+      }
     } finally {
       setSubmitting(false);
     }

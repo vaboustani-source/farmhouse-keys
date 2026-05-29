@@ -11,7 +11,7 @@ serve((req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
-  return new Response(JSON.stringify({ status: "ok" }), {
+  return new Response(JSON.stringify({ status: "ok", timestamp: new Date().toISOString() }), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });

@@ -240,14 +240,14 @@ export const Route = createFileRoute("/api/public/stripe-webhook")({
               .eq("stripe_customer_id", customerId);
 
             for (const b of bookings ?? []) {
-              const updateFields: Record<string, unknown> = {
+              const updateFields = {
                 stripe_payment_method_id: paymentMethodId,
                 payment_update_token: null,
                 payment_update_token_expires_at: null,
-              };
-              if (b.payment_status === "payment_failed") {
-                updateFields.payment_status = "deposit_paid";
-              }
+                ...(b.payment_status === "payment_failed"
+                  ? { payment_status: "deposit_paid" }
+                  : {}),
+              } as never;
               await supabaseAdmin
                 .from("lb_bookings")
                 .update(updateFields)

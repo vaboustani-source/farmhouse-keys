@@ -11,6 +11,7 @@ import {
   type LbRoomSection,
 } from "@/integrations/supabase/client";
 import { AdminShell } from "@/components/lb/AdminShell";
+import { EventLayout } from "@/components/lb/EventNav";
 
 export const Route = createFileRoute("/events/$eventId/guests")({
   component: GuestsPage,
@@ -105,8 +106,10 @@ function GuestsPage() {
   if (isLoading || !data) {
     return (
       <AdminShell>
+      <EventLayout eventId={eventId} currentTab="guests">
         <div className="text-sm text-muted-foreground">Loading…</div>
-      </AdminShell>
+      </EventLayout>
+    </AdminShell>
     );
   }
 
@@ -118,6 +121,7 @@ function GuestsPage() {
 
   return (
     <AdminShell>
+      <EventLayout eventId={eventId} currentTab="guests">
       <div className="mb-6">
         <Link
           to="/events/$eventId"
@@ -164,6 +168,7 @@ function GuestsPage() {
           saving={upsert.isPending}
         />
       )}
+      </EventLayout>
     </AdminShell>
   );
 }

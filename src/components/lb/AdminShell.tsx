@@ -9,9 +9,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const path = location.pathname;
   const { session, isAdmin, loading, signIn, signOut } = useAuth();
 
-  const nav = [
-    { to: "/", label: "Lodging Blocks" },
-  ];
+  const initials = (() => {
+    const email = session?.user?.email ?? "";
+    if (!email) return "·";
+    const local = email.split("@")[0] ?? "";
+    return (local.slice(0, 2) || email.slice(0, 2) || "·").toUpperCase();
+  })();
 
   if (loading) {
     return (
@@ -41,17 +44,21 @@ export function AdminShell({ children }: { children: ReactNode }) {
             </div>
           </Link>
           <nav className="flex items-center gap-6 text-sm">
-            {nav.map((n) => (
-              <Link
-                key={n.to}
-                to={n.to}
-                className={`transition-colors ${
-                  path === n.to ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {n.label}
-              </Link>
-            ))}
+            <Link
+              to="/"
+              className={`transition-colors ${
+                path === "/" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              All events
+            </Link>
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-[11px] font-medium uppercase text-foreground"
+              title={session?.user?.email ?? ""}
+              aria-label={session?.user?.email ?? "Admin"}
+            >
+              {initials}
+            </span>
             <button
               onClick={() => {
                 signOut();

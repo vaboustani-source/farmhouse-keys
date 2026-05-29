@@ -5,6 +5,7 @@ import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { supabase, type LbBooking, type LbRoomSection } from "@/integrations/supabase/client";
 import { AdminShell, formatMoney } from "@/components/lb/AdminShell";
+import { EventLayout } from "@/components/lb/EventNav";
 import { RefundPanel } from "@/components/lb/RefundPanel";
 
 export const Route = createFileRoute("/events/$eventId/sections/$sectionId")({
@@ -45,7 +46,7 @@ function SectionBookingsPage() {
   });
 
   if (isLoading || !data) {
-    return <AdminShell><div className="text-sm text-muted-foreground">Loading…</div></AdminShell>;
+    return <AdminShell><EventLayout eventId={eventId} currentTab="bookings"><div className="text-sm text-muted-foreground">Loading…</div></EventLayout></AdminShell>;
   }
   const { section, bookings, checkInDate } = data;
   const filtered = bookings.filter((b) => filter === "all" || b.payment_status === filter);
@@ -79,6 +80,7 @@ function SectionBookingsPage() {
 
   return (
     <AdminShell>
+      <EventLayout eventId={eventId} currentTab="bookings">
       <Link
         to="/events/$eventId"
         params={{ eventId }}
@@ -206,6 +208,7 @@ function SectionBookingsPage() {
           </table>
         </div>
       )}
+      </EventLayout>
     </AdminShell>
   );
 }

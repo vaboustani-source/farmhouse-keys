@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase, type LbBooking, type LbEvent, type LbRoomSection } from "@/integrations/supabase/client";
 import { AdminShell, FillBar, StatusBadge, formatDate, formatMoney } from "@/components/lb/AdminShell";
+import { EventLayout } from "@/components/lb/EventNav";
 import { exportGuestManifest, exportRoomAssignments } from "@/lib/exportManifest";
 
 export const Route = createFileRoute("/events/$eventId/")({
@@ -39,8 +40,10 @@ function EventDetailPage() {
   if (isLoading || !data) {
     return (
       <AdminShell>
+      <EventLayout eventId={eventId} currentTab="overview">
         <div className="text-sm text-muted-foreground">Loading…</div>
-      </AdminShell>
+      </EventLayout>
+    </AdminShell>
     );
   }
 
@@ -111,6 +114,7 @@ function EventDetailPage() {
 
   return (
     <AdminShell>
+      <EventLayout eventId={eventId} currentTab="overview">
       <div className="mb-6 flex items-end justify-between gap-6">
         <div>
           <Link to="/" className="text-xs uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground">
@@ -291,6 +295,7 @@ function EventDetailPage() {
           )}
         </div>
       </div>
+      </EventLayout>
     </AdminShell>
   );
 }

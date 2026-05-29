@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.send-checkin-reminders]
 verify_jwt = false
+
+[functions.charge-additional]
+verify_jwt = false

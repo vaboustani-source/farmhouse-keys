@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as TrackerAccessTokenRouteImport } from './routes/tracker.$accessToken'
 import { Route as EventsNewRouteImport } from './routes/events.new'
 import { Route as EventsEventIdIndexRouteImport } from './routes/events.$eventId.index'
+import { Route as EventsEventIdPricingRouteImport } from './routes/events.$eventId.pricing'
 import { Route as EventsEventIdPaymentsRouteImport } from './routes/events.$eventId.payments'
 import { Route as EventsEventIdGuestsRouteImport } from './routes/events.$eventId.guests'
 import { Route as EventsEventIdEditRouteImport } from './routes/events.$eventId.edit'
@@ -40,6 +41,11 @@ const EventsNewRoute = EventsNewRouteImport.update({
 const EventsEventIdIndexRoute = EventsEventIdIndexRouteImport.update({
   id: '/events/$eventId/',
   path: '/events/$eventId/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsEventIdPricingRoute = EventsEventIdPricingRouteImport.update({
+  id: '/events/$eventId/pricing',
+  path: '/events/$eventId/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EventsEventIdPaymentsRoute = EventsEventIdPaymentsRouteImport.update({
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
+  '/events/$eventId/pricing': typeof EventsEventIdPricingRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
   '/book/$eventSlug/$sectionSlug/confirmation': typeof BookEventSlugSectionSlugConfirmationRoute
   '/events/$eventId/sections/$sectionId': typeof EventsEventIdSectionsSectionIdRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
+  '/events/$eventId/pricing': typeof EventsEventIdPricingRoute
   '/events/$eventId': typeof EventsEventIdIndexRoute
   '/book/$eventSlug/$sectionSlug/confirmation': typeof BookEventSlugSectionSlugConfirmationRoute
   '/events/$eventId/sections/$sectionId': typeof EventsEventIdSectionsSectionIdRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
+  '/events/$eventId/pricing': typeof EventsEventIdPricingRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
   '/book/$eventSlug/$sectionSlug/confirmation': typeof BookEventSlugSectionSlugConfirmationRoute
   '/events/$eventId/sections/$sectionId': typeof EventsEventIdSectionsSectionIdRoute
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
+    | '/events/$eventId/pricing'
     | '/events/$eventId/'
     | '/book/$eventSlug/$sectionSlug/confirmation'
     | '/events/$eventId/sections/$sectionId'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
+    | '/events/$eventId/pricing'
     | '/events/$eventId'
     | '/book/$eventSlug/$sectionSlug/confirmation'
     | '/events/$eventId/sections/$sectionId'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
+    | '/events/$eventId/pricing'
     | '/events/$eventId/'
     | '/book/$eventSlug/$sectionSlug/confirmation'
     | '/events/$eventId/sections/$sectionId'
@@ -184,6 +196,7 @@ export interface RootRouteChildren {
   EventsEventIdEditRoute: typeof EventsEventIdEditRoute
   EventsEventIdGuestsRoute: typeof EventsEventIdGuestsRoute
   EventsEventIdPaymentsRoute: typeof EventsEventIdPaymentsRoute
+  EventsEventIdPricingRoute: typeof EventsEventIdPricingRoute
   EventsEventIdIndexRoute: typeof EventsEventIdIndexRoute
   EventsEventIdSectionsSectionIdRoute: typeof EventsEventIdSectionsSectionIdRoute
 }
@@ -216,6 +229,13 @@ declare module '@tanstack/react-router' {
       path: '/events/$eventId'
       fullPath: '/events/$eventId/'
       preLoaderRoute: typeof EventsEventIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events/$eventId/pricing': {
+      id: '/events/$eventId/pricing'
+      path: '/events/$eventId/pricing'
+      fullPath: '/events/$eventId/pricing'
+      preLoaderRoute: typeof EventsEventIdPricingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/events/$eventId/payments': {
@@ -302,6 +322,7 @@ const rootRouteChildren: RootRouteChildren = {
   EventsEventIdEditRoute: EventsEventIdEditRoute,
   EventsEventIdGuestsRoute: EventsEventIdGuestsRoute,
   EventsEventIdPaymentsRoute: EventsEventIdPaymentsRoute,
+  EventsEventIdPricingRoute: EventsEventIdPricingRoute,
   EventsEventIdIndexRoute: EventsEventIdIndexRoute,
   EventsEventIdSectionsSectionIdRoute: EventsEventIdSectionsSectionIdRoute,
 }

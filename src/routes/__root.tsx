@@ -33,13 +33,17 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lodging Blocks · Gilbertsville Farmhouse" },
-      { name: "description", content: "Admin dashboard for managing wedding lodging blocks at Gilbertsville Farmhouse." },
+      { title: "Reservations · Gilbertsville Farmhouse" },
+      { name: "description", content: "Lodging Reservations for Gilbertsville Farmhouse" },
       { name: "author", content: "Gilbertsville Farmhouse" },
-      { property: "og:title", content: "Lodging Blocks · Gilbertsville Farmhouse" },
-      { property: "og:description", content: "Manage room sections, add-ons, and bookings for each wedding." },
+      { property: "og:title", content: "Reservations · Gilbertsville Farmhouse" },
+      { property: "og:description", content: "Lodging Reservations for Gilbertsville Farmhouse" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "Reservations · Gilbertsville Farmhouse" },
+      { name: "twitter:description", content: "Lodging Reservations for Gilbertsville Farmhouse" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/10009fb2-86a0-459c-9c6b-4ba1b18fd07f/id-preview-25a26953--a9cf7512-d53e-4e93-be25-666d375c693f.lovable.app-1780025729719.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/10009fb2-86a0-459c-9c6b-4ba1b18fd07f/id-preview-25a26953--a9cf7512-d53e-4e93-be25-666d375c693f.lovable.app-1780025729719.png" },
     ],
     links: [
       {

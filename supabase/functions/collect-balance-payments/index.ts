@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
     const { data: rows } = await supabase
       .from("lb_bookings")
       .select(
-        "id, guest_email, guest_name, total_amount, stripe_payment_intent_id, event_id",
+        "id, guest_email, guest_name, total_amount, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, event_id",
       )
       .in("event_id", eventIds)
       .eq("payment_status", "deposit_paid")
@@ -186,18 +186,26 @@ Deno.serve(async (req) => {
       }
 
       try {
-        // Look up the original PaymentIntent to retrieve customer + saved PM
-        const originalPi = await stripe.paymentIntents.retrieve(
-          b.stripe_payment_intent_id,
-        );
-        const customerId =
-          typeof originalPi.customer === "string"
-            ? originalPi.customer
-            : originalPi.customer?.id;
-        const paymentMethodId =
-          typeof originalPi.payment_method === "string"
-            ? originalPi.payment_method
-            : originalPi.payment_method?.id;
+        // Prefer guest-updated payment method (from SetupIntent flow), fall
+        // back to the original deposit PaymentIntent's customer + PM.
+        let customerId: string | null | undefined = b.stripe_customer_id ?? null;
+        let paymentMethodId: string | null | undefined =
+          b.stripe_payment_method_id ?? null;
+        if (!customerId || !paymentMethodId) {
+          const originalPi = await stripe.paymentIntents.retrieve(
+            b.stripe_payment_intent_id,
+          );
+          customerId =
+            customerId ??
+            (typeof originalPi.customer === "string"
+              ? originalPi.customer
+              : originalPi.customer?.id ?? null);
+          paymentMethodId =
+            paymentMethodId ??
+            (typeof originalPi.payment_method === "string"
+              ? originalPi.payment_method
+              : originalPi.payment_method?.id ?? null);
+        }
         if (!customerId || !paymentMethodId) {
           throw new Error("Missing customer or payment_method on original PI");
         }
@@ -233,9 +241,18 @@ Deno.serve(async (req) => {
         }
       } catch (err) {
         console.error("balance charge failed", b.id, err);
+        // Mark failed and regenerate a 14-day payment-update token so the
+        // failure email links to a fresh self-serve update page.
+        const newExpiry = new Date(
+          Date.now() + 14 * 86400000,
+        ).toISOString();
         await supabase
           .from("lb_bookings")
-          .update({ payment_status: "payment_failed" })
+          .update({
+            payment_status: "payment_failed",
+            payment_update_token: crypto.randomUUID(),
+            payment_update_token_expires_at: newExpiry,
+          })
           .eq("id", b.id);
         try {
           await sendPaymentFailed(b.guest_email, b.guest_name);

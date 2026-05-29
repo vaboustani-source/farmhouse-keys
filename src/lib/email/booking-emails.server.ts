@@ -130,13 +130,39 @@ export async function sendAdminNotification(opts: {
   }));
 }
 
-export async function sendPaymentFailedEmail(opts: { to: string; guestName: string; weddingName: string }) {
+export async function sendPaymentFailedEmail(opts: {
+  to: string;
+  guestName: string;
+  weddingName: string;
+  sectionName?: string;
+  failedAmount?: number;
+  retryUrl: string;
+  retryDeadline?: string;
+}) {
   await send(opts.to, paymentFailedEmail({
     guestFirstName: firstName(opts.guestName),
     weddingName: opts.weddingName,
-    sectionName: "your reservation",
-    failedAmount: 0,
-    retryUrl: process.env.APP_BASE_URL ?? "",
-    retryDeadline: "as soon as possible",
+    sectionName: opts.sectionName ?? "your reservation",
+    failedAmount: opts.failedAmount ?? 0,
+    retryUrl: opts.retryUrl,
+    retryDeadline: opts.retryDeadline ?? "as soon as possible",
+  }));
+}
+
+export async function sendPaymentMethodUpdated(opts: {
+  to: string;
+  guestName: string;
+  weddingName: string;
+  sectionName: string;
+  balance: number;
+  chargeDate: string;
+}) {
+  const { paymentMethodUpdatedEmail } = await import("@/lib/email-templates");
+  await send(opts.to, paymentMethodUpdatedEmail({
+    guestFirstName: firstName(opts.guestName),
+    weddingName: opts.weddingName,
+    sectionName: opts.sectionName,
+    balance: opts.balance,
+    chargeDate: opts.chargeDate,
   }));
 }

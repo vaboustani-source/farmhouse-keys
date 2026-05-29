@@ -7,7 +7,9 @@ import {
   sendCoveredGuestEmail,
   sendAdminNotification,
   sendPaymentFailedEmail,
+  sendPaymentMethodUpdated,
 } from "@/lib/email/booking-emails.server";
+import { Resend } from "resend";
 
 export const Route = createFileRoute("/api/public/stripe-webhook")({
   server: {
@@ -178,22 +180,140 @@ export const Route = createFileRoute("/api/public/stripe-webhook")({
             const pi = event.data.object as Stripe.PaymentIntent;
             const { data: bookings } = await supabaseAdmin
               .from("lb_bookings")
-              .select("id, guest_name, guest_email, event_id")
+              .select("id, guest_name, guest_email, event_id, total_amount, section_id")
               .eq("stripe_payment_intent_id", pi.id);
             for (const b of bookings ?? []) {
+              const newToken = crypto.randomUUID();
+              const newExpiry = new Date(
+                Date.now() + 14 * 86400000,
+              ).toISOString();
               await supabaseAdmin
                 .from("lb_bookings")
-                .update({ payment_status: "payment_failed" })
+                .update({
+                  payment_status: "payment_failed",
+                  payment_update_token: newToken,
+                  payment_update_token_expires_at: newExpiry,
+                })
                 .eq("id", b.id);
               const { data: ev } = await supabaseAdmin
                 .from("lb_events")
                 .select("wedding_name")
                 .eq("id", b.event_id)
                 .single();
+              const { data: section } = await supabaseAdmin
+                .from("lb_room_sections")
+                .select("section_name")
+                .eq("id", b.section_id)
+                .single();
+              const baseUrl =
+                process.env.APP_BASE_URL ?? "https://stay.gilbertsvillefarmhouse.com";
+              const failedAmount =
+                (pi.amount ?? 0) / 100 ||
+                Number(b.total_amount || 0) / 2;
               await sendPaymentFailedEmail({
                 to: b.guest_email,
                 guestName: b.guest_name,
                 weddingName: ev?.wedding_name ?? "your wedding weekend",
+                sectionName: section?.section_name ?? "your reservation",
+                failedAmount,
+                retryUrl: `${baseUrl}/update-payment/${newToken}`,
+                retryDeadline: "as soon as possible",
+              });
+            }
+          } else if (event.type === "setup_intent.succeeded") {
+            const si = event.data.object as Stripe.SetupIntent;
+            const customerId =
+              typeof si.customer === "string" ? si.customer : si.customer?.id ?? null;
+            const paymentMethodId =
+              typeof si.payment_method === "string"
+                ? si.payment_method
+                : si.payment_method?.id ?? null;
+            if (!customerId || !paymentMethodId) {
+              return new Response("ok", { status: 200 });
+            }
+
+            const { data: bookings } = await supabaseAdmin
+              .from("lb_bookings")
+              .select(
+                "id, guest_name, guest_email, total_amount, payment_status, event_id, section_id",
+              )
+              .eq("stripe_customer_id", customerId);
+
+            for (const b of bookings ?? []) {
+              const updateFields = {
+                stripe_payment_method_id: paymentMethodId,
+                payment_update_token: null,
+                payment_update_token_expires_at: null,
+                ...(b.payment_status === "payment_failed"
+                  ? { payment_status: "deposit_paid" }
+                  : {}),
+              } as never;
+              await supabaseAdmin
+                .from("lb_bookings")
+                .update(updateFields)
+                .eq("id", b.id);
+
+              const { data: ev } = await supabaseAdmin
+                .from("lb_events")
+                .select("wedding_name, check_in_date")
+                .eq("id", b.event_id)
+                .single();
+              const { data: section } = await supabaseAdmin
+                .from("lb_room_sections")
+                .select("section_name")
+                .eq("id", b.section_id)
+                .single();
+
+              const balance = Number(b.total_amount || 0) / 2;
+              const chargeDate = ev?.check_in_date
+                ? new Date(
+                    new Date(ev.check_in_date + "T00:00:00").getTime() -
+                      30 * 86400000,
+                  ).toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                  })
+                : "30 days before check-in";
+
+              try {
+                await sendPaymentMethodUpdated({
+                  to: b.guest_email,
+                  guestName: b.guest_name,
+                  weddingName: ev?.wedding_name ?? "your wedding weekend",
+                  sectionName: section?.section_name ?? "your reservation",
+                  balance,
+                  chargeDate,
+                });
+              } catch (e) {
+                console.error("sendPaymentMethodUpdated failed", e);
+              }
+
+              // Admin notification
+              try {
+                const adminTo =
+                  process.env.BRANDON_NOTIFICATION_EMAIL ?? process.env.ADMIN_EMAIL;
+                const resendKey = process.env.RESEND_API_KEY;
+                if (adminTo && resendKey) {
+                  const resend = new Resend(resendKey);
+                  await resend.emails.send({
+                    from: "Gilbertsville Farmhouse <noreply@gilbertsvillefarmhouse.com>",
+                    to: adminTo,
+                    subject: "Guest updated payment method",
+                    html: `<p>${b.guest_name} updated their payment method for ${ev?.wedding_name ?? ""}.</p>`,
+                  });
+                }
+              } catch (e) {
+                console.error("admin notify failed", e);
+              }
+
+              await supabaseAdmin.from("lb_sync_log").insert({
+                action: "payment_method_updated",
+                direction: "inbound",
+                lb_booking_id: b.id,
+                event_id: b.event_id,
+                guest_email: b.guest_email,
+                reason: `SetupIntent ${si.id} → pm ${paymentMethodId}`,
               });
             }
           } else if (event.type === "payment_intent.succeeded") {

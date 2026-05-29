@@ -99,6 +99,11 @@ export type LbBooking = {
   refund_reason?: string | null;
   refund_notes?: string | null;
   stripe_refund_id?: string | null;
+  payment_update_token?: string | null;
+  payment_update_token_expires_at?: string | null;
+  stripe_customer_id?: string | null;
+  stripe_payment_method_id?: string | null;
+  payment_schedule?: string;
 };
 
 export type GuestInvitation = {

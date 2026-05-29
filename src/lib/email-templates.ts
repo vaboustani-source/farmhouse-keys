@@ -702,3 +702,45 @@ export function additionalChargeEmail(p: AdditionalChargeEmailProps): { subject:
 
   return { subject, html };
 }
+
+// ─────────────────────────────────────────────────────────────
+// EMAIL — Payment Method Updated (self-serve confirmation)
+// ─────────────────────────────────────────────────────────────
+
+export interface PaymentMethodUpdatedEmailProps {
+  guestFirstName: string;
+  weddingName: string;
+  sectionName: string;
+  balance: number;
+  chargeDate: string;
+}
+
+export function paymentMethodUpdatedEmail(
+  p: PaymentMethodUpdatedEmailProps,
+): { subject: string; html: string } {
+  const subject = "Payment method updated — Gilbertsville Farmhouse";
+  const fmt = (n: number) =>
+    n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+  const html = baseTemplate(`
+    ${statusBadge("Card updated", "confirmed")}
+    <div style="margin-top:24px;">
+      ${heading("You're all set.")}
+      ${subheading(p.weddingName)}
+    </div>
+
+    ${body(`${p.guestFirstName}, your new payment method has been saved. Your balance of <strong>${fmt(p.balance)}</strong> will be automatically charged on <strong>${p.chargeDate}</strong>.`)}
+
+    ${rule()}
+
+    ${detailTable(`
+      ${detailRow("Balance due", fmt(p.balance))}
+      ${detailRow("Charge date", p.chargeDate)}
+      ${detailRow("Lodging", p.sectionName)}
+    `)}
+
+    ${body("If you have any questions, reach out to your planning team.")}
+  `);
+
+  return { subject, html };
+}

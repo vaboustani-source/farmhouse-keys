@@ -1252,6 +1252,11 @@ export type Database = {
           nights_booked: number
           payment_schedule: string
           payment_status: string
+          refund_amount: number | null
+          refund_notes: string | null
+          refund_reason: string | null
+          refunded_at: string | null
+          refunded_by: string | null
           reminder_count: number
           reminder_sent_at: string | null
           removed: boolean
@@ -1261,6 +1266,7 @@ export type Database = {
           section_id: string
           stripe_payment_id: string | null
           stripe_payment_intent_id: string | null
+          stripe_refund_id: string | null
           stripe_session_id: string | null
           tax_amount: number
           total_amount: number
@@ -1285,6 +1291,11 @@ export type Database = {
           nights_booked?: number
           payment_schedule?: string
           payment_status?: string
+          refund_amount?: number | null
+          refund_notes?: string | null
+          refund_reason?: string | null
+          refunded_at?: string | null
+          refunded_by?: string | null
           reminder_count?: number
           reminder_sent_at?: string | null
           removed?: boolean
@@ -1294,6 +1305,7 @@ export type Database = {
           section_id: string
           stripe_payment_id?: string | null
           stripe_payment_intent_id?: string | null
+          stripe_refund_id?: string | null
           stripe_session_id?: string | null
           tax_amount?: number
           total_amount?: number
@@ -1318,6 +1330,11 @@ export type Database = {
           nights_booked?: number
           payment_schedule?: string
           payment_status?: string
+          refund_amount?: number | null
+          refund_notes?: string | null
+          refund_reason?: string | null
+          refunded_at?: string | null
+          refunded_by?: string | null
           reminder_count?: number
           reminder_sent_at?: string | null
           removed?: boolean
@@ -1327,6 +1344,7 @@ export type Database = {
           section_id?: string
           stripe_payment_id?: string | null
           stripe_payment_intent_id?: string | null
+          stripe_refund_id?: string | null
           stripe_session_id?: string | null
           tax_amount?: number
           total_amount?: number

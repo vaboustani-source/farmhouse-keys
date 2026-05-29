@@ -18,15 +18,29 @@ export type CreateCheckoutSessionInput = {
  */
 export async function createCheckoutSession(
   input: CreateCheckoutSessionInput,
-): Promise<{ url: string | null; alreadyPaid?: boolean; redirectUrl?: string; reused?: boolean }> {
+): Promise<{
+  url: string | null;
+  alreadyPaid?: boolean;
+  redirectUrl?: string;
+  reused?: boolean;
+  locked?: boolean;
+  lockedMessage?: string;
+}> {
   const { data, error } = await supabase.functions.invoke<{
     url: string | null;
     error?: string;
     already_paid?: boolean;
     redirect_url?: string;
     reused?: boolean;
+    locked?: boolean;
+    message?: string;
   }>("create-checkout-session", { body: input });
 
+  // 409 from edge fn arrives as a non-2xx; supabase-js may surface as error w/ context.
+  // Still try to read data payload first.
+  if (data?.locked) {
+    return { url: null, locked: true, lockedMessage: data.message };
+  }
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
   return {

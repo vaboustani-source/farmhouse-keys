@@ -202,6 +202,7 @@ function EmailGate({
   const [loading, setLoading] = useState(false);
   const [statusBooking, setStatusBooking] = useState<Booking | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busyMessage, setBusyMessage] = useState<string | null>(null);
 
   const displayedError = error ?? externalError ?? null;
 
@@ -209,6 +210,7 @@ function EmailGate({
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setBusyMessage(null);
     try {
       const { data: rows, error: rpcErr } = await supabase.rpc("lookup_guest_booking", {
         p_email: email.trim(),
@@ -220,6 +222,40 @@ function EmailGate({
       if (!booking) {
         setError("We don't have a reservation held for that email. Please reach out to your planning team.");
         return;
+      }
+      // ── Inspect stripe_session_id for in-flight / open / complete sessions ──
+      if (booking.payment_status === "pending" || booking.payment_status === "payment_failed") {
+        const { data: sidRow } = await supabase
+          .from("lb_bookings")
+          .select("stripe_session_id")
+          .eq("id", booking.booking_id)
+          .single();
+        const sid = sidRow?.stripe_session_id ?? null;
+
+        if (sid && sid.startsWith("PENDING_")) {
+          const ts = Number(sid.split("_")[1] ?? 0);
+          if (Date.now() - ts < 5 * 60 * 1000) {
+            setBusyMessage(
+              "Your reservation is currently being processed. Check your other device or wait a few minutes.",
+            );
+            return;
+          }
+        } else if (sid && sid.startsWith("cs_")) {
+          try {
+            const { status, url } = await checkSessionStatus(sid);
+            if (status === "open" && url) {
+              window.location.href = url;
+              return;
+            }
+            if (status === "complete") {
+              window.location.href = `/book/${eventSlug}/${sectionSlug}/confirmation?session_id=${sid}`;
+              return;
+            }
+            // expired → proceed normally; lock will be replaced when they click Reserve
+          } catch {
+            // fall through
+          }
+        }
       }
       try {
         if (booking.payment_status === "pending" || booking.payment_status === "payment_failed") {
@@ -247,6 +283,11 @@ function EmailGate({
     <div className="text-center">
       <h1 className="font-serif text-4xl font-medium md:text-5xl">Welcome to your weekend.</h1>
       <p className="mt-3 text-sm text-[#6B6B6B]">Enter the email on your invitation.</p>
+      {busyMessage && (
+        <div className="mx-auto mt-6 max-w-sm rounded-md border border-[#C9A84C]/40 bg-[#FBF6E7] p-4 text-sm text-[#7a6420]">
+          {busyMessage}
+        </div>
+      )}
       <form onSubmit={submit} className="mx-auto mt-10 max-w-sm space-y-3">
         <input
           type="email"
@@ -323,6 +364,7 @@ function ReviewStep({
   const [lookingUpSecondary, setLookingUpSecondary] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [cotRequested, setCotRequested] = useState(false);
+  const [reserveError, setReserveError] = useState<string | null>(null);
 
   const cotFee = useMemo(() => {
     if (!cotRequested) return 0;
@@ -408,8 +450,9 @@ function ReviewStep({
 
   const reserve = async () => {
     setSubmitting(true);
+    setReserveError(null);
     try {
-      const { url, alreadyPaid, redirectUrl } = await createCheckoutSession({
+      const { url, alreadyPaid, redirectUrl, locked, lockedMessage } = await createCheckoutSession({
         bookingId: booking.booking_id,
         addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
         secondaryBookingId: secondary?.booking_id ?? null,
@@ -420,6 +463,13 @@ function ReviewStep({
         sectionSlug,
         cotRequested,
       });
+      if (locked) {
+        setReserveError(
+          lockedMessage ||
+            "Your reservation is already being processed on another device. Complete it there or wait 5 minutes to try again.",
+        );
+        return;
+      }
       if (alreadyPaid && redirectUrl) {
         window.location.href = redirectUrl;
         return;
@@ -665,6 +715,11 @@ function ReviewStep({
       >
         {submitting ? "Confirming with Stripe…" : secondary ? "Reserve our rooms" : "Reserve my room"}
       </button>
+      {reserveError && (
+        <div className="mt-4 rounded-md border border-[#C9A84C]/40 bg-[#FBF6E7] p-4 text-sm text-[#7a6420]">
+          {reserveError}
+        </div>
+      )}
     </div>
   );
 }

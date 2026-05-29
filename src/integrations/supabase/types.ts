@@ -2631,6 +2631,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acquire_stripe_session_lock: {
+        Args: { p_booking_id: string }
+        Returns: boolean
+      }
+      cleanup_stale_session_locks: { Args: never; Returns: number }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_event_member: {
         Args: { _event_id: string; _user_id: string }

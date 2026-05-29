@@ -173,7 +173,12 @@ serve(async (req) => {
       );
     }
 
-    if (existingBk?.payment_status === "pending" && existingBk?.stripe_session_id) {
+    // Reuse existing OPEN Stripe session if one exists (real cs_ id)
+    if (
+      existingBk?.payment_status === "pending" &&
+      existingBk?.stripe_session_id &&
+      existingBk.stripe_session_id.startsWith("cs_")
+    ) {
       try {
         const existing = await stripe.checkout.sessions.retrieve(existingBk.stripe_session_id);
         if (existing.status === "open" && existing.url) {
@@ -186,6 +191,25 @@ serve(async (req) => {
       } catch (_) {
         // session not retrievable → create a fresh one
       }
+    }
+
+    // ── Optimistic session lock: prevents two devices creating two sessions ──
+    const { data: lockAcquired, error: lockErr } = await supabaseAdmin.rpc(
+      "acquire_stripe_session_lock",
+      { p_booking_id: bookingId },
+    );
+    if (lockErr) {
+      console.error("acquire_stripe_session_lock failed", lockErr);
+    }
+    if (lockAcquired === false) {
+      return new Response(
+        JSON.stringify({
+          locked: true,
+          message:
+            "Your reservation is already being processed on another device. Complete it there or wait 5 minutes to try again.",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const primary = await lineItemsForBooking(bookingId, addonIds);

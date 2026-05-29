@@ -709,10 +709,60 @@ function ReviewStep({
         </div>
       </div>
 
+      {/* Cancellation policy */}
+      <div className="mt-6">
+        <p
+          style={{
+            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 11,
+            letterSpacing: 2,
+            textTransform: "uppercase",
+            color: "#9A9188",
+            margin: 0,
+          }}
+        >
+          CANCELLATION POLICY
+        </p>
+        <p
+          style={{
+            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 13,
+            color: "#6B6B6B",
+            fontWeight: 300,
+            marginTop: 6,
+            lineHeight: 1.5,
+          }}
+        >
+          Cancellation is possible up to 45 days prior to the first check-in date of your stay. After that time, the reservation is fully non-refundable.
+        </p>
+        <label className="mt-4 flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            checked={agreedToCancellation}
+            onChange={(e) => setAgreedToCancellation(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[#2C3E2D]"
+          />
+          <span
+            style={{
+              fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+              fontSize: 13,
+              color: "#6B6B6B",
+              fontWeight: 300,
+            }}
+          >
+            I understand and agree to the cancellation policy.
+          </span>
+        </label>
+      </div>
+
       <button
         onClick={reserve}
-        disabled={submitting}
-        className="mt-6 w-full rounded bg-[#2C3E2D] px-4 py-4 text-sm uppercase tracking-[0.16em] text-white transition-colors hover:bg-[#2C3E2D]/90 disabled:opacity-50"
+        disabled={submitting || !agreedToCancellation}
+        className={`mt-6 w-full rounded px-4 py-4 text-sm uppercase tracking-[0.16em] text-white transition-colors ${
+          agreedToCancellation
+            ? "bg-[#2C3E2D] hover:bg-[#2C3E2D]/90"
+            : "bg-[#2C3E2D]/50"
+        } disabled:opacity-50`}
       >
         {submitting ? "Confirming with Stripe…" : secondary ? "Reserve our rooms" : "Reserve my room"}
       </button>

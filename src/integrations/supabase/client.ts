@@ -24,6 +24,8 @@ export type LbEvent = {
   resort_fee_pct: number;
   created_at: string;
   updated_at: string;
+  check_in_time?: string;
+  check_out_time?: string;
 };
 
 export type LbRoomSection = {

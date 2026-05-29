@@ -10,6 +10,7 @@ import {
   type LbSectionAddon,
 } from "@/integrations/supabase/client";
 import { AdminShell, formatMoney } from "@/components/lb/AdminShell";
+import { EventLayout } from "@/components/lb/EventNav";
 
 export const Route = createFileRoute("/events/$eventId/edit")({
   component: EditEventPage,
@@ -53,8 +54,10 @@ function EditEventPage() {
   if (isLoading || !data) {
     return (
       <AdminShell>
+      <EventLayout eventId={eventId} currentTab="settings">
         <div className="text-sm text-muted-foreground">Opening the block…</div>
-      </AdminShell>
+      </EventLayout>
+    </AdminShell>
     );
   }
 
@@ -73,6 +76,7 @@ function EditEventPage() {
 
   return (
     <AdminShell>
+      <EventLayout eventId={eventId} currentTab="settings">
       <div className="mb-8 flex items-end justify-between gap-6">
         <div>
           <Link to="/" className="text-xs uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground">
@@ -124,6 +128,7 @@ function EditEventPage() {
           Activate event
         </button>
       </div>
+      </EventLayout>
     </AdminShell>
   );
 }

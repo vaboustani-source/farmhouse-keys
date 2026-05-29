@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase, type LbBooking, type LbEvent, type LbRoomSection } from "@/integrations/supabase/client";
 import { AdminShell, formatMoney } from "@/components/lb/AdminShell";
+import { EventLayout } from "@/components/lb/EventNav";
 
 export const Route = createFileRoute("/events/$eventId/payments")({
   component: PaymentSummaryPage,
@@ -29,7 +30,7 @@ function PaymentSummaryPage() {
   });
 
   if (isLoading || !data) {
-    return <AdminShell><div className="text-sm text-muted-foreground">Loading…</div></AdminShell>;
+    return <AdminShell><EventLayout eventId={eventId} currentTab="payments"><div className="text-sm text-muted-foreground">Loading…</div></EventLayout></AdminShell>;
   }
 
   const { event, sections, bookings } = data;
@@ -47,6 +48,7 @@ function PaymentSummaryPage() {
 
   return (
     <AdminShell>
+      <EventLayout eventId={eventId} currentTab="payments">
       <Link
         to="/events/$eventId"
         params={{ eventId }}
@@ -140,6 +142,7 @@ function PaymentSummaryPage() {
           </tbody>
         </table>
       </div>
+      </EventLayout>
     </AdminShell>
   );
 }

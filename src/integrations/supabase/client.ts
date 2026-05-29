@@ -116,3 +116,16 @@ export type GuestInvitation = {
   created_at: string;
   updated_at: string;
 };
+
+export type LbAdditionalCharge = {
+  id: string;
+  booking_id: string;
+  event_id: string;
+  amount: number;
+  description: string;
+  notes: string | null;
+  stripe_payment_intent_id: string | null;
+  status: "succeeded" | "failed";
+  charged_at: string;
+  charged_by: string | null;
+};

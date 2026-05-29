@@ -1,6 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase, type LbBooking, type LbEvent, type LbRoomSection } from "@/integrations/supabase/client";
+import { useState } from "react";
+import {
+  supabase,
+  type LbAdditionalCharge,
+  type LbBooking,
+  type LbEvent,
+  type LbRoomSection,
+} from "@/integrations/supabase/client";
 import { AdminShell, formatMoney } from "@/components/lb/AdminShell";
 import { EventLayout } from "@/components/lb/EventNav";
 
@@ -9,21 +16,29 @@ export const Route = createFileRoute("/events/$eventId/payments")({
 });
 
 async function fetchAll(id: string) {
-  const [evt, sec, bk] = await Promise.all([
+  const [evt, sec, bk, ac] = await Promise.all([
     supabase.from("lb_events").select("*").eq("id", id).single(),
     supabase.from("lb_room_sections").select("*").eq("event_id", id).order("sort_order"),
     supabase.from("lb_bookings").select("*").eq("event_id", id).order("booked_at", { ascending: false }),
+    supabase
+      .from("lb_additional_charges")
+      .select("*")
+      .eq("event_id", id)
+      .eq("status", "succeeded")
+      .order("charged_at", { ascending: false }),
   ]);
   if (evt.error) throw evt.error;
   return {
     event: evt.data as LbEvent,
     sections: (sec.data ?? []) as LbRoomSection[],
     bookings: (bk.data ?? []) as LbBooking[],
+    additional: (ac.data ?? []) as LbAdditionalCharge[],
   };
 }
 
 function PaymentSummaryPage() {
   const { eventId } = Route.useParams();
+  const [showExtras, setShowExtras] = useState(false);
   const { data, isLoading } = useQuery({
     queryKey: ["lb_payments", eventId],
     queryFn: () => fetchAll(eventId),
@@ -33,7 +48,7 @@ function PaymentSummaryPage() {
     return <AdminShell><EventLayout eventId={eventId} currentTab="payments"><div className="text-sm text-muted-foreground">Loading…</div></EventLayout></AdminShell>;
   }
 
-  const { event, sections, bookings } = data;
+  const { event, sections, bookings, additional } = data;
   const paid = bookings.filter((b) => b.payment_status === "paid");
   const sum = (xs: LbBooking[], k: keyof LbBooking) =>
     xs.reduce((s, b) => s + Number(b[k] ?? 0), 0);
@@ -45,6 +60,9 @@ function PaymentSummaryPage() {
     tax: sum(paid, "tax_amount"),
     total: sum(paid, "total_amount"),
   };
+  const additionalTotal = additional.reduce((s, c) => s + Number(c.amount), 0);
+  const guestName = (id: string) =>
+    bookings.find((b) => b.id === id)?.guest_name ?? "—";
 
   return (
     <AdminShell>
@@ -59,12 +77,70 @@ function PaymentSummaryPage() {
       <h1 className="mt-2 mb-2 font-serif text-4xl font-medium text-foreground">Payment summary</h1>
       <p className="mb-8 text-sm text-muted-foreground">{event.couple_names} · {paid.length} paid reservation{paid.length === 1 ? "" : "s"}</p>
 
-      <div className="mb-10 grid grid-cols-2 gap-4 md:grid-cols-5">
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-5">
         <Stat label="Base lodging" value={formatMoney(totals.base)} />
         <Stat label="Add-ons" value={formatMoney(totals.addons)} />
         <Stat label="Resort fees" value={formatMoney(totals.resort)} />
         <Stat label="NY tax" value={formatMoney(totals.tax)} />
-        <Stat label="Total collected" value={formatMoney(totals.total)} accent />
+        <Stat label="Total collected" value={formatMoney(totals.total + additionalTotal)} accent />
+      </div>
+
+      <div className="mb-10 overflow-hidden rounded-lg border border-border bg-card">
+        <button
+          type="button"
+          onClick={() => setShowExtras((v) => !v)}
+          className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-muted/30"
+        >
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+              Additional charges
+            </div>
+            <div className="font-serif text-lg text-primary">
+              {additional.length === 0
+                ? "None"
+                : `${formatMoney(additionalTotal)} · ${additional.length} ${additional.length === 1 ? "charge" : "charges"}`}
+            </div>
+          </div>
+          {additional.length > 0 && (
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">
+              {showExtras ? "Hide" : "Show"}
+            </span>
+          )}
+        </button>
+        {showExtras && additional.length > 0 && (
+          <table className="w-full border-t border-border text-sm">
+            <thead className="bg-muted/40 text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3 font-medium">Date</th>
+                <th className="px-4 py-3 font-medium">Guest</th>
+                <th className="px-4 py-3 font-medium">Description</th>
+                <th className="px-4 py-3 font-medium text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {additional.map((c) => (
+                <tr key={c.id} className="border-t border-border">
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {new Date(c.charged_at).toLocaleDateString()}
+                  </td>
+                  <td className="px-4 py-3">{guestName(c.booking_id)}</td>
+                  <td className="px-4 py-3 text-sm">
+                    {c.description}
+                    {c.notes && (
+                      <div className="text-[11px] text-muted-foreground">{c.notes}</div>
+                    )}
+                  </td>
+                  <td
+                    className={`px-4 py-3 text-right tabular-nums ${Number(c.amount) < 0 ? "text-red-700" : "text-primary"}`}
+                  >
+                    {Number(c.amount) < 0 ? "−" : "+"}
+                    {formatMoney(Math.abs(Number(c.amount)))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <h2 className="mb-3 font-serif text-2xl text-foreground">By section</h2>

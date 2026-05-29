@@ -1231,6 +1231,60 @@ export type Database = {
           },
         ]
       }
+      lb_additional_charges: {
+        Row: {
+          amount: number
+          booking_id: string
+          charged_at: string
+          charged_by: string | null
+          description: string
+          event_id: string
+          id: string
+          notes: string | null
+          status: string
+          stripe_payment_intent_id: string | null
+        }
+        Insert: {
+          amount: number
+          booking_id: string
+          charged_at?: string
+          charged_by?: string | null
+          description: string
+          event_id: string
+          id?: string
+          notes?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+        }
+        Update: {
+          amount?: number
+          booking_id?: string
+          charged_at?: string
+          charged_by?: string | null
+          description?: string
+          event_id?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lb_additional_charges_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "lb_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lb_additional_charges_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "lb_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lb_bookings: {
         Row: {
           addon_amount: number

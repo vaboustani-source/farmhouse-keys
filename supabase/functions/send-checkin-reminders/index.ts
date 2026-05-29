@@ -5,7 +5,86 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { Resend } from "https://esm.sh/resend@4.0.1";
-import { checkInReminderEmail } from "../../../src/lib/email-templates.ts";
+
+// Inlined check-in reminder email (mirror of src/lib/email-templates.ts
+// checkInReminderEmail — Supabase Edge Functions only bundle the function
+// directory, so we cannot import from src/).
+function checkInReminderEmail(p: {
+  guestFirstName: string;
+  weddingName: string;
+  sectionName: string;
+  checkInDate: string;
+  checkOutDate: string;
+  nights: number;
+  checkInTime?: string;
+  checkOutTime?: string;
+  propertyAddress?: string;
+  cotRequested?: boolean;
+}): { subject: string; html: string } {
+  const subject = "Your stay at Gilbertsville Farmhouse is in one week";
+  const checkInTime = p.checkInTime || "3:00 PM";
+  const checkOutTime = p.checkOutTime || "11:00 AM";
+  const propertyAddress =
+    p.propertyAddress || "424 County Highway 18, South New Berlin, NY 13843";
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(propertyAddress)}`;
+  const cotRow = p.cotRequested
+    ? `<tr>
+         <td style="padding:10px 0;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#9A9188;width:40%;vertical-align:top;">Cot</td>
+         <td style="padding:10px 0;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:14px;color:#1A1A1A;vertical-align:top;">A cot will be ready in your room</td>
+       </tr>`
+    : "";
+
+  const row = (label: string, value: string) => `
+    <tr>
+      <td style="padding:10px 0;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#9A9188;width:40%;vertical-align:top;">${label}</td>
+      <td style="padding:10px 0;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:14px;color:#1A1A1A;vertical-align:top;">${value}</td>
+    </tr>`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Gilbertsville Farmhouse</title>
+<style>@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Jost:wght@300;400;500&display=swap');body{margin:0;padding:0;background-color:#F5F0EB;}a{color:#2C3E2D;}</style>
+</head>
+<body style="margin:0;padding:0;background-color:#F5F0EB;font-family:'Jost',Helvetica,Arial,sans-serif;">
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#F5F0EB;">
+<tr><td align="center" style="padding:40px 16px 24px;">
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:580px;">
+  <tr><td align="center" style="padding-bottom:32px;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#2C3E2D;border-radius:4px 4px 0 0;">
+      <tr><td align="center" style="padding:36px 40px 28px;">
+        <p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:11px;letter-spacing:4px;text-transform:uppercase;color:#C9A84C;">GILBERTSVILLE FARMHOUSE</p>
+        <table role="presentation" align="center" width="40" style="border-top:1px solid #C9A84C;margin-top:14px;"><tr><td>&nbsp;</td></tr></table>
+      </td></tr>
+    </table>
+  </td></tr>
+  <tr><td style="background-color:#FFFFFF;border-radius:0 0 4px 4px;padding:48px 48px 40px;border:1px solid #E8E2D9;border-top:none;">
+    <span style="display:inline-block;padding:4px 12px;background-color:#2C3E2D;border-radius:2px;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#C9A84C;font-weight:500;">See you soon</span>
+    <div style="margin-top:24px;">
+      <h1 style="margin:0 0 8px;font-family:'Cormorant Garamond',Georgia,serif;font-size:32px;font-weight:400;color:#1A1A1A;line-height:1.2;">Your weekend is almost here.</h1>
+      <p style="margin:0 0 32px;font-family:'Cormorant Garamond',Georgia,serif;font-size:18px;color:#6B6B6B;font-style:italic;">${p.weddingName}</p>
+    </div>
+    <p style="margin:0 0 20px;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.7;color:#3A3A3A;font-weight:300;">${p.guestFirstName}, your stay at the estate is just one week away. Here are the details for your arrival.</p>
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin:28px 0;"><tr><td style="border-top:1px solid #E8E2D9;font-size:0;line-height:0;">&nbsp;</td></tr></table>
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 28px;">
+      ${row("Arrival", `${p.checkInDate} after ${checkInTime}`)}
+      ${row("Departure", `${p.checkOutDate} by ${checkOutTime}`)}
+      ${row("Lodging", p.sectionName)}
+      ${row("Address", `<a href="${mapsUrl}" target="_blank" style="color:#2C3E2D;text-decoration:underline;">${propertyAddress}</a>`)}
+      ${cotRow}
+    </table>
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin:28px 0;"><tr><td style="border-top:1px solid #C9A84C;font-size:0;line-height:0;opacity:0.4;">&nbsp;</td></tr></table>
+    <p style="margin:0 0 20px;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.7;color:#3A3A3A;font-weight:300;">We'll have everything ready for your arrival. If you have any questions before you get here, reach out to your planning team.</p>
+  </td></tr>
+  <tr><td align="center" style="padding:32px 40px 48px;">
+    <p style="margin:0 0 8px;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:11px;color:#9A9188;letter-spacing:1px;text-transform:uppercase;">South New Berlin, NY · Otsego County</p>
+    <p style="margin:0;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:11px;color:#B8AFA6;"><a href="https://gilbertsvillefarmhouse.com" style="color:#9A9188;text-decoration:none;">gilbertsvillefarmhouse.com</a></p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+  return { subject, html };
+}
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

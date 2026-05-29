@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Copy, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Plus, Send, Trash2 } from "lucide-react";
 import {
   supabase,
   type LbEvent,
@@ -173,9 +173,78 @@ function EventDetailsCard({ event, onSave }: { event: LbEvent; onSave: (p: Parti
           <input type="number" min={0} step={0.1} className="lb-input" value={local.tax_pct}
             onChange={(e) => queue({ tax_pct: parseFloat(e.target.value) || 0 })} />
         </Field>
+        <Field label="Check-in time">
+          <input
+            type="text"
+            className="lb-input"
+            value={local.check_in_time ?? "3:00 PM"}
+            onChange={(e) => queue({ check_in_time: e.target.value } as Partial<LbEvent>)}
+            placeholder="3:00 PM"
+          />
+        </Field>
+        <Field label="Check-out time">
+          <input
+            type="text"
+            className="lb-input"
+            value={local.check_out_time ?? "11:00 AM"}
+            onChange={(e) => queue({ check_out_time: e.target.value } as Partial<LbEvent>)}
+            placeholder="11:00 AM"
+          />
+        </Field>
       </div>
+      {event.status === "active" && (
+        <div className="mt-5 border-t border-border pt-4">
+          <SendCheckinRemindersButton eventId={event.id} />
+        </div>
+      )}
       <LbInputStyle />
     </div>
+  );
+}
+
+function SendCheckinRemindersButton({ eventId }: { eventId: string }) {
+  const [busy, setBusy] = useState(false);
+
+  const trigger = async () => {
+    const ok = window.confirm(
+      "Send check-in reminder emails to all confirmed guests for this event?",
+    );
+    if (!ok) return;
+    setBusy(true);
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-checkin-reminders`;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${anonKey}`,
+        },
+        body: JSON.stringify({ event_id: eventId }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || `HTTP ${res.status}`);
+      }
+      const json = (await res.json()) as { sent?: number };
+      toast.success(`Reminders sent to ${json.sent ?? 0} guests`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send reminders");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={trigger}
+      disabled={busy}
+      className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs text-foreground hover:bg-muted disabled:opacity-50"
+    >
+      <Send className="h-3.5 w-3.5" />
+      {busy ? "Sending…" : "Send check-in reminders now"}
+    </button>
   );
 }
 

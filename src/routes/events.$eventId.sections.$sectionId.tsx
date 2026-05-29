@@ -7,13 +7,14 @@ import { supabase, type LbBooking, type LbRoomSection } from "@/integrations/sup
 import { AdminShell, formatMoney } from "@/components/lb/AdminShell";
 import { EventLayout } from "@/components/lb/EventNav";
 import { RefundPanel } from "@/components/lb/RefundPanel";
+import { AdjustPanel } from "@/components/lb/AdjustPanel";
 
 export const Route = createFileRoute("/events/$eventId/sections/$sectionId")({
   component: SectionBookingsPage,
 });
 
 async function fetchSection(sectionId: string, eventId: string) {
-  const [s, b, ev] = await Promise.all([
+  const [s, b, ev, ac] = await Promise.all([
     supabase.from("lb_room_sections").select("*").eq("id", sectionId).single(),
     supabase
       .from("lb_bookings")
@@ -26,12 +27,22 @@ async function fetchSection(sectionId: string, eventId: string) {
       .select("check_in_date")
       .eq("id", eventId)
       .single(),
+    supabase
+      .from("lb_additional_charges")
+      .select("booking_id, amount, status")
+      .eq("event_id", eventId),
   ]);
   if (s.error) throw s.error;
+  const byBooking = new Map<string, number>();
+  for (const r of (ac.data ?? []) as Array<{ booking_id: string; amount: number; status: string }>) {
+    if (r.status !== "succeeded") continue;
+    byBooking.set(r.booking_id, (byBooking.get(r.booking_id) ?? 0) + Number(r.amount));
+  }
   return {
     section: s.data as LbRoomSection,
     bookings: (b.data ?? []) as LbBooking[],
     checkInDate: (ev.data?.check_in_date ?? null) as string | null,
+    additionalByBooking: byBooking,
   };
 }
 
@@ -40,6 +51,7 @@ function SectionBookingsPage() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState<"all" | "paid" | "pending" | "failed">("all");
   const [openRefundId, setOpenRefundId] = useState<string | null>(null);
+  const [openAdjustId, setOpenAdjustId] = useState<string | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["lb_section_bookings", sectionId],
     queryFn: () => fetchSection(sectionId, eventId),
@@ -48,9 +60,10 @@ function SectionBookingsPage() {
   if (isLoading || !data) {
     return <AdminShell><EventLayout eventId={eventId} currentTab="bookings"><div className="text-sm text-muted-foreground">Loading…</div></EventLayout></AdminShell>;
   }
-  const { section, bookings, checkInDate } = data;
+  const { section, bookings, checkInDate, additionalByBooking } = data;
   const filtered = bookings.filter((b) => filter === "all" || b.payment_status === filter);
   const REFUNDABLE = new Set(["paid", "deposit_paid", "covered"]);
+  const ADJUSTABLE = new Set(["pending", "deposit_paid", "paid"]);
 
   const updateRoom = async (id: string, val: string) => {
     const { error } = await supabase.from("lb_bookings").update({ room_assignment: val || null }).eq("id", id);
@@ -154,6 +167,16 @@ function SectionBookingsPage() {
                         −{formatMoney(Number(b.refund_amount))} refunded
                       </div>
                     )}
+                    {(() => {
+                      const extra = additionalByBooking.get(b.id) ?? 0;
+                      if (extra === 0) return null;
+                      return (
+                        <div className="text-[11px] font-medium text-primary">
+                          {extra > 0 ? "+" : ""}
+                          {formatMoney(extra)}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3"><PaymentBadge status={b.payment_status} /></td>
                   <td className="px-4 py-3">
@@ -176,14 +199,32 @@ function SectionBookingsPage() {
                       <span className="text-[11px] text-muted-foreground">
                         Refunded {b.refunded_at ? new Date(b.refunded_at).toLocaleDateString() : ""}
                       </span>
-                    ) : REFUNDABLE.has(b.payment_status) && b.removed !== true ? (
-                      <button
-                        onClick={() => setOpenRefundId(openRefundId === b.id ? null : b.id)}
-                        className="rounded border border-red-300 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider text-red-700 hover:bg-red-50"
-                      >
-                        {openRefundId === b.id ? "Close" : "Refund"}
-                      </button>
-                    ) : null}
+                    ) : (
+                      <div className="flex justify-end gap-2">
+                        {ADJUSTABLE.has(b.payment_status) && b.removed !== true && (
+                          <button
+                            onClick={() => {
+                              setOpenRefundId(null);
+                              setOpenAdjustId(openAdjustId === b.id ? null : b.id);
+                            }}
+                            className="rounded border border-primary/40 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider text-primary hover:bg-primary/5"
+                          >
+                            {openAdjustId === b.id ? "Close" : "Adjust"}
+                          </button>
+                        )}
+                        {REFUNDABLE.has(b.payment_status) && b.removed !== true && (
+                          <button
+                            onClick={() => {
+                              setOpenAdjustId(null);
+                              setOpenRefundId(openRefundId === b.id ? null : b.id);
+                            }}
+                            className="rounded border border-red-300 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider text-red-700 hover:bg-red-50"
+                          >
+                            {openRefundId === b.id ? "Close" : "Refund"}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </td>
                 </tr>
                 {openRefundId === b.id && (
@@ -196,6 +237,20 @@ function SectionBookingsPage() {
                         onClose={() => setOpenRefundId(null)}
                         onDone={() => {
                           setOpenRefundId(null);
+                          qc.invalidateQueries({ queryKey: ["lb_section_bookings", sectionId] });
+                        }}
+                      />
+                    </td>
+                  </tr>
+                )}
+                {openAdjustId === b.id && (
+                  <tr className="bg-muted/30">
+                    <td colSpan={8} className="px-4 py-4">
+                      <AdjustPanel
+                        booking={b}
+                        section={section}
+                        onClose={() => setOpenAdjustId(null)}
+                        onDone={() => {
                           qc.invalidateQueries({ queryKey: ["lb_section_bookings", sectionId] });
                         }}
                       />

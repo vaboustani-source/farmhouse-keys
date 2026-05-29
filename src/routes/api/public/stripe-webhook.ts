@@ -179,6 +179,68 @@ export const Route = createFileRoute("/api/public/stripe-webhook")({
                 weddingName: ev?.wedding_name ?? "your wedding weekend",
               });
             }
+          } else if (event.type === "payment_intent.succeeded") {
+            const pi = event.data.object as Stripe.PaymentIntent;
+            const { data: bookings } = await supabaseAdmin
+              .from("lb_bookings")
+              .select(
+                "id, guest_name, guest_email, total_amount, payment_status, payment_schedule, event_id, section_id",
+              )
+              .eq("stripe_payment_intent_id", pi.id);
+
+            if (!bookings || bookings.length === 0) {
+              await supabaseAdmin.from("lb_sync_log").insert({
+                action: "stripe_pi_succeeded_no_booking",
+                direction: "inbound",
+                reason: `No lb_bookings match payment_intent ${pi.id}`,
+              });
+              return new Response("ok", { status: 200 });
+            }
+
+            const now = new Date().toISOString();
+            for (const b of bookings) {
+              if (b.payment_status === "paid") continue; // idempotent
+              if (b.payment_status !== "deposit_paid") continue; // only promote deposit→paid
+
+              await supabaseAdmin
+                .from("lb_bookings")
+                .update({ payment_status: "paid", final_paid_at: now })
+                .eq("id", b.id);
+
+              const { data: section } = await supabaseAdmin
+                .from("lb_room_sections")
+                .select("section_name")
+                .eq("id", b.section_id)
+                .single();
+              const { data: ev } = await supabaseAdmin
+                .from("lb_events")
+                .select("wedding_name, check_in_date, check_out_date")
+                .eq("id", b.event_id)
+                .single();
+
+              const finalAmount = (pi.amount_received ?? pi.amount ?? 0) / 100;
+
+              await sendPaidInFullConfirmation({
+                to: b.guest_email,
+                guestName: b.guest_name,
+                weddingName: ev?.wedding_name ?? "your wedding weekend",
+                sectionName: section?.section_name ?? "your section",
+                checkIn: ev?.check_in_date ?? "",
+                checkOut: ev?.check_out_date ?? "",
+                amountPaid: finalAmount,
+              });
+
+              await sendAdminNotification({
+                guestName: b.guest_name,
+                sectionName: section?.section_name ?? "",
+                amount: finalAmount,
+                paymentType: "full",
+                weddingName: ev?.wedding_name ?? "",
+                checkIn: ev?.check_in_date ?? "",
+                checkOut: ev?.check_out_date ?? "",
+                guestEmail: b.guest_email,
+              });
+            }
           }
         } catch (err) {
           console.error("Stripe webhook handler error", err);

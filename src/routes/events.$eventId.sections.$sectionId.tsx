@@ -193,6 +193,26 @@ function SectionBookingsPage() {
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">
                     {new Date(b.booked_at).toLocaleDateString()}
+                    {b.payment_schedule === "deposit_50_balance_50" &&
+                      b.payment_update_token && (
+                        <div className="mt-1">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const url = `${window.location.origin}/update-payment/${b.payment_update_token}`;
+                              try {
+                                await navigator.clipboard.writeText(url);
+                                toast.success("Payment update link copied");
+                              } catch {
+                                toast.error("Could not copy link");
+                              }
+                            }}
+                            className="text-[11px] uppercase tracking-wider text-primary hover:underline"
+                          >
+                            Payment update link
+                          </button>
+                        </div>
+                      )}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {b.payment_status === "refunded" ? (

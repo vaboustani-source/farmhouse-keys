@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { Resend } from "resend";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabase } from "@/integrations/supabase/client";
 import { invitationEmail } from "@/lib/email-templates";
 
 const tokenSchema = z.object({ token: z.string().uuid() });
@@ -9,7 +9,7 @@ const tokenSchema = z.object({ token: z.string().uuid() });
 export const getTrackerData = createServerFn({ method: "POST" })
   .inputValidator(tokenSchema.parse)
   .handler(async ({ data }) => {
-    const { data: rows, error } = await supabaseAdmin.rpc("lookup_tracker_by_token", {
+    const { data: rows, error } = await supabase.rpc("lookup_tracker_by_token", {
       p_token: data.token,
     });
     if (error) {
@@ -53,14 +53,14 @@ export const sendNudge = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     // Validate the token resolves to an event, and the booking belongs to it.
-    const { data: ev } = await supabaseAdmin
+    const { data: ev } = await supabase
       .from("lb_events")
       .select("id, wedding_name, couple_names, check_in_date, slug")
       .eq("couple_access_token", data.token)
       .maybeSingle();
     if (!ev) return { ok: false, reason: "invalid_token" as const };
 
-    const { data: booking } = await supabaseAdmin
+    const { data: booking } = await supabase
       .from("lb_bookings")
       .select(
         "id, event_id, section_id, guest_name, guest_email, payment_status, reminder_sent_at, reminder_count",
@@ -83,7 +83,7 @@ export const sendNudge = createServerFn({ method: "POST" })
       }
     }
 
-    const { data: section } = await supabaseAdmin
+    const { data: section } = await supabase
       .from("lb_room_sections")
       .select("section_name, booking_link_slug, guest_nightly_rate, nights")
       .eq("id", booking.section_id)
@@ -132,7 +132,7 @@ export const sendNudge = createServerFn({ method: "POST" })
     }
 
     const now = new Date().toISOString();
-    await supabaseAdmin
+    await supabase
       .from("lb_bookings")
       .update({
         reminder_sent_at: now,

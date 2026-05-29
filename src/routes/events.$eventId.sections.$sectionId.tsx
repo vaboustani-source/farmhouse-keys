@@ -1,17 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { supabase, type LbBooking, type LbRoomSection } from "@/integrations/supabase/client";
 import { AdminShell, formatMoney } from "@/components/lb/AdminShell";
+import { RefundPanel } from "@/components/lb/RefundPanel";
 
 export const Route = createFileRoute("/events/$eventId/sections/$sectionId")({
   component: SectionBookingsPage,
 });
 
 async function fetchSection(sectionId: string, eventId: string) {
-  const [s, b] = await Promise.all([
+  const [s, b, ev] = await Promise.all([
     supabase.from("lb_room_sections").select("*").eq("id", sectionId).single(),
     supabase
       .from("lb_bookings")
@@ -19,15 +20,25 @@ async function fetchSection(sectionId: string, eventId: string) {
       .eq("section_id", sectionId)
       .eq("event_id", eventId)
       .order("booked_at", { ascending: false }),
+    supabase
+      .from("lb_events")
+      .select("check_in_date")
+      .eq("id", eventId)
+      .single(),
   ]);
   if (s.error) throw s.error;
-  return { section: s.data as LbRoomSection, bookings: (b.data ?? []) as LbBooking[] };
+  return {
+    section: s.data as LbRoomSection,
+    bookings: (b.data ?? []) as LbBooking[],
+    checkInDate: (ev.data?.check_in_date ?? null) as string | null,
+  };
 }
 
 function SectionBookingsPage() {
   const { eventId, sectionId } = Route.useParams();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<"all" | "paid" | "pending" | "failed">("all");
+  const [openRefundId, setOpenRefundId] = useState<string | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["lb_section_bookings", sectionId],
     queryFn: () => fetchSection(sectionId, eventId),
@@ -36,8 +47,9 @@ function SectionBookingsPage() {
   if (isLoading || !data) {
     return <AdminShell><div className="text-sm text-muted-foreground">Loading…</div></AdminShell>;
   }
-  const { section, bookings } = data;
+  const { section, bookings, checkInDate } = data;
   const filtered = bookings.filter((b) => filter === "all" || b.payment_status === filter);
+  const REFUNDABLE = new Set(["paid", "deposit_paid", "covered"]);
 
   const updateRoom = async (id: string, val: string) => {
     const { error } = await supabase.from("lb_bookings").update({ room_assignment: val || null }).eq("id", id);
@@ -122,7 +134,8 @@ function SectionBookingsPage() {
             </thead>
             <tbody>
               {filtered.map((b) => (
-                <tr key={b.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                <Fragment key={b.id}>
+                <tr className={`border-b border-border last:border-0 hover:bg-muted/20 ${b.payment_status === "refunded" ? "opacity-70" : ""}`}>
                   <td className="px-4 py-3">
                     <div className="text-foreground">{b.guest_name}</div>
                     <div className="text-xs text-muted-foreground">{b.guest_email}</div>
@@ -131,7 +144,14 @@ function SectionBookingsPage() {
                   <td className="px-4 py-3 text-xs text-muted-foreground">
                     {(b.addons_selected ?? []).map((a) => a.name).join(", ") || "—"}
                   </td>
-                  <td className="px-4 py-3 tabular-nums">{formatMoney(b.total_amount)}</td>
+                  <td className="px-4 py-3 tabular-nums">
+                    <div>{formatMoney(b.total_amount)}</div>
+                    {b.payment_status === "refunded" && b.refund_amount != null && (
+                      <div className="text-[11px] text-red-700/80">
+                        −{formatMoney(Number(b.refund_amount))} refunded
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3"><PaymentBadge status={b.payment_status} /></td>
                   <td className="px-4 py-3">
                     <input
@@ -148,7 +168,38 @@ function SectionBookingsPage() {
                   <td className="px-4 py-3 text-xs text-muted-foreground">
                     {new Date(b.booked_at).toLocaleDateString()}
                   </td>
+                  <td className="px-4 py-3 text-right">
+                    {b.payment_status === "refunded" ? (
+                      <span className="text-[11px] text-muted-foreground">
+                        Refunded {b.refunded_at ? new Date(b.refunded_at).toLocaleDateString() : ""}
+                      </span>
+                    ) : REFUNDABLE.has(b.payment_status) && b.removed !== true ? (
+                      <button
+                        onClick={() => setOpenRefundId(openRefundId === b.id ? null : b.id)}
+                        className="rounded border border-red-300 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider text-red-700 hover:bg-red-50"
+                      >
+                        {openRefundId === b.id ? "Close" : "Refund"}
+                      </button>
+                    ) : null}
+                  </td>
                 </tr>
+                {openRefundId === b.id && (
+                  <tr className="bg-muted/30">
+                    <td colSpan={8} className="px-4 py-4">
+                      <RefundPanel
+                        booking={b}
+                        sectionName={section.section_name}
+                        checkInDate={checkInDate}
+                        onClose={() => setOpenRefundId(null)}
+                        onDone={() => {
+                          setOpenRefundId(null);
+                          qc.invalidateQueries({ queryKey: ["lb_section_bookings", sectionId] });
+                        }}
+                      />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -161,8 +212,12 @@ function SectionBookingsPage() {
 function PaymentBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     paid: "bg-primary/15 text-primary border-primary/30",
+    deposit_paid: "bg-primary/15 text-primary border-primary/30",
+    covered: "bg-primary/15 text-primary border-primary/30",
     pending: "bg-accent/20 text-accent-foreground border-accent/40",
     failed: "bg-destructive/15 text-destructive border-destructive/40",
+    payment_failed: "bg-destructive/15 text-destructive border-destructive/40",
+    refunded: "bg-red-100 text-red-700 border-red-200",
   };
   return (
     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-wider ${map[status] ?? map.pending}`}>

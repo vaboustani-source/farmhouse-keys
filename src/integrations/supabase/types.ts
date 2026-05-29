@@ -1237,6 +1237,8 @@ export type Database = {
           addons_selected: Json
           base_amount: number
           booked_at: string
+          checkin_reminder_sent: boolean
+          checkin_reminder_sent_at: string | null
           cot_fee: number
           cot_requested: boolean
           covered_at: string | null
@@ -1276,6 +1278,8 @@ export type Database = {
           addons_selected?: Json
           base_amount?: number
           booked_at?: string
+          checkin_reminder_sent?: boolean
+          checkin_reminder_sent_at?: string | null
           cot_fee?: number
           cot_requested?: boolean
           covered_at?: string | null
@@ -1315,6 +1319,8 @@ export type Database = {
           addons_selected?: Json
           base_amount?: number
           booked_at?: string
+          checkin_reminder_sent?: boolean
+          checkin_reminder_sent_at?: string | null
           cot_fee?: number
           cot_requested?: boolean
           covered_at?: string | null
@@ -1376,7 +1382,9 @@ export type Database = {
       lb_events: {
         Row: {
           check_in_date: string | null
+          check_in_time: string
           check_out_date: string | null
+          check_out_time: string
           couple_access_token: string
           couple_names: string
           created_at: string
@@ -1392,7 +1400,9 @@ export type Database = {
         }
         Insert: {
           check_in_date?: string | null
+          check_in_time?: string
           check_out_date?: string | null
+          check_out_time?: string
           couple_access_token?: string
           couple_names: string
           created_at?: string
@@ -1408,7 +1418,9 @@ export type Database = {
         }
         Update: {
           check_in_date?: string | null
+          check_in_time?: string
           check_out_date?: string | null
+          check_out_time?: string
           couple_access_token?: string
           couple_names?: string
           created_at?: string

@@ -286,6 +286,10 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
       automatic_tax: { enabled: true },
       success_url: successUrl,
       cancel_url: cancelUrl,
+      customer_creation: isSplit ? "always" : undefined,
+      payment_intent_data: isSplit
+        ? { setup_future_usage: "off_session" }
+        : undefined,
       metadata: {
         primary_booking_id: data.bookingId,
         secondary_booking_id: data.secondaryBookingId ?? "",

@@ -137,6 +137,41 @@ Deno.serve(async (req) => {
     .eq("id", booking.event_id)
     .single();
 
+  const mode = (body as { mode?: string }).mode === "refund" ? "refund" : "charge";
+
+  if (mode === "refund") {
+    try {
+      const refund = await stripe.refunds.create({
+        payment_intent: booking.stripe_payment_intent_id,
+        amount: amountCents,
+        reason: "requested_by_customer",
+        metadata: { booking_id: booking.id, refund_type: "addon_removal" },
+      });
+      const amountDollars = amountCents / 100;
+      await supabase.from("lb_additional_charges").insert({
+        booking_id: booking.id,
+        event_id: booking.event_id,
+        amount: -amountDollars,
+        description: `Refund: ${description}`,
+        notes: notes ?? null,
+        stripe_payment_intent_id: refund.id,
+        status: "succeeded",
+        charged_by: chargedBy ?? null,
+      });
+      return new Response(JSON.stringify({ ok: true, refundId: refund.id }), {
+        status: 200,
+        headers: { ...CORS, "content-type": "application/json" },
+      });
+    } catch (err) {
+      const message = (err as Error).message || "Refund failed";
+      console.error("charge-additional refund failed", booking.id, err);
+      return new Response(JSON.stringify({ ok: false, error: message }), {
+        status: 400,
+        headers: { ...CORS, "content-type": "application/json" },
+      });
+    }
+  }
+
   try {
     const originalPi = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id);
     const customerId =

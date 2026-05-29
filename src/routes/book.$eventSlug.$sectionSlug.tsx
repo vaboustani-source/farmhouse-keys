@@ -364,6 +364,7 @@ function ReviewStep({
   const [lookingUpSecondary, setLookingUpSecondary] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [cotRequested, setCotRequested] = useState(false);
+  const [reserveError, setReserveError] = useState<string | null>(null);
 
   const cotFee = useMemo(() => {
     if (!cotRequested) return 0;
@@ -449,8 +450,9 @@ function ReviewStep({
 
   const reserve = async () => {
     setSubmitting(true);
+    setReserveError(null);
     try {
-      const { url, alreadyPaid, redirectUrl } = await createCheckoutSession({
+      const { url, alreadyPaid, redirectUrl, locked, lockedMessage } = await createCheckoutSession({
         bookingId: booking.booking_id,
         addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
         secondaryBookingId: secondary?.booking_id ?? null,
@@ -461,6 +463,13 @@ function ReviewStep({
         sectionSlug,
         cotRequested,
       });
+      if (locked) {
+        setReserveError(
+          lockedMessage ||
+            "Your reservation is already being processed on another device. Complete it there or wait 5 minutes to try again.",
+        );
+        return;
+      }
       if (alreadyPaid && redirectUrl) {
         window.location.href = redirectUrl;
         return;

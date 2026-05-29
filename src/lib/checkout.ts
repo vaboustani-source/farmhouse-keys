@@ -18,13 +18,35 @@ export type CreateCheckoutSessionInput = {
  */
 export async function createCheckoutSession(
   input: CreateCheckoutSessionInput,
-): Promise<{ url: string | null }> {
+): Promise<{ url: string | null; alreadyPaid?: boolean; redirectUrl?: string; reused?: boolean }> {
   const { data, error } = await supabase.functions.invoke<{
     url: string | null;
     error?: string;
+    already_paid?: boolean;
+    redirect_url?: string;
+    reused?: boolean;
   }>("create-checkout-session", { body: input });
 
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
-  return { url: data?.url ?? null };
+  return {
+    url: data?.url ?? null,
+    alreadyPaid: data?.already_paid,
+    redirectUrl: data?.redirect_url,
+    reused: data?.reused,
+  };
+}
+
+export async function checkSessionStatus(
+  sessionId: string,
+): Promise<{ status: "open" | "complete" | "expired" | null; url?: string | null }> {
+  const { data, error } = await supabase.functions.invoke<{
+    status: "open" | "complete" | "expired";
+    url?: string | null;
+    error?: string;
+  }>("check-session-status", { body: { sessionId } });
+
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return { status: data?.status ?? null, url: data?.url };
 }

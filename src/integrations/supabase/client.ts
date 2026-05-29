@@ -74,11 +74,29 @@ export type LbBooking = {
   tax_amount: number;
   total_amount: number;
   stripe_payment_id: string | null;
-  payment_status: "pending" | "paid" | "failed";
+  payment_status:
+    | "pending"
+    | "paid"
+    | "failed"
+    | "deposit_paid"
+    | "covered"
+    | "payment_failed"
+    | "refunded";
   booked_at: string;
   room_assignment: string | null;
   cot_requested: boolean;
   cot_fee: number;
+  stripe_payment_intent_id?: string | null;
+  deposit_paid_at?: string | null;
+  final_paid_at?: string | null;
+  covered_at?: string | null;
+  removed?: boolean | null;
+  removed_at?: string | null;
+  refund_amount?: number | null;
+  refunded_at?: string | null;
+  refund_reason?: string | null;
+  refund_notes?: string | null;
+  stripe_refund_id?: string | null;
 };
 
 export type GuestInvitation = {

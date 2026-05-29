@@ -127,7 +127,14 @@ function PaymentSummaryPage() {
                 </td>
                 <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{b.stripe_payment_id ?? "—"}</td>
                 <td className="px-4 py-3 text-xs uppercase tracking-wider">{b.payment_status}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{formatMoney(b.total_amount)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  <div>{formatMoney(b.total_amount)}</div>
+                  {b.payment_status === "refunded" && b.refund_amount != null && (
+                    <div className="text-[11px] text-red-700/80">
+                      −{formatMoney(Number(b.refund_amount))} refunded
+                    </div>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

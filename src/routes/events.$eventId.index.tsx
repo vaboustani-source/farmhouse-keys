@@ -54,6 +54,13 @@ function EventDetailPage() {
   const totalRoomsCapacity = sections.filter((s) => s.is_active).reduce((s, x) => s + x.total_rooms, 0);
   const guestsConfirmed = bookings.filter(isConfirmed).length;
   const GUEST_CAPACITY = 40;
+  const refundedCount = bookings.filter(
+    (b) => (b as LbBooking & { payment_status?: string }).payment_status === "refunded",
+  ).length;
+  const pendingCount = bookings.filter(
+    (b) => (b as LbBooking & { payment_status?: string; removed?: boolean | null }).payment_status === "pending"
+      && (b as LbBooking & { removed?: boolean | null }).removed !== true,
+  ).length;
 
   const copyLink = (slug: string | null) => {
     if (!slug) return;
@@ -159,7 +166,16 @@ function EventDetailPage() {
           {guestsConfirmed} <span className="text-muted-foreground">of</span> {GUEST_CAPACITY}{" "}
           <span className="text-foreground">guests confirmed</span>
         </div>
-        <div className="mt-2 text-sm text-muted-foreground">across all four lodging sections</div>
+        <div className="mt-2 text-sm text-muted-foreground">
+          across all four lodging sections
+          {(refundedCount > 0 || pendingCount > 0) && (
+            <span className="ml-2">
+              · {guestsConfirmed} confirmed
+              {refundedCount > 0 && ` · ${refundedCount} refunded`}
+              {pendingCount > 0 && ` · ${pendingCount} pending`}
+            </span>
+          )}
+        </div>
       </div>
 
       <h2 className="mb-4 font-serif text-2xl text-foreground">Sections</h2>

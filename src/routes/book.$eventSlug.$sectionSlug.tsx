@@ -715,6 +715,11 @@ function ReviewStep({
       >
         {submitting ? "Confirming with Stripe…" : secondary ? "Reserve our rooms" : "Reserve my room"}
       </button>
+      {reserveError && (
+        <div className="mt-4 rounded-md border border-[#C9A84C]/40 bg-[#FBF6E7] p-4 text-sm text-[#7a6420]">
+          {reserveError}
+        </div>
+      )}
     </div>
   );
 }

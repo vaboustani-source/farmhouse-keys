@@ -338,6 +338,30 @@ serve(async (req) => {
       })
       .eq("id", bookingId);
 
+    // For split-schedule bookings, mint a payment-update token now so the
+    // failure email & admin tools always have a working self-serve link.
+    if (isSplit) {
+      const { data: evRow } = await supabaseAdmin
+        .from("lb_events")
+        .select("check_in_date")
+        .eq("id", primary.booking.event_id)
+        .single();
+      const expiresAt = evRow?.check_in_date
+        ? new Date(
+            new Date(evRow.check_in_date + "T00:00:00").getTime() -
+              1 * 86400000,
+          ).toISOString()
+        : new Date(Date.now() + 14 * 86400000).toISOString();
+      await supabaseAdmin
+        .from("lb_bookings")
+        .update({
+          payment_update_token: crypto.randomUUID(),
+          payment_update_token_expires_at: expiresAt,
+        })
+        .eq("id", bookingId)
+        .is("payment_update_token", null);
+    }
+
     if (secondary) {
       await supabaseAdmin
         .from("lb_bookings")

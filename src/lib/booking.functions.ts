@@ -1,17 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import Stripe from "stripe";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-
-function getStripe() {
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  return new Stripe(key);
-}
-
-function getAppBaseUrl() {
-  return process.env.APP_BASE_URL || "https://id-preview--a9cf7512-d53e-4e93-be25-666d375c693f.lovable.app";
-}
 
 /* ───────────── Email gate lookup ───────────── */
 

@@ -12,7 +12,7 @@ const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
-const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const ADMIN_EMAIL =
   Deno.env.get("BRANDON_NOTIFICATION_EMAIL") ?? Deno.env.get("ADMIN_EMAIL") ?? "";
 const FROM = "Gilbertsville Farmhouse <noreply@gilbertsvillefarmhouse.com>";
@@ -91,7 +91,10 @@ async function sendAdmin(subject: string, html: string) {
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-  if (CRON_SECRET && req.headers.get("x-cron-secret") !== CRON_SECRET) {
+  // Auth: require a Bearer token matching the project's anon key. pg_cron
+  // attaches it via the `Authorization` header (see cron schedule).
+  const auth = req.headers.get("authorization") ?? "";
+  if (!SUPABASE_ANON_KEY || auth !== `Bearer ${SUPABASE_ANON_KEY}`) {
     return new Response("Unauthorized", { status: 401 });
   }
 

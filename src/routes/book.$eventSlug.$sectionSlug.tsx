@@ -5,8 +5,8 @@ import {
   lookupBooking,
   lookupSecondaryGuest,
   getSectionAddons,
-  createCheckoutSession,
 } from "@/lib/booking.functions";
+import { createCheckoutSession } from "@/lib/checkout";
 import { ReviewErrorBoundary } from "@/components/ReviewErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -251,7 +251,6 @@ function ReviewStep({
   onBack: () => void;
 }) {
   const fetchAddons = useServerFn(getSectionAddons);
-  const checkout = useServerFn(createCheckoutSession);
 
   const [addons, setAddons] = useState<Addon[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -350,18 +349,16 @@ function ReviewStep({
   const reserve = async () => {
     setSubmitting(true);
     try {
-      const { url } = await checkout({
-        data: {
-          bookingId: booking.booking_id,
-          addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
-          secondaryBookingId: secondary?.booking_id ?? null,
-          secondaryAddonIds: secondarySelectedIds.filter(
-            (id) => !secondaryAddons.find((a) => a.id === id)?.is_required,
-          ),
-          eventSlug,
-          sectionSlug,
-          cotRequested,
-        },
+      const { url } = await createCheckoutSession({
+        bookingId: booking.booking_id,
+        addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
+        secondaryBookingId: secondary?.booking_id ?? null,
+        secondaryAddonIds: secondarySelectedIds.filter(
+          (id) => !secondaryAddons.find((a) => a.id === id)?.is_required,
+        ),
+        eventSlug,
+        sectionSlug,
+        cotRequested,
       });
       if (url) window.location.href = url;
     } finally {

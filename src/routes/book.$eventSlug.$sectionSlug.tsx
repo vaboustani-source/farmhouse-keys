@@ -349,18 +349,16 @@ function ReviewStep({
   const reserve = async () => {
     setSubmitting(true);
     try {
-      const { url } = await checkout({
-        data: {
-          bookingId: booking.booking_id,
-          addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
-          secondaryBookingId: secondary?.booking_id ?? null,
-          secondaryAddonIds: secondarySelectedIds.filter(
-            (id) => !secondaryAddons.find((a) => a.id === id)?.is_required,
-          ),
-          eventSlug,
-          sectionSlug,
-          cotRequested,
-        },
+      const { url } = await createCheckoutSession({
+        bookingId: booking.booking_id,
+        addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
+        secondaryBookingId: secondary?.booking_id ?? null,
+        secondaryAddonIds: secondarySelectedIds.filter(
+          (id) => !secondaryAddons.find((a) => a.id === id)?.is_required,
+        ),
+        eventSlug,
+        sectionSlug,
+        cotRequested,
       });
       if (url) window.location.href = url;
     } finally {

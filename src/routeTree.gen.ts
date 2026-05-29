@@ -16,6 +16,7 @@ import { Route as EventsEventIdIndexRouteImport } from './routes/events.$eventId
 import { Route as EventsEventIdPaymentsRouteImport } from './routes/events.$eventId.payments'
 import { Route as EventsEventIdGuestsRouteImport } from './routes/events.$eventId.guests'
 import { Route as EventsEventIdEditRouteImport } from './routes/events.$eventId.edit'
+import { Route as EventsEventIdBookingsRouteImport } from './routes/events.$eventId.bookings'
 import { Route as BookEventSlugSectionSlugRouteImport } from './routes/book.$eventSlug.$sectionSlug'
 import { Route as ApiPublicStripeWebhookRouteImport } from './routes/api/public/stripe-webhook'
 import { Route as EventsEventIdSectionsSectionIdRouteImport } from './routes/events.$eventId.sections.$sectionId'
@@ -56,6 +57,11 @@ const EventsEventIdEditRoute = EventsEventIdEditRouteImport.update({
   path: '/events/$eventId/edit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EventsEventIdBookingsRoute = EventsEventIdBookingsRouteImport.update({
+  id: '/events/$eventId/bookings',
+  path: '/events/$eventId/bookings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BookEventSlugSectionSlugRoute =
   BookEventSlugSectionSlugRouteImport.update({
     id: '/book/$eventSlug/$sectionSlug',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/tracker/$accessToken': typeof TrackerAccessTokenRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
   '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
+  '/events/$eventId/bookings': typeof EventsEventIdBookingsRoute
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/tracker/$accessToken': typeof TrackerAccessTokenRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
   '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
+  '/events/$eventId/bookings': typeof EventsEventIdBookingsRoute
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/tracker/$accessToken': typeof TrackerAccessTokenRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
   '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
+  '/events/$eventId/bookings': typeof EventsEventIdBookingsRoute
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
     | '/tracker/$accessToken'
     | '/api/public/stripe-webhook'
     | '/book/$eventSlug/$sectionSlug'
+    | '/events/$eventId/bookings'
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
     | '/tracker/$accessToken'
     | '/api/public/stripe-webhook'
     | '/book/$eventSlug/$sectionSlug'
+    | '/events/$eventId/bookings'
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
     | '/tracker/$accessToken'
     | '/api/public/stripe-webhook'
     | '/book/$eventSlug/$sectionSlug'
+    | '/events/$eventId/bookings'
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
     | '/events/$eventId/payments'
@@ -168,6 +180,7 @@ export interface RootRouteChildren {
   TrackerAccessTokenRoute: typeof TrackerAccessTokenRoute
   ApiPublicStripeWebhookRoute: typeof ApiPublicStripeWebhookRoute
   BookEventSlugSectionSlugRoute: typeof BookEventSlugSectionSlugRouteWithChildren
+  EventsEventIdBookingsRoute: typeof EventsEventIdBookingsRoute
   EventsEventIdEditRoute: typeof EventsEventIdEditRoute
   EventsEventIdGuestsRoute: typeof EventsEventIdGuestsRoute
   EventsEventIdPaymentsRoute: typeof EventsEventIdPaymentsRoute
@@ -226,6 +239,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdEditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/events/$eventId/bookings': {
+      id: '/events/$eventId/bookings'
+      path: '/events/$eventId/bookings'
+      fullPath: '/events/$eventId/bookings'
+      preLoaderRoute: typeof EventsEventIdBookingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/book/$eventSlug/$sectionSlug': {
       id: '/book/$eventSlug/$sectionSlug'
       path: '/book/$eventSlug/$sectionSlug'
@@ -278,6 +298,7 @@ const rootRouteChildren: RootRouteChildren = {
   TrackerAccessTokenRoute: TrackerAccessTokenRoute,
   ApiPublicStripeWebhookRoute: ApiPublicStripeWebhookRoute,
   BookEventSlugSectionSlugRoute: BookEventSlugSectionSlugRouteWithChildren,
+  EventsEventIdBookingsRoute: EventsEventIdBookingsRoute,
   EventsEventIdEditRoute: EventsEventIdEditRoute,
   EventsEventIdGuestsRoute: EventsEventIdGuestsRoute,
   EventsEventIdPaymentsRoute: EventsEventIdPaymentsRoute,
@@ -287,3 +308,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

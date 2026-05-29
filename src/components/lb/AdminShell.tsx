@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/useAuth";
 import { toast } from "sonner";
+import { CustomDomainBanner } from "@/components/lb/CustomDomainBanner";
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const { location } = useRouterState();
@@ -67,6 +68,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       <footer className="mx-auto max-w-6xl px-6 py-10 text-xs text-muted-foreground">
         A private estate. Tended by hand.
       </footer>
+      <CustomDomainBanner />
     </div>
   );
 }

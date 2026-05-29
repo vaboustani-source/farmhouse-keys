@@ -42,6 +42,23 @@ export const Route = createFileRoute("/api/public/stripe-webhook")({
               return new Response("ok", { status: 200 });
             }
 
+            // ── Idempotency: skip if this booking is already finalized ──
+            const { data: existingPrimary } = await supabaseAdmin
+              .from("lb_bookings")
+              .select("payment_status, final_paid_at, deposit_paid_at")
+              .eq("id", primaryId)
+              .single();
+            if (existingPrimary?.final_paid_at) {
+              return new Response("ok", { status: 200 });
+            }
+            if (
+              isSplit &&
+              existingPrimary?.payment_status === "deposit_paid" &&
+              existingPrimary?.deposit_paid_at
+            ) {
+              return new Response("ok", { status: 200 });
+            }
+
             const piId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null;
             const now = new Date().toISOString();
 

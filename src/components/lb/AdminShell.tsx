@@ -52,6 +52,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
             >
               All events
             </Link>
+            <Link
+              to="/activity"
+              className={`transition-colors ${
+                path.startsWith("/activity") ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Activity Log
+            </Link>
             <span
               className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-[11px] font-medium uppercase text-foreground"
               title={session?.user?.email ?? ""}

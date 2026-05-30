@@ -18,15 +18,18 @@ export type LogActivityInput = {
  */
 export async function logActivity(input: LogActivityInput): Promise<void> {
   try {
-    const { error } = await supabaseAdmin.from("lb_activity_log").insert({
+    const row = {
       event_id: input.eventId ?? null,
       booking_id: input.bookingId ?? null,
       actor: input.actor,
       actor_name: input.actorName ?? null,
       action: input.action,
       label: input.label,
-      metadata: input.metadata ?? null,
-    });
+      metadata: (input.metadata ?? null) as never,
+    };
+    const { error } = await supabaseAdmin
+      .from("lb_activity_log")
+      .insert(row as never);
     if (error) console.error("logActivity insert failed", error, input);
   } catch (err) {
     console.error("logActivity threw", err, input);

@@ -141,7 +141,7 @@ function EventListPage() {
         </div>
       </div>
 
-      {isLoading ? (
+      {!authReady || isLoading ? (
         <div className="rounded-lg border border-border bg-card p-12 text-center text-sm text-muted-foreground">
           Gathering the calendar…
         </div>

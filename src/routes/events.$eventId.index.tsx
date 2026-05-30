@@ -67,8 +67,8 @@ function EventDetailPage() {
   ).length;
 
   const copyLink = (slug: string | null) => {
-    if (!slug) return;
-    const url = `${window.location.origin}/book/${slug}`;
+    if (!slug || !event?.slug) return;
+    const url = `${window.location.origin}/book/${event.slug}/${slug}`;
     navigator.clipboard.writeText(url);
     toast.success("Link copied — ready to send");
   };

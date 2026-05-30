@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabase } from "@/integrations/supabase/client";
 
 /* ───────────── Email gate lookup ───────────── */
 
@@ -13,7 +13,7 @@ export const lookupBooking = createServerFn({ method: "POST" })
     }).parse,
   )
   .handler(async ({ data }) => {
-    const { data: rows, error } = await supabaseAdmin.rpc("lookup_guest_booking", {
+    const { data: rows, error } = await supabase.rpc("lookup_guest_booking", {
       p_email: data.email,
       p_event_slug: data.eventSlug,
       p_section_slug: data.sectionSlug,
@@ -35,7 +35,7 @@ export const lookupSecondaryGuest = createServerFn({ method: "POST" })
     }).parse,
   )
   .handler(async ({ data }) => {
-    const { data: rows, error } = await supabaseAdmin.rpc("lookup_secondary_guest", {
+    const { data: rows, error } = await supabase.rpc("lookup_secondary_guest", {
       p_email: data.email,
       p_event_slug: data.eventSlug,
     });
@@ -53,7 +53,7 @@ export const lookupSecondaryGuest = createServerFn({ method: "POST" })
 export const getSectionAddons = createServerFn({ method: "POST" })
   .inputValidator(z.object({ sectionId: z.string().uuid() }).parse)
   .handler(async ({ data }) => {
-    const { data: rows, error } = await supabaseAdmin
+    const { data: rows, error } = await supabase
       .from("lb_section_addons")
       .select("id, addon_name, addon_price, addon_type, is_required, sort_order")
       .eq("section_id", data.sectionId)
@@ -70,7 +70,7 @@ export const getSectionAddons = createServerFn({ method: "POST" })
 export const fetchSessionConfirmation = createServerFn({ method: "POST" })
   .inputValidator(z.object({ sessionId: z.string().min(1).max(200) }).parse)
   .handler(async ({ data }) => {
-    const { data: bookings, error } = await supabaseAdmin
+    const { data: bookings, error } = await supabase
       .from("lb_bookings")
       .select(
         "id, guest_name, guest_email, payment_status, payment_schedule, total_amount, addons_selected, deposit_paid_at, final_paid_at, covered_at, covered_by_booking_id, is_primary, section_id, event_id",
@@ -82,8 +82,8 @@ export const fetchSessionConfirmation = createServerFn({ method: "POST" })
     const sectionIds = [...new Set(bookings.map((b) => b.section_id))];
     const eventIds = [...new Set(bookings.map((b) => b.event_id))];
     const [sections, events] = await Promise.all([
-      supabaseAdmin.from("lb_room_sections").select("id, section_name, nights").in("id", sectionIds),
-      supabaseAdmin.from("lb_events").select("id, wedding_name, check_in_date, check_out_date").in("id", eventIds),
+      supabase.from("lb_room_sections").select("id, section_name, nights").in("id", sectionIds),
+      supabase.from("lb_events").select("id, wedding_name, check_in_date, check_out_date").in("id", eventIds),
     ]);
 
     return {

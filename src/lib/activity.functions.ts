@@ -16,10 +16,6 @@ const ListInput = z.object({
   cursor: z.string().datetime().optional(),
 });
 
-function applyCategory(query: ReturnType<typeof supabaseAdmin.from<"lb_activity_log", never>>["select"] extends infer S ? unknown : never, _c: string) {
-  return query;
-}
-
 function categoryActionPrefixes(cat: string): string[] {
   switch (cat) {
     case "bookings": return ["booking."];

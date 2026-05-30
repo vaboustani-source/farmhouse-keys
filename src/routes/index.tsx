@@ -4,6 +4,7 @@ import { ArrowUpRight, Copy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase, type LbEvent, type LbRoomSection } from "@/integrations/supabase/client";
 import { AdminShell, FillBar, StatusBadge, formatDate } from "@/components/lb/AdminShell";
+import { useAuth } from "@/lib/useAuth";
 
 export const Route = createFileRoute("/")({
   component: EventListPage,
@@ -105,7 +106,13 @@ async function fetchEvents(): Promise<EventWithBlock[]> {
 function EventListPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { data, isLoading } = useQuery({ queryKey: ["planning_events_with_blocks"], queryFn: fetchEvents });
+  const { session, isAdmin, loading: authLoading } = useAuth();
+  const authReady = !authLoading && !!session && isAdmin;
+  const { data, isLoading } = useQuery({
+    queryKey: ["planning_events_with_blocks", session?.user?.id ?? null],
+    queryFn: fetchEvents,
+    enabled: authReady,
+  });
 
   const ensureBlock = useMutation({
     mutationFn: async (eventId: string) => {

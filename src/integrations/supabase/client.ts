@@ -26,6 +26,8 @@ export type LbEvent = {
   updated_at: string;
   check_in_time?: string;
   check_out_time?: string;
+  slug?: string | null;
+  couple_access_token?: string;
 };
 
 export type LbRoomSection = {

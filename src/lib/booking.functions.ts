@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 /* ───────────── Email gate lookup ───────────── */
 
@@ -70,7 +71,7 @@ export const getSectionAddons = createServerFn({ method: "POST" })
 export const fetchSessionConfirmation = createServerFn({ method: "POST" })
   .inputValidator(z.object({ sessionId: z.string().min(1).max(200) }).parse)
   .handler(async ({ data }) => {
-    const { data: bookings, error } = await supabase
+    const { data: bookings, error } = await supabaseAdmin
       .from("lb_bookings")
       .select(
         "id, guest_name, guest_email, payment_status, payment_schedule, total_amount, addons_selected, deposit_paid_at, final_paid_at, covered_at, covered_by_booking_id, is_primary, section_id, event_id",
@@ -82,8 +83,8 @@ export const fetchSessionConfirmation = createServerFn({ method: "POST" })
     const sectionIds = [...new Set(bookings.map((b) => b.section_id))];
     const eventIds = [...new Set(bookings.map((b) => b.event_id))];
     const [sections, events] = await Promise.all([
-      supabase.from("lb_room_sections").select("id, section_name, nights").in("id", sectionIds),
-      supabase.from("lb_events").select("id, wedding_name, check_in_date, check_out_date").in("id", eventIds),
+      supabaseAdmin.from("lb_room_sections").select("id, section_name, nights").in("id", sectionIds),
+      supabaseAdmin.from("lb_events").select("id, wedding_name, check_in_date, check_out_date").in("id", eventIds),
     ]);
 
     return {

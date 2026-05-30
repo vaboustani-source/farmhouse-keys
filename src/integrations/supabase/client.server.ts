@@ -7,11 +7,11 @@ import type { Database } from './types';
 
 function createSupabaseAdminClient() {
   const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const SUPABASE_SERVICE_ROLE_KEY = getServiceRoleKey();
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error(
-      'Missing Supabase server environment variables. Ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.'
+      'Missing Supabase server environment variables. Ensure SUPABASE_URL and SUPABASE_SECRET_KEYS (or SUPABASE_SERVICE_ROLE_KEY) are set.'
     );
   }
 
@@ -22,6 +22,20 @@ function createSupabaseAdminClient() {
       autoRefreshToken: false,
     }
   });
+}
+
+function getServiceRoleKey(): string | undefined {
+  const secretKeys = process.env.SUPABASE_SECRET_KEYS;
+  if (secretKeys) {
+    try {
+      const parsed = JSON.parse(secretKeys);
+      const firstKey = Object.values(parsed)[0] as string | undefined;
+      if (firstKey) return firstKey;
+    } catch {
+      // Fall through to legacy format
+    }
+  }
+  return process.env.SUPABASE_SERVICE_ROLE_KEY;
 }
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseAdminClient> | undefined;

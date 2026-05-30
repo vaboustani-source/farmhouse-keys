@@ -1,96 +1,149 @@
-# Admin Adjust Panel
+# Admin Activity Log
 
-Adds an "Adjust" action next to "Refund" on each booking row in the section detail screen (`/events/$eventId/sections/$sectionId`), plus the supporting edge function, table, email template, and payment summary updates.
+Build a `lb_activity_log` table + UI that records every significant action across bookings, admin changes, and system events, with per-event and global views.
 
-## 1. Database
+## 1. Database migration
 
-New table `lb_additional_charges`:
-- `id`, `booking_id`, `event_id`, `amount` (numeric), `description` (text), `notes` (text, nullable)
-- `stripe_payment_intent_id` (text), `status` (text: `succeeded` | `failed`)
-- `charged_at` (timestamptz, default now()), `charged_by` (text, nullable)
-- RLS: admins manage; couples can SELECT their event's rows
-- Grants: `authenticated` (full), `service_role` (full)
+Create `public.lb_activity_log`:
 
-No schema change to `lb_bookings`/`lb_section_addons` — addon/cot edits reuse existing columns (`addons_selected`, `cot_requested`, `cot_fee`, `addon_amount`, `total_amount`, `room_assignment`).
+```
+id              uuid pk default gen_random_uuid()
+event_id        uuid null references lb_events(id) on delete cascade
+booking_id      uuid null references lb_bookings(id) on delete set null
+actor           text not null              -- 'admin'|'guest'|'system'|'stripe'
+actor_name      text null
+action          text not null              -- e.g. 'payment.deposit_paid'
+label           text not null              -- human-readable
+metadata        jsonb null
+created_at      timestamptz not null default now()
+```
 
-## 2. Edge function — `charge-additional`
+Indexes: `(event_id)`, `(created_at desc)`, `(actor)`, `(event_id, created_at desc)`.
 
-`supabase/functions/charge-additional/index.ts`, modeled on `collect-balance-payments`. Uses `STRIPE_SECRET_KEY` already in the project.
+Grants:
+- `GRANT SELECT, INSERT ON public.lb_activity_log TO authenticated;`
+- `GRANT ALL ON public.lb_activity_log TO service_role;`
 
-Request body:
+RLS:
+- Enable RLS.
+- SELECT: `public.is_event_member(event_id, auth.uid())` OR `public.is_admin(auth.uid())` OR `event_id is null` (global system events visible to admins only).
+- INSERT: authenticated members of the event OR admin.
+
+Enable realtime: `alter publication supabase_realtime add table public.lb_activity_log;` and `alter table public.lb_activity_log replica identity full;`.
+
+## 2. Logging helpers
+
+**Server-side helper** `src/lib/activity-log.server.ts`:
+
 ```ts
-{ bookingId, amountCents, description, notes?, chargedBy? }
+export async function logActivity(opts: {
+  eventId?: string | null;
+  bookingId?: string | null;
+  actor: 'admin'|'guest'|'system'|'stripe';
+  actorName?: string | null;
+  action: string;
+  label: string;
+  metadata?: Record<string, unknown> | null;
+}): Promise<void>
 ```
 
-Logic:
-1. Load booking; require `stripe_payment_intent_id`.
-2. Retrieve original PI → reuse `customer` + `payment_method`.
-3. Create off-session PI (`confirm: true`, `off_session: true`, `description`).
-4. On success: insert `lb_additional_charges` row (`status='succeeded'`), send guest email via Resend (uses `additionalChargeEmail` template inlined into function), send admin notification, return `{ ok: true, chargeId }`.
-5. On failure: insert `lb_additional_charges` row with `status='failed'`, log to `lb_sync_log`, return `{ ok: false, error }`. (Spec says "do not log charge" — we log to `lb_sync_log` only for traceability and skip the `lb_additional_charges` insert, matching the spec.)
+Uses `supabaseAdmin`, never throws (logs + swallows errors so it doesn't break callers).
 
-Auth: anon key + `verify_jwt = false` in `config.toml` (matches existing admin-triggered functions).
+**Edge-function helper** `supabase/functions/_shared/activity-log.ts` — same signature, uses service role REST insert.
 
-## 3. Email template
+**Client-side server fn** `src/lib/activity.functions.ts`:
+- `logActivityFn` — `requireSupabaseAuth`, infers actor=`admin`, actor_name from users table.
+- `listActivity({ eventId?, actor?, category?, from?, to?, limit, cursor })` — paginated; uses admin client filtered server-side.
 
-Add `additionalChargeEmail(props)` to `src/lib/email-templates.ts` per spec (gold "Charge processed" badge, detail table: Amount / Description / Applied to: card on file, body copy, standard GFH footer, no cancellation policy).
+## 3. Wiring log calls
 
-## 4. UI — AdjustPanel component
+Add `logActivity(...)` calls at every event source:
 
-New `src/components/lb/AdjustPanel.tsx` opened inline below booking row (same toggle pattern as `RefundPanel`).
+**Stripe webhook** (`src/routes/api/public/stripe-webhook.ts`):
+- `checkout.session.completed` → `payment.deposit_paid` / `payment.paid_full`
+- `payment_intent.payment_failed` → `payment.failed`
+- `setup_intent.succeeded` → `payment.method_updated`
 
-Header: guest name · section name · current payment status badge.
+**Edge functions**:
+- `collect-balance-payments`: `payment.balance_charged`, `payment.balance_failed`
+- `process-refund`: `refund.processed` (full/partial in metadata)
+- `charge-additional`: `charge.additional_applied` or `refund.partial`
+- `send-checkin-reminders`: `email.checkin_reminder_sent` (one row, count in metadata)
+- `send-checkout-reminders`: `email.checkout_reminder_sent`
+- `create-checkout-session`: `booking.link_generated` + payment_update_token mint logs `payment.update_link_generated`
 
-**Section 1 — Add a cot** (only when `cot_requested = false`)
-- Toggle showing "$X for the stay" (from `lb_room_sections.cot_2night_rate` / `cot_1night_rate` based on `nights_booked`).
-- On toggle on:
-  - `pending` → just update `cot_requested`, `cot_fee`, `total_amount`.
-  - `deposit_paid` → update those fields (balance recalc happens at collect-balance time, already reads `total_amount`).
-  - `paid` → call `charge-additional` for the cot fee (description "Cot added to reservation"); on success also flip `cot_requested`/`cot_fee`/`total_amount`.
+**Admin UI / server fns**:
+- Pricing save (`events.$eventId.pricing.tsx`) → `pricing.updated` with old/new
+- Couple contribution save → `pricing.contribution_updated`
+- Event create/activate/close (`events.new.tsx`, settings) → `event.created|activated|closed`
+- Guest CSV import / manual add / remove / email correction (`events.$eventId.guests.tsx`) → `guest.imported|added|removed|email_corrected`
+- Room assignment in `AdjustPanel` and bookings list → `booking.room_assigned|room_changed`
+- Cot / addon changes in `AdjustPanel` → `booking.cot_added|addon_added|addon_removed`
+- Soft delete → `booking.removed`
+- Refund / manual charge actions are covered by edge functions above.
+- Nudge from tracker (`tracker.functions.ts` if it exists) → `email.nudge_sent`
+- Health check email (`system-health-check`) → `email.health_check_sent`
 
-**Section 2 — Add-ons**
-- Fetch active `lb_section_addons` for the booking's section.
-- Render toggle per addon; pre-toggled when present in `addons_selected`.
-- On change, recompute `addons_selected` + `addon_amount` + `total_amount`.
-  - `pending` / `deposit_paid` → update only.
-  - `paid` + added → `charge-additional` for the diff (description = addon name).
-  - `paid` + removed → call existing `process-refund` for the addon price (description = "Refund: <addon name>").
+## 4. UI
 
-**Section 3 — Manual charge**
-- Amount (USD), Description (required), Notes (optional).
-- "Charge $X" gold button → confirm dialog → `charge-additional`.
-- Success toast + inline error on failure.
+**Shared component** `src/components/lb/ActivityFeed.tsx`:
+- Props: `eventId?` (omit for global), `showEventTag?`.
+- Loads via `listActivity` server fn (React Query).
+- Filter pills: All / Bookings / Payments / Admin / System (maps to action prefixes).
+- Global view extras: event dropdown, date range, actor dropdown.
+- Row: category icon + colored badge, label, metadata line, relative time (with absolute on hover).
+- Icons (lucide): `UserCheck` (booking), `CreditCard` (payment), `Undo2` (refund), `Settings` (admin), `Cpu` (system), `Mail` (email), `AlertCircle` (failure).
+- Realtime: `supabase.channel('activity:'+eventId).on('postgres_changes',{ event:'INSERT', schema:'public', table:'lb_activity_log', filter:eventId?`event_id=eq.${eventId}`:undefined }, ...)` prepends new rows.
+- Pagination: 200 rows/page, "Load more" using `created_at < cursor`.
+- "Export CSV" button top-right — fetches all matching rows (cap 5k) and downloads.
 
-**Section 4 — Room override**
-- Inline text input for `room_assignment`, saves on blur (mirrors existing inline edit).
+**Per-event tab**:
+- New route `src/routes/events.$eventId.activity.tsx`.
+- Add `Activity` link with `History` icon to `src/components/lb/EventNav.tsx`, positioned between Payments and Pricing.
 
-After any mutation: invalidate the section's query so the row re-renders.
+**Global activity log**:
+- New route `src/routes/activity.tsx`.
+- Add "Activity Log" item to the "All Events" dropdown in `AdminShell` top nav.
 
-## 5. Section detail screen edits (`events.$eventId.sections.$sectionId.tsx`)
-
-- Add "Adjust" ghost button (gold border) next to "Refund" when `payment_status ∈ {pending, deposit_paid, paid}` and `!removed`.
-- Track `openAdjustId` state mirroring `openRefundId`; only one panel open per row.
-- Below the main total, show `+ $[sum]` gold badge if booking has rows in `lb_additional_charges`.
-
-## 6. Payment Summary (`events.$eventId.payments.tsx`)
-
-Add "Additional charges" line with expandable list (description · amount · guest name) by joining `lb_additional_charges` for the event. Insert between resort fees and taxes.
-
-## 7. Files
+## 5. Action → category mapping
 
 ```
-supabase/functions/charge-additional/index.ts        (new)
-supabase/config.toml                                 (register function, verify_jwt=false)
-supabase/migrations/<ts>_lb_additional_charges.sql   (new)
-src/lib/email-templates.ts                           (add additionalChargeEmail)
-src/components/lb/AdjustPanel.tsx                    (new)
-src/routes/events.$eventId.sections.$sectionId.tsx   (Adjust button + panel + badge)
-src/routes/events.$eventId.payments.tsx              (additional charges line)
-src/integrations/supabase/client.ts                  (LbAdditionalCharge type)
+booking.*     → Bookings
+payment.*     → Payments
+refund.*      → Payments (refund icon)
+charge.*      → Payments
+pricing.*     → Admin
+guest.*       → Admin
+event.*       → Admin
+email.*       → System
+system.*      → System
 ```
 
-## Open questions
+Failure variants (`*.failed`) get red alert icon regardless of prefix.
 
-1. **Resort fee / tax on additional charges and cot/addon diffs** — should the charged amount include the event's `resort_fee_pct` and `tax_pct`, or be the raw amount the admin enters / the raw addon/cot price? Spec doesn't say. Default in this plan: **raw amount only** (no tax/fee added). Confirm if you want tax+fee layered on.
-2. **Admin name for `charged_by`** — there's no admin display name in context today. Default: leave `null`. Confirm if you'd like to pull from `users.email` or add an input.
-3. **Refund-on-addon-removal when `payment_status='paid'`** — use existing `process-refund` flow with `refund_reason = 'addon_removed'`? Default: yes.
+## 6. Out of scope (explicit)
+
+- No changes to `lb_sync_log` (kept as-is).
+- No retroactive backfill of historical actions — log starts at deploy.
+- No edits to existing email templates or business logic; only added `logActivity` calls.
+
+## Files
+
+**New**
+- `supabase/migrations/<ts>_activity_log.sql`
+- `src/lib/activity-log.server.ts`
+- `src/lib/activity.functions.ts`
+- `supabase/functions/_shared/activity-log.ts`
+- `src/components/lb/ActivityFeed.tsx`
+- `src/routes/events.$eventId.activity.tsx`
+- `src/routes/activity.tsx`
+
+**Edited (log calls + nav)**
+- `src/components/lb/EventNav.tsx`
+- `src/components/lb/AdminShell.tsx`
+- `src/routes/api/public/stripe-webhook.ts`
+- `supabase/functions/{collect-balance-payments,process-refund,charge-additional,send-checkin-reminders,send-checkout-reminders,create-checkout-session,create-setup-intent,system-health-check}/index.ts`
+- `src/routes/events.$eventId.{pricing,guests,settings,sections.$sectionId}.tsx`
+- `src/routes/events.new.tsx`
+- `src/components/lb/AdjustPanel.tsx`
+- `src/lib/tracker.functions.ts` (nudge)

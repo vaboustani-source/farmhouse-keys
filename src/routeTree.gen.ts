@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TrackerAccessTokenRouteImport } from './routes/tracker.$accessToken'
 import { Route as EventsNewRouteImport } from './routes/events.new'
@@ -21,11 +22,17 @@ import { Route as EventsEventIdPaymentsRouteImport } from './routes/events.$even
 import { Route as EventsEventIdGuestsRouteImport } from './routes/events.$eventId.guests'
 import { Route as EventsEventIdEditRouteImport } from './routes/events.$eventId.edit'
 import { Route as EventsEventIdBookingsRouteImport } from './routes/events.$eventId.bookings'
+import { Route as EventsEventIdActivityRouteImport } from './routes/events.$eventId.activity'
 import { Route as BookEventSlugSectionSlugRouteImport } from './routes/book.$eventSlug.$sectionSlug'
 import { Route as ApiPublicStripeWebhookRouteImport } from './routes/api/public/stripe-webhook'
 import { Route as EventsEventIdSectionsSectionIdRouteImport } from './routes/events.$eventId.sections.$sectionId'
 import { Route as BookEventSlugSectionSlugConfirmationRouteImport } from './routes/book.$eventSlug.$sectionSlug.confirmation'
 
+const ActivityRoute = ActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -88,6 +95,11 @@ const EventsEventIdBookingsRoute = EventsEventIdBookingsRouteImport.update({
   path: '/events/$eventId/bookings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EventsEventIdActivityRoute = EventsEventIdActivityRouteImport.update({
+  id: '/events/$eventId/activity',
+  path: '/events/$eventId/activity',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BookEventSlugSectionSlugRoute =
   BookEventSlugSectionSlugRouteImport.update({
     id: '/book/$eventSlug/$sectionSlug',
@@ -114,10 +126,12 @@ const BookEventSlugSectionSlugConfirmationRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
   '/events/new': typeof EventsNewRoute
   '/tracker/$accessToken': typeof TrackerAccessTokenRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
   '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
+  '/events/$eventId/activity': typeof EventsEventIdActivityRoute
   '/events/$eventId/bookings': typeof EventsEventIdBookingsRoute
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
@@ -132,10 +146,12 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
   '/events/new': typeof EventsNewRoute
   '/tracker/$accessToken': typeof TrackerAccessTokenRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
   '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
+  '/events/$eventId/activity': typeof EventsEventIdActivityRoute
   '/events/$eventId/bookings': typeof EventsEventIdBookingsRoute
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
@@ -151,10 +167,12 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
   '/events/new': typeof EventsNewRoute
   '/tracker/$accessToken': typeof TrackerAccessTokenRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
   '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
+  '/events/$eventId/activity': typeof EventsEventIdActivityRoute
   '/events/$eventId/bookings': typeof EventsEventIdBookingsRoute
   '/events/$eventId/edit': typeof EventsEventIdEditRoute
   '/events/$eventId/guests': typeof EventsEventIdGuestsRoute
@@ -171,10 +189,12 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/activity'
     | '/events/new'
     | '/tracker/$accessToken'
     | '/api/public/stripe-webhook'
     | '/book/$eventSlug/$sectionSlug'
+    | '/events/$eventId/activity'
     | '/events/$eventId/bookings'
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
@@ -189,10 +209,12 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/activity'
     | '/events/new'
     | '/tracker/$accessToken'
     | '/api/public/stripe-webhook'
     | '/book/$eventSlug/$sectionSlug'
+    | '/events/$eventId/activity'
     | '/events/$eventId/bookings'
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
@@ -207,10 +229,12 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/activity'
     | '/events/new'
     | '/tracker/$accessToken'
     | '/api/public/stripe-webhook'
     | '/book/$eventSlug/$sectionSlug'
+    | '/events/$eventId/activity'
     | '/events/$eventId/bookings'
     | '/events/$eventId/edit'
     | '/events/$eventId/guests'
@@ -226,10 +250,12 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ActivityRoute: typeof ActivityRoute
   EventsNewRoute: typeof EventsNewRoute
   TrackerAccessTokenRoute: typeof TrackerAccessTokenRoute
   ApiPublicStripeWebhookRoute: typeof ApiPublicStripeWebhookRoute
   BookEventSlugSectionSlugRoute: typeof BookEventSlugSectionSlugRouteWithChildren
+  EventsEventIdActivityRoute: typeof EventsEventIdActivityRoute
   EventsEventIdBookingsRoute: typeof EventsEventIdBookingsRoute
   EventsEventIdEditRoute: typeof EventsEventIdEditRoute
   EventsEventIdGuestsRoute: typeof EventsEventIdGuestsRoute
@@ -244,6 +270,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/activity': {
+      id: '/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof ActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -328,6 +361,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdBookingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/events/$eventId/activity': {
+      id: '/events/$eventId/activity'
+      path: '/events/$eventId/activity'
+      fullPath: '/events/$eventId/activity'
+      preLoaderRoute: typeof EventsEventIdActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/book/$eventSlug/$sectionSlug': {
       id: '/book/$eventSlug/$sectionSlug'
       path: '/book/$eventSlug/$sectionSlug'
@@ -376,10 +416,12 @@ const BookEventSlugSectionSlugRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ActivityRoute: ActivityRoute,
   EventsNewRoute: EventsNewRoute,
   TrackerAccessTokenRoute: TrackerAccessTokenRoute,
   ApiPublicStripeWebhookRoute: ApiPublicStripeWebhookRoute,
   BookEventSlugSectionSlugRoute: BookEventSlugSectionSlugRouteWithChildren,
+  EventsEventIdActivityRoute: EventsEventIdActivityRoute,
   EventsEventIdBookingsRoute: EventsEventIdBookingsRoute,
   EventsEventIdEditRoute: EventsEventIdEditRoute,
   EventsEventIdGuestsRoute: EventsEventIdGuestsRoute,
@@ -395,12 +437,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

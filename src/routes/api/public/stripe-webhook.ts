@@ -10,6 +10,7 @@ import {
   sendPaymentMethodUpdated,
 } from "@/lib/email/booking-emails.server";
 import { Resend } from "resend";
+import { logActivity } from "@/lib/activity-log.server";
 
 export const Route = createFileRoute("/api/public/stripe-webhook")({
   server: {
@@ -121,6 +122,33 @@ export const Route = createFileRoute("/api/public/stripe-webhook")({
               const totalCharged = (session.amount_total ?? 0) / 100;
               const fullPrimaryTotal = Number(primary.total_amount || 0);
 
+              await logActivity({
+                eventId: primary.event_id,
+                bookingId: primary.id,
+                actor: "stripe",
+                actorName: "Stripe webhook",
+                action: isSplit ? "payment.deposit_paid" : "payment.paid_full",
+                label: isSplit
+                  ? `Deposit received from ${primary.guest_name}`
+                  : `Paid in full by ${primary.guest_name}`,
+                metadata: {
+                  amount: totalCharged,
+                  section_name: section?.section_name ?? null,
+                  stripe_session_id: session.id,
+                },
+              });
+              if (secondary) {
+                await logActivity({
+                  eventId: secondary.event_id,
+                  bookingId: secondary.id,
+                  actor: "stripe",
+                  actorName: "Stripe webhook",
+                  action: "booking.covered",
+                  label: `${secondary.guest_name} covered by ${primary.guest_name}`,
+                  metadata: { covered_by_booking_id: primary.id },
+                });
+              }
+
               if (isSplit) {
                 await sendDepositConfirmation({
                   to: primary.guest_email,
@@ -219,6 +247,15 @@ export const Route = createFileRoute("/api/public/stripe-webhook")({
                 retryUrl: `${baseUrl}/update-payment/${newToken}`,
                 retryDeadline: "as soon as possible",
               });
+              await logActivity({
+                eventId: b.event_id,
+                bookingId: b.id,
+                actor: "stripe",
+                actorName: "Stripe webhook",
+                action: "payment.failed",
+                label: `Payment failed — ${b.guest_name}`,
+                metadata: { amount: failedAmount, stripe_payment_intent_id: pi.id },
+              });
             }
           } else if (event.type === "setup_intent.succeeded") {
             const si = event.data.object as Stripe.SetupIntent;
@@ -307,6 +344,15 @@ export const Route = createFileRoute("/api/public/stripe-webhook")({
                 console.error("admin notify failed", e);
               }
 
+              await logActivity({
+                eventId: b.event_id,
+                bookingId: b.id,
+                actor: "guest",
+                actorName: b.guest_name,
+                action: "payment.method_updated",
+                label: `Payment method updated — ${b.guest_name}`,
+                metadata: { stripe_setup_intent_id: si.id },
+              });
               await supabaseAdmin.from("lb_sync_log").insert({
                 action: "payment_method_updated",
                 direction: "inbound",
@@ -376,6 +422,15 @@ export const Route = createFileRoute("/api/public/stripe-webhook")({
                 checkIn: ev?.check_in_date ?? "",
                 checkOut: ev?.check_out_date ?? "",
                 guestEmail: b.guest_email,
+              });
+              await logActivity({
+                eventId: b.event_id,
+                bookingId: b.id,
+                actor: "stripe",
+                actorName: "Stripe webhook",
+                action: "payment.balance_charged",
+                label: `Balance charged — ${b.guest_name}`,
+                metadata: { amount: finalAmount, section_name: section?.section_name ?? null, stripe_payment_intent_id: pi.id },
               });
             }
           }

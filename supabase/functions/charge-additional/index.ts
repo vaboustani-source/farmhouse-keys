@@ -7,6 +7,7 @@
 import Stripe from "https://esm.sh/stripe@17.5.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { Resend } from "https://esm.sh/resend@4.0.1";
+import { logActivity } from "../_shared/activity-log.ts";
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -158,6 +159,15 @@ Deno.serve(async (req) => {
         status: "succeeded",
         charged_by: chargedBy ?? null,
       });
+      await logActivity({
+        eventId: booking.event_id,
+        bookingId: booking.id,
+        actor: "admin",
+        actorName: chargedBy ?? null,
+        action: "refund.partial",
+        label: `Partial refund — ${booking.guest_name}`,
+        metadata: { amount: amountDollars, reason: description, stripe_refund_id: refund.id },
+      });
       return new Response(JSON.stringify({ ok: true, refundId: refund.id }), {
         status: 200,
         headers: { ...CORS, "content-type": "application/json" },
@@ -214,6 +224,16 @@ Deno.serve(async (req) => {
       })
       .select("id")
       .single();
+
+    await logActivity({
+      eventId: booking.event_id,
+      bookingId: booking.id,
+      actor: "admin",
+      actorName: chargedBy ?? null,
+      action: "charge.additional_applied",
+      label: `Additional charge — ${booking.guest_name}: ${description}`,
+      metadata: { amount: amountDollars, stripe_payment_intent_id: newPi.id, notes: notes ?? null },
+    });
 
     // Guest email
     try {

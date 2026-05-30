@@ -297,9 +297,10 @@ function SectionCard({
   const tax = (baseTotal + resort) * 0.08;
   const previewTotal = baseTotal + resort + tax;
 
-  const bookingUrl = local.booking_link_slug
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/book/${local.booking_link_slug}`
-    : null;
+  const bookingUrl =
+    local.booking_link_slug && event.slug
+      ? `${typeof window !== "undefined" ? window.location.origin : ""}/book/${event.slug}/${local.booking_link_slug}`
+      : null;
 
   const copyLink = async () => {
     if (!bookingUrl) return;

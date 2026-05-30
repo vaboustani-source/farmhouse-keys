@@ -199,7 +199,10 @@ function EventDetailPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {sections.map((s) => {
           const filled = bookings.filter((b) => b.section_id === s.id && isConfirmed(b)).length;
-          const url = s.booking_link_slug ? `${window.location.origin}/book/${s.booking_link_slug}` : null;
+          const url =
+            s.booking_link_slug && event.slug
+              ? `${window.location.origin}/book/${event.slug}/${s.booking_link_slug}`
+              : null;
           return (
             <div key={s.id} className="rounded-lg border border-border bg-card p-6">
               <div className="flex items-start justify-between">

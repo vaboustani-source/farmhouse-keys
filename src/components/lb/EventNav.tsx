@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { CalendarCheck, CreditCard, LayoutGrid, Settings, SlidersHorizontal, Users } from "lucide-react";
+import { CalendarCheck, CreditCard, History, LayoutGrid, Settings, SlidersHorizontal, Users } from "lucide-react";
 import { supabase, type LbEvent } from "@/integrations/supabase/client";
 
 export type EventTabKey =
@@ -8,6 +8,7 @@ export type EventTabKey =
   | "guests"
   | "bookings"
   | "payments"
+  | "activity"
   | "pricing"
   | "settings";
 
@@ -92,6 +93,7 @@ const TAB_LABEL: Record<EventTabKey, string> = {
   guests: "Guest List",
   bookings: "Bookings",
   payments: "Payments",
+  activity: "Activity",
   pricing: "Pricing",
   settings: "Settings",
 };
@@ -119,7 +121,14 @@ type Item = {
   key: EventTabKey;
   label: string;
   icon: typeof LayoutGrid;
-  to: "/events/$eventId" | "/events/$eventId/guests" | "/events/$eventId/bookings" | "/events/$eventId/payments" | "/events/$eventId/pricing" | "/events/$eventId/settings";
+  to:
+    | "/events/$eventId"
+    | "/events/$eventId/guests"
+    | "/events/$eventId/bookings"
+    | "/events/$eventId/payments"
+    | "/events/$eventId/activity"
+    | "/events/$eventId/pricing"
+    | "/events/$eventId/settings";
   badge?: { text: string; variant?: "default" | "danger" | "muted" };
 };
 
@@ -251,6 +260,12 @@ function buildItems(counts: Counts): Item[] {
       icon: CreditCard,
       to: "/events/$eventId/payments",
       badge: counts.collected > 0 ? { text: formatMoneyShort(counts.collected) } : undefined,
+    },
+    {
+      key: "activity",
+      label: "Activity",
+      icon: History,
+      to: "/events/$eventId/activity",
     },
     { key: "pricing", label: "Pricing", icon: SlidersHorizontal, to: "/events/$eventId/pricing" },
     { key: "settings", label: "Settings", icon: Settings, to: "/events/$eventId/settings" },

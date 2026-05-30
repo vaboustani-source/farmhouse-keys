@@ -1231,6 +1231,57 @@ export type Database = {
           },
         ]
       }
+      lb_activity_log: {
+        Row: {
+          action: string
+          actor: string
+          actor_name: string | null
+          booking_id: string | null
+          created_at: string
+          event_id: string | null
+          id: string
+          label: string
+          metadata: Json | null
+        }
+        Insert: {
+          action: string
+          actor: string
+          actor_name?: string | null
+          booking_id?: string | null
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          label: string
+          metadata?: Json | null
+        }
+        Update: {
+          action?: string
+          actor?: string
+          actor_name?: string | null
+          booking_id?: string | null
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          label?: string
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lb_activity_log_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "lb_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lb_activity_log_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "lb_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lb_additional_charges: {
         Row: {
           amount: number

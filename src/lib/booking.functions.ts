@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 /* ───────────── Email gate lookup ───────────── */
@@ -13,7 +14,7 @@ export const lookupBooking = createServerFn({ method: "POST" })
     }).parse,
   )
   .handler(async ({ data }) => {
-    const { data: rows, error } = await supabaseAdmin.rpc("lookup_guest_booking", {
+    const { data: rows, error } = await supabase.rpc("lookup_guest_booking", {
       p_email: data.email,
       p_event_slug: data.eventSlug,
       p_section_slug: data.sectionSlug,
@@ -35,7 +36,7 @@ export const lookupSecondaryGuest = createServerFn({ method: "POST" })
     }).parse,
   )
   .handler(async ({ data }) => {
-    const { data: rows, error } = await supabaseAdmin.rpc("lookup_secondary_guest", {
+    const { data: rows, error } = await supabase.rpc("lookup_secondary_guest", {
       p_email: data.email,
       p_event_slug: data.eventSlug,
     });
@@ -53,7 +54,7 @@ export const lookupSecondaryGuest = createServerFn({ method: "POST" })
 export const getSectionAddons = createServerFn({ method: "POST" })
   .inputValidator(z.object({ sectionId: z.string().uuid() }).parse)
   .handler(async ({ data }) => {
-    const { data: rows, error } = await supabaseAdmin
+    const { data: rows, error } = await supabase
       .from("lb_section_addons")
       .select("id, addon_name, addon_price, addon_type, is_required, sort_order")
       .eq("section_id", data.sectionId)

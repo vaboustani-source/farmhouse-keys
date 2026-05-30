@@ -116,12 +116,13 @@ export function ActivityFeed({
 
   useEffect(() => {
     if (data?.rows) {
+      const incoming = data.rows as unknown as ActivityRow[];
       setAccumulated((prev) => {
         if (cursor) {
           const ids = new Set(prev.map((r) => r.id));
-          return [...prev, ...data.rows.filter((r) => !ids.has(r.id))];
+          return [...prev, ...incoming.filter((r) => !ids.has(r.id))];
         }
-        return data.rows as ActivityRow[];
+        return incoming;
       });
     }
   }, [data, cursor]);

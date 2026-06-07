@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { supabase, type LbBooking, type LbRoomSection } from "@/integrations/supabase/client";
@@ -286,8 +286,8 @@ function SectionBookingsPage() {
                   {(() => {
                     const total = Number(b.total_amount || 0);
                     const refundAmount = Number(b.refund_amount || 0);
-                    let paidCell: React.ReactNode = formatMoney(0);
-                    let balanceCell: React.ReactNode = formatMoney(total);
+                    let paidCell: ReactNode = formatMoney(0);
+                    let balanceCell: ReactNode = formatMoney(total);
                     let balanceClass = "";
                     switch (b.payment_status) {
                       case "paid":

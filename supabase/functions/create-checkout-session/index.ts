@@ -143,6 +143,7 @@ serve(async (req) => {
     return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
 
+  let parsedBookingId: string | null = null;
   try {
     const data = await req.json();
     const {
@@ -154,18 +155,7 @@ serve(async (req) => {
       sectionSlug,
       cotRequested = false,
     } = data;
-
-    const releaseLock = async () => {
-      try {
-        await supabaseAdmin
-          .from("lb_bookings")
-          .update({ stripe_session_id: null })
-          .eq("id", bookingId)
-          .like("stripe_session_id", "PENDING_%");
-      } catch (_) {
-        // best effort
-      }
-    };
+    parsedBookingId = bookingId;
 
     // ── Double-booking guard ─────────────────────────────────────
     const { data: existingBk } = await supabaseAdmin
@@ -402,18 +392,16 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error("create-checkout-session error", err);
-    // Release any optimistic lock we may have acquired so the guest can retry.
-    try {
-      const body = await req.clone().json().catch(() => null);
-      const bId = body?.bookingId;
-      if (bId) {
+    // Release any optimistic lock so the guest can retry immediately.
+    if (parsedBookingId) {
+      try {
         await supabaseAdmin
           .from("lb_bookings")
           .update({ stripe_session_id: null })
-          .eq("id", bId)
+          .eq("id", parsedBookingId)
           .like("stripe_session_id", "PENDING_%");
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : String(err) }),
       {

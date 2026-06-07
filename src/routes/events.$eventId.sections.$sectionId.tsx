@@ -244,6 +244,9 @@ function SectionBookingsPage() {
                 <th className="px-4 py-3 font-medium">Nights</th>
                 <th className="px-4 py-3 font-medium">Add-ons</th>
                 <th className="px-4 py-3 font-medium">Total</th>
+                <th className="px-4 py-3 font-medium">Paid</th>
+                <th className="px-4 py-3 font-medium">Balance</th>
+                <th className="px-4 py-3 font-medium">Payment</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Room</th>
                 <th className="px-4 py-3 font-medium">Booked</th>
@@ -280,6 +283,53 @@ function SectionBookingsPage() {
                       );
                     })()}
                   </td>
+                  {(() => {
+                    const total = Number(b.total_amount || 0);
+                    const refundAmount = Number(b.refund_amount || 0);
+                    let paidCell: React.ReactNode = formatMoney(0);
+                    let balanceCell: React.ReactNode = formatMoney(total);
+                    let balanceClass = "";
+                    switch (b.payment_status) {
+                      case "paid":
+                        paidCell = formatMoney(total);
+                        balanceCell = formatMoney(0);
+                        break;
+                      case "deposit_paid":
+                        paidCell = formatMoney(total / 2);
+                        balanceCell = formatMoney(total / 2);
+                        break;
+                      case "covered":
+                        paidCell = <span className="text-muted-foreground">Covered</span>;
+                        balanceCell = formatMoney(0);
+                        break;
+                      case "payment_failed":
+                        paidCell = formatMoney(total / 2);
+                        balanceCell = formatMoney(total / 2);
+                        balanceClass = "text-red-700";
+                        break;
+                      case "refunded":
+                        paidCell = <span className="text-red-700">({formatMoney(refundAmount)})</span>;
+                        balanceCell = formatMoney(0);
+                        break;
+                      case "pending":
+                      default:
+                        paidCell = formatMoney(0);
+                        balanceCell = formatMoney(total);
+                    }
+                    return (
+                      <>
+                        <td className="px-4 py-3 tabular-nums">{paidCell}</td>
+                        <td className={`px-4 py-3 tabular-nums ${balanceClass}`}>{balanceCell}</td>
+                        <td className="px-4 py-3">
+                          <PaymentProgress
+                            status={b.payment_status}
+                            total={total}
+                            refundAmount={refundAmount}
+                          />
+                        </td>
+                      </>
+                    );
+                  })()}
                   <td className="px-4 py-3"><PaymentBadge status={b.payment_status} /></td>
                   <td className="px-4 py-3">
                     <input
@@ -351,7 +401,7 @@ function SectionBookingsPage() {
                 </tr>
                 {openRefundId === b.id && (
                   <tr className="bg-muted/30">
-                    <td colSpan={8} className="px-4 py-4">
+                    <td colSpan={11} className="px-4 py-4">
                       <RefundPanel
                         booking={b}
                         sectionName={section.section_name}
@@ -367,7 +417,7 @@ function SectionBookingsPage() {
                 )}
                 {openAdjustId === b.id && (
                   <tr className="bg-muted/30">
-                    <td colSpan={8} className="px-4 py-4">
+                    <td colSpan={11} className="px-4 py-4">
                       <AdjustPanel
                         booking={b}
                         section={section}
@@ -382,9 +432,31 @@ function SectionBookingsPage() {
                 </Fragment>
               ))}
             </tbody>
+            <tfoot>
+              <tr className="border-t border-border bg-muted/30 text-sm">
+                <td colSpan={4} className="px-4 py-3 font-medium text-foreground">
+                  {section.section_name} totals
+                </td>
+                <td className="px-4 py-3 tabular-nums text-foreground">
+                  Collected: {formatMoney(sectionTotals.collected)}
+                </td>
+                <td colSpan={6} className="px-4 py-3 tabular-nums text-muted-foreground">
+                  Outstanding: {formatMoney(sectionTotals.outstanding)}
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}
+
+      <div className="mt-8 rounded-lg border border-border bg-card p-6 text-center">
+        <div className="font-serif text-3xl text-[#2C3E2D]" style={{ fontFamily: '"Cormorant Garamond", Cormorant, serif' }}>
+          Total collected across all sections: {formatMoney(data.eventTotals.collected)}
+        </div>
+        <div className="mt-2 text-sm text-muted-foreground" style={{ fontFamily: 'Jost, sans-serif' }}>
+          Total outstanding: {formatMoney(data.eventTotals.outstanding)}
+        </div>
+      </div>
       </EventLayout>
     </AdminShell>
   );

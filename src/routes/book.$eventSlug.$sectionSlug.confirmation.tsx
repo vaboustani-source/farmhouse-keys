@@ -24,6 +24,7 @@ function ConfirmationPage() {
   const fetcher = useServerFn(fetchSessionConfirmation);
   const [bookings, setBookings] = useState<Bookings>([]);
   const [loading, setLoading] = useState(true);
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -32,30 +33,42 @@ function ConfirmationPage() {
       setLoading(false);
       return;
     }
-    // Stripe webhook may take a moment — poll briefly
+    // Stripe webhook may take a moment — poll every 3s for up to 30s.
     let attempts = 0;
+    const MAX_ATTEMPTS = 10;
+    let cancelled = false;
     const tick = async () => {
+      if (cancelled) return;
       const { bookings } = await fetcher({ data: { sessionId } });
       const ready = bookings.find(
-        (b) => b.payment_status === "paid" || b.payment_status === "deposit_paid" || b.payment_status === "covered",
+        (b) =>
+          b.payment_status === "paid" ||
+          b.payment_status === "deposit_paid" ||
+          b.payment_status === "covered",
       );
-      if (ready || attempts >= 8) {
+      if (ready) {
         setBookings(bookings);
         setLoading(false);
-        if (ready) {
-          // Clear any in-flight booking session state for this event/section.
-          try {
-            Object.keys(sessionStorage)
-              .filter((k) => k.startsWith("gfh_booking_"))
-              .forEach((k) => sessionStorage.removeItem(k));
-          } catch {}
-        }
-      } else {
-        attempts++;
-        setTimeout(tick, 1500);
+        try {
+          Object.keys(sessionStorage)
+            .filter((k) => k.startsWith("gfh_booking_"))
+            .forEach((k) => sessionStorage.removeItem(k));
+        } catch {}
+        return;
       }
+      attempts++;
+      if (attempts >= MAX_ATTEMPTS) {
+        setBookings(bookings);
+        setLoading(false);
+        setTimedOut(true);
+        return;
+      }
+      setTimeout(tick, 3000);
     };
     tick();
+    return () => {
+      cancelled = true;
+    };
   }, [fetcher]);
 
   const primary = bookings.find((b) => b.is_primary || !b.covered_by_booking_id);
@@ -69,7 +82,7 @@ function ConfirmationPage() {
 
         {loading && <p className="mt-16 text-sm text-[#6B6B6B]">Confirming your reservation…</p>}
 
-        {!loading && primary && (
+        {!loading && !timedOut && primary && (
           <>
             <h1 className="mt-12 font-serif text-4xl font-medium md:text-5xl">
               {primary.payment_status === "deposit_paid" ? "Your room is reserved." : "You're confirmed."}
@@ -122,9 +135,21 @@ function ConfirmationPage() {
         )}
 
         {!loading && !primary && (
-          <p className="mt-16 text-sm text-[#6B6B6B]">
-            We couldn't find your reservation. Please reach out to your planning team.
-          </p>
+          <div className="mt-16">
+            <h1 className="font-serif text-3xl font-medium md:text-4xl">Your payment was received.</h1>
+            <p className="mt-3 text-sm text-[#6B6B6B]">
+              Your confirmation is on its way — check your email shortly.
+            </p>
+          </div>
+        )}
+
+        {!loading && timedOut && primary && (
+          <div className="mt-16">
+            <h1 className="font-serif text-3xl font-medium md:text-4xl">Your payment was received.</h1>
+            <p className="mt-3 text-sm text-[#6B6B6B]">
+              Your confirmation is on its way — check your email shortly.
+            </p>
+          </div>
         )}
       </div>
     </div>

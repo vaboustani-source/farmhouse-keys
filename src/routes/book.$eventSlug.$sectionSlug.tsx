@@ -5,6 +5,7 @@ import {
   lookupBooking,
   lookupSecondaryGuest,
   getSectionAddons,
+  fetchSessionConfirmation,
 } from "@/lib/booking.functions";
 import { createCheckoutSession, checkSessionStatus } from "@/lib/checkout";
 import { ReviewErrorBoundary } from "@/components/ReviewErrorBoundary";
@@ -28,6 +29,20 @@ const fmtDate = (d: string | null | undefined) =>
         day: "numeric",
       })
     : "";
+const fmtDateFull = (d: string | null | undefined) =>
+  d
+    ? new Date(d + "T00:00:00").toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "";
+const addDays = (iso: string, days: number) => {
+  const dt = new Date(iso + "T00:00:00");
+  dt.setDate(dt.getDate() + days);
+  return dt.toISOString().slice(0, 10);
+};
 
 function Wordmark() {
   return (
@@ -60,6 +75,17 @@ function BookingFlow() {
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [cancelledBanner, setCancelledBanner] = useState<string | null>(null);
   const [checkingReturn, setCheckingReturn] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("success") === "true") setShowSuccess(true);
+  }, []);
+
+  if (showSuccess) {
+    return <ConfirmationView eventSlug={eventSlug} sectionSlug={sectionSlug} />;
+  }
 
   // Restore session
   useEffect(() => {
@@ -781,5 +807,186 @@ function Row({ label, value }: { label: string; value: string }) {
       <span className="text-[#6B6B6B]">{label}</span>
       <span className="tabular-nums">{value}</span>
     </div>
+  );
+}
+
+/* ───────────── Post-Stripe Confirmation View ───────────── */
+
+type ConfirmationBookings = Awaited<ReturnType<typeof fetchSessionConfirmation>>["bookings"];
+
+function ConfirmationView({
+  eventSlug,
+  sectionSlug,
+}: {
+  eventSlug: string;
+  sectionSlug: string;
+}) {
+  const fetcher = useServerFn(fetchSessionConfirmation);
+  const [bookings, setBookings] = useState<ConfirmationBookings>([]);
+  const [loading, setLoading] = useState(true);
+  const [timedOut, setTimedOut] = useState(false);
+
+  useEffect(() => {
+    // Clear any saved booking session data
+    try {
+      Object.keys(sessionStorage)
+        .filter((k) => k.startsWith("gfh_booking_") || k.startsWith("gfh_stripe_session_"))
+        .forEach((k) => sessionStorage.removeItem(k));
+    } catch {}
+
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+    if (!sessionId) {
+      setLoading(false);
+      setTimedOut(true);
+      return;
+    }
+
+    let attempts = 0;
+    const MAX_ATTEMPTS = 10;
+    let cancelled = false;
+    const tick = async () => {
+      if (cancelled) return;
+      try {
+        const { bookings } = await fetcher({ data: { sessionId } });
+        const ready = bookings.find(
+          (b) =>
+            b.payment_status === "paid" ||
+            b.payment_status === "deposit_paid" ||
+            b.payment_status === "covered",
+        );
+        if (ready) {
+          setBookings(bookings);
+          setLoading(false);
+          return;
+        }
+      } catch {}
+      attempts++;
+      if (attempts >= MAX_ATTEMPTS) {
+        setLoading(false);
+        setTimedOut(true);
+        return;
+      }
+      setTimeout(tick, 3000);
+    };
+    tick();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetcher]);
+
+  const primary = bookings.find((b) => b.is_primary || !b.covered_by_booking_id);
+  const secondary = bookings.find((b) => b.covered_by_booking_id);
+
+  return (
+    <div className="min-h-screen bg-[#FAF8F4] font-sans text-[#1A1A1A]">
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <Wordmark />
+
+        {loading && (
+          <p className="mt-16 text-sm text-[#6B6B6B]">Confirming your reservation…</p>
+        )}
+
+        {!loading && timedOut && (
+          <div className="mt-16">
+            <h1 className="font-serif text-3xl font-medium md:text-4xl">
+              Your payment was received.
+            </h1>
+            <p className="mt-3 text-sm text-[#6B6B6B]">
+              Your confirmation is on its way — check your email shortly.
+            </p>
+          </div>
+        )}
+
+        {!loading && !timedOut && primary && (
+          <ConfirmationContent primary={primary} secondary={secondary ?? null} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ConfirmationContent({
+  primary,
+  secondary,
+}: {
+  primary: NonNullable<ConfirmationBookings[number]>;
+  secondary: ConfirmationBookings[number] | null;
+}) {
+  const isDeposit = primary.payment_status === "deposit_paid";
+  const total = Number(primary.total_amount) || 0;
+  const half = total / 2;
+  const checkIn = primary.event?.check_in_date ?? null;
+  const nextPaymentDate = checkIn ? fmtDateFull(addDays(checkIn, -30)) : "";
+
+  return (
+    <>
+      <div className="mt-8 flex justify-center">
+        <span className="inline-flex items-center gap-2 rounded-full bg-[#E8F0E5] px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-[#2C3E2D]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#2C3E2D]" />
+          {isDeposit ? "Deposit confirmed" : "Confirmed"}
+        </span>
+      </div>
+
+      <h1 className="mt-6 font-serif text-4xl font-medium md:text-5xl">
+        {isDeposit ? "Your room is reserved." : "You're confirmed."}
+      </h1>
+
+      {primary.event?.wedding_name && (
+        <p
+          className="mt-3 text-xl text-[#6B6B6B]"
+          style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}
+        >
+          {primary.event.wedding_name}
+        </p>
+      )}
+
+      <div className="mt-10 rounded-md border border-[#E8E2D9] bg-white p-6 text-left">
+        <div className="font-serif text-xl">{primary.section?.section_name}</div>
+        <div className="mt-3 space-y-1 text-sm">
+          <Row label="Check-in" value={fmtDate(primary.event?.check_in_date)} />
+          <Row label="Check-out" value={fmtDate(primary.event?.check_out_date)} />
+          {isDeposit ? (
+            <>
+              <Row label="Amount charged today" value={fmtMoney(half)} />
+              <Row label="Next payment due" value={fmtMoney(half)} />
+              {nextPaymentDate && <Row label="Payment date" value={nextPaymentDate} />}
+            </>
+          ) : (
+            <Row label="Paid in full" value={fmtMoney(total)} />
+          )}
+        </div>
+        {isDeposit && (
+          <p className="mt-4 text-xs text-[#6B6B6B]">
+            Your card will be charged automatically — no action needed.
+          </p>
+        )}
+      </div>
+
+      <p className="mt-4 text-xs text-[#6B6B6B]">
+        A confirmation has been sent to {primary.guest_email}.
+      </p>
+
+      {secondary && (
+        <div className="mt-6 rounded-md border border-[#E8E2D9] bg-white p-6 text-left">
+          <div className="font-serif text-xl">
+            {secondary.guest_name}'s room is confirmed too.
+          </div>
+          <p className="mt-3 text-xs text-[#6B6B6B]">
+            A confirmation has been sent to {secondary.guest_email}.
+          </p>
+        </div>
+      )}
+
+      <p className="mt-12 font-serif text-lg text-[#6B6B6B]">
+        We look forward to welcoming you.
+      </p>
+      <a
+        href="https://gilbertsvillefarmhouse.com"
+        className="mt-2 inline-block text-xs uppercase tracking-[0.16em] text-[#2C3E2D] hover:text-[#C9A84C]"
+      >
+        gilbertsvillefarmhouse.com
+      </a>
+    </>
   );
 }

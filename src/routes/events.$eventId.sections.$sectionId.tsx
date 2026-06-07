@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { supabase, type LbBooking, type LbRoomSection } from "@/integrations/supabase/client";
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/events/$eventId/sections/$sectionId")({
 });
 
 async function fetchSection(sectionId: string, eventId: string) {
-  const [s, b, ev, ac] = await Promise.all([
+  const [s, b, ev, ac, evBk] = await Promise.all([
     supabase.from("lb_room_sections").select("*").eq("id", sectionId).single(),
     supabase
       .from("lb_bookings")
@@ -31,6 +31,10 @@ async function fetchSection(sectionId: string, eventId: string) {
       .from("lb_additional_charges")
       .select("booking_id, amount, status")
       .eq("event_id", eventId),
+    supabase
+      .from("lb_bookings")
+      .select("total_amount, payment_status, refund_amount, removed")
+      .eq("event_id", eventId),
   ]);
   if (s.error) throw s.error;
   const byBooking = new Map<string, number>();
@@ -38,12 +42,100 @@ async function fetchSection(sectionId: string, eventId: string) {
     if (r.status !== "succeeded") continue;
     byBooking.set(r.booking_id, (byBooking.get(r.booking_id) ?? 0) + Number(r.amount));
   }
+  const eventTotals = (evBk.data ?? []).reduce(
+    (acc, b: any) => {
+      if (b.removed) return acc;
+      const { paid, balance } = paymentBreakdown(b.payment_status, Number(b.total_amount || 0), Number(b.refund_amount || 0));
+      acc.collected += paid;
+      acc.outstanding += balance;
+      return acc;
+    },
+    { collected: 0, outstanding: 0 },
+  );
   return {
     section: s.data as LbRoomSection,
     bookings: (b.data ?? []) as LbBooking[],
     checkInDate: (ev.data?.check_in_date ?? null) as string | null,
     additionalByBooking: byBooking,
+    eventTotals,
   };
+}
+
+function paymentBreakdown(status: string, total: number, refundAmount: number) {
+  switch (status) {
+    case "paid":
+      return { paid: total, balance: 0 };
+    case "deposit_paid":
+      return { paid: total / 2, balance: total / 2 };
+    case "covered":
+      return { paid: 0, balance: 0 };
+    case "payment_failed":
+      return { paid: total / 2, balance: total / 2 };
+    case "refunded":
+      return { paid: -refundAmount, balance: 0 };
+    case "pending":
+    default:
+      return { paid: 0, balance: total };
+  }
+}
+
+function PaymentProgress({
+  status,
+  total,
+  refundAmount,
+}: {
+  status: string;
+  total: number;
+  refundAmount: number;
+}) {
+  let pct = 0;
+  let barClass = "bg-muted-foreground/30";
+  let label = "";
+  const deposit = total / 2;
+  switch (status) {
+    case "paid":
+      pct = 100;
+      barClass = "bg-[#2C3E2D]";
+      label = `${formatMoney(total)} paid in full`;
+      break;
+    case "covered":
+      pct = 100;
+      barClass = "bg-[#2C3E2D]";
+      label = "Covered";
+      break;
+    case "deposit_paid":
+      pct = 50;
+      barClass = "bg-[#C9A84C]";
+      label = `${formatMoney(deposit)} of ${formatMoney(total)} paid`;
+      break;
+    case "payment_failed":
+      pct = 50;
+      barClass = "bg-red-500";
+      label = `${formatMoney(deposit)} of ${formatMoney(total)} — payment failed`;
+      break;
+    case "refunded":
+      pct = 100;
+      barClass = "bg-red-300";
+      label = `Refunded ${formatMoney(refundAmount)}`;
+      break;
+    case "pending":
+    default:
+      pct = 0;
+      barClass = "bg-muted-foreground/30";
+      label = `${formatMoney(0)} of ${formatMoney(total)}`;
+      break;
+  }
+  return (
+    <div className="min-w-[160px]">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-border">
+        <div
+          className={`h-full rounded-full ${barClass} transition-all`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <div className="mt-1 text-[11px] text-muted-foreground tabular-nums">{label}</div>
+    </div>
+  );
 }
 
 function SectionBookingsPage() {
@@ -62,6 +154,16 @@ function SectionBookingsPage() {
   }
   const { section, bookings, checkInDate, additionalByBooking } = data;
   const filtered = bookings.filter((b) => filter === "all" || b.payment_status === filter);
+  const sectionTotals = bookings.reduce(
+    (acc, b) => {
+      if (b.removed) return acc;
+      const { paid, balance } = paymentBreakdown(b.payment_status, Number(b.total_amount || 0), Number(b.refund_amount || 0));
+      acc.collected += paid;
+      acc.outstanding += balance;
+      return acc;
+    },
+    { collected: 0, outstanding: 0 },
+  );
   const REFUNDABLE = new Set(["paid", "deposit_paid", "covered"]);
   const ADJUSTABLE = new Set(["pending", "deposit_paid", "paid"]);
 
@@ -142,6 +244,9 @@ function SectionBookingsPage() {
                 <th className="px-4 py-3 font-medium">Nights</th>
                 <th className="px-4 py-3 font-medium">Add-ons</th>
                 <th className="px-4 py-3 font-medium">Total</th>
+                <th className="px-4 py-3 font-medium">Paid</th>
+                <th className="px-4 py-3 font-medium">Balance</th>
+                <th className="px-4 py-3 font-medium">Payment</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Room</th>
                 <th className="px-4 py-3 font-medium">Booked</th>
@@ -178,6 +283,53 @@ function SectionBookingsPage() {
                       );
                     })()}
                   </td>
+                  {(() => {
+                    const total = Number(b.total_amount || 0);
+                    const refundAmount = Number(b.refund_amount || 0);
+                    let paidCell: ReactNode = formatMoney(0);
+                    let balanceCell: ReactNode = formatMoney(total);
+                    let balanceClass = "";
+                    switch (b.payment_status) {
+                      case "paid":
+                        paidCell = formatMoney(total);
+                        balanceCell = formatMoney(0);
+                        break;
+                      case "deposit_paid":
+                        paidCell = formatMoney(total / 2);
+                        balanceCell = formatMoney(total / 2);
+                        break;
+                      case "covered":
+                        paidCell = <span className="text-muted-foreground">Covered</span>;
+                        balanceCell = formatMoney(0);
+                        break;
+                      case "payment_failed":
+                        paidCell = formatMoney(total / 2);
+                        balanceCell = formatMoney(total / 2);
+                        balanceClass = "text-red-700";
+                        break;
+                      case "refunded":
+                        paidCell = <span className="text-red-700">({formatMoney(refundAmount)})</span>;
+                        balanceCell = formatMoney(0);
+                        break;
+                      case "pending":
+                      default:
+                        paidCell = formatMoney(0);
+                        balanceCell = formatMoney(total);
+                    }
+                    return (
+                      <>
+                        <td className="px-4 py-3 tabular-nums">{paidCell}</td>
+                        <td className={`px-4 py-3 tabular-nums ${balanceClass}`}>{balanceCell}</td>
+                        <td className="px-4 py-3">
+                          <PaymentProgress
+                            status={b.payment_status}
+                            total={total}
+                            refundAmount={refundAmount}
+                          />
+                        </td>
+                      </>
+                    );
+                  })()}
                   <td className="px-4 py-3"><PaymentBadge status={b.payment_status} /></td>
                   <td className="px-4 py-3">
                     <input
@@ -249,7 +401,7 @@ function SectionBookingsPage() {
                 </tr>
                 {openRefundId === b.id && (
                   <tr className="bg-muted/30">
-                    <td colSpan={8} className="px-4 py-4">
+                    <td colSpan={11} className="px-4 py-4">
                       <RefundPanel
                         booking={b}
                         sectionName={section.section_name}
@@ -265,7 +417,7 @@ function SectionBookingsPage() {
                 )}
                 {openAdjustId === b.id && (
                   <tr className="bg-muted/30">
-                    <td colSpan={8} className="px-4 py-4">
+                    <td colSpan={11} className="px-4 py-4">
                       <AdjustPanel
                         booking={b}
                         section={section}
@@ -280,9 +432,31 @@ function SectionBookingsPage() {
                 </Fragment>
               ))}
             </tbody>
+            <tfoot>
+              <tr className="border-t border-border bg-muted/30 text-sm">
+                <td colSpan={4} className="px-4 py-3 font-medium text-foreground">
+                  {section.section_name} totals
+                </td>
+                <td className="px-4 py-3 tabular-nums text-foreground">
+                  Collected: {formatMoney(sectionTotals.collected)}
+                </td>
+                <td colSpan={6} className="px-4 py-3 tabular-nums text-muted-foreground">
+                  Outstanding: {formatMoney(sectionTotals.outstanding)}
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}
+
+      <div className="mt-8 rounded-lg border border-border bg-card p-6 text-center">
+        <div className="font-serif text-3xl text-[#2C3E2D]" style={{ fontFamily: '"Cormorant Garamond", Cormorant, serif' }}>
+          Total collected across all sections: {formatMoney(data.eventTotals.collected)}
+        </div>
+        <div className="mt-2 text-sm text-muted-foreground" style={{ fontFamily: 'Jost, sans-serif' }}>
+          Total outstanding: {formatMoney(data.eventTotals.outstanding)}
+        </div>
+      </div>
       </EventLayout>
     </AdminShell>
   );

@@ -92,7 +92,7 @@ export const sendNudge = createServerFn({ method: "POST" })
 
     const baseUrl =
       process.env.APP_BASE_URL ||
-      "https://id-preview--a9cf7512-d53e-4e93-be25-666d375c693f.lovable.app";
+      "https://stay.gilbertsvillefarmhouse.com";
     const bookingUrl = `${baseUrl}/book/${ev.slug ?? ev.id}/${section.booking_link_slug ?? booking.section_id}`;
 
     const firstName = (booking.guest_name || "").trim().split(/\s+/)[0] || "there";

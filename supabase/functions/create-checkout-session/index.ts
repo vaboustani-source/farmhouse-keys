@@ -19,11 +19,10 @@ const supabaseAdmin = createClient(
 );
 
 function getAppBaseUrl(req: Request) {
-  const origin = req.headers.get("origin");
-  if (origin) return origin;
   return (
     Deno.env.get("APP_BASE_URL") ||
-    "https://id-preview--a9cf7512-d53e-4e93-be25-666d375c693f.lovable.app"
+    req.headers.get("origin") ||
+    "https://stay.gilbertsvillefarmhouse.com"
   );
 }
 

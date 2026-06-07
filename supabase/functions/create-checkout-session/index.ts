@@ -168,7 +168,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           already_paid: true,
-          redirect_url: `${baseUrl}/book/${eventSlug}/${sectionSlug}/confirmation`,
+          redirect_url: `${baseUrl}/book/${eventSlug}/${sectionSlug}?success=true`,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
@@ -289,7 +289,7 @@ serve(async (req) => {
     }
 
     const baseUrl = getAppBaseUrl(req);
-    const successUrl = `${baseUrl}/book/${eventSlug}/${sectionSlug}/confirmation?session_id={CHECKOUT_SESSION_ID}`;
+    const successUrl = `${baseUrl}/book/${eventSlug}/${sectionSlug}?success=true&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${baseUrl}/book/${eventSlug}/${sectionSlug}?cancelled=true&session_id={CHECKOUT_SESSION_ID}`;
 
     const session = await stripe.checkout.sessions.create({

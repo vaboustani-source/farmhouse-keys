@@ -208,7 +208,7 @@ serve(async (req) => {
         JSON.stringify({
           locked: true,
           message:
-            "Your reservation is already being processed on another device. Complete it there or wait 5 minutes to try again.",
+            "Your reservation is already being processed on another device. Complete it there or wait a minute and try again.",
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );

@@ -339,29 +339,11 @@ function EmailGate({
 }
 
 function BookingStatusCard({ booking }: { booking: Booking }) {
-  let heading = "";
-  let detail = "";
-  if (booking.payment_status === "deposit_paid") {
-    heading = "Your deposit is confirmed.";
-    detail = `Your final payment will be requested before ${fmtDate(booking.check_in_date)}.`;
-  } else if (booking.payment_status === "paid") {
-    heading = "You're all set.";
-    detail = `Your room is confirmed — we'll see you in ${fmtDate(booking.check_in_date)}.`;
-  } else if (booking.payment_status === "covered") {
-    heading = "Your room has been taken care of.";
-    detail = "You're confirmed — see you soon.";
-  }
   return (
-    <div className="mx-auto mt-12 max-w-md rounded-md border border-[#E8E2D9] bg-white p-8 text-center">
-      <h1 className="font-serif text-3xl font-medium">{heading}</h1>
-      <p className="mt-3 text-sm text-[#6B6B6B]">{detail}</p>
-      <div className="mt-6 border-t border-[#E8E2D9] pt-6 text-left text-sm">
-        <div className="font-serif text-lg">{booking.section_name}</div>
-        <div className="mt-1 text-xs text-[#6B6B6B]">
-          {fmtDate(booking.check_in_date)} → {fmtDate(booking.check_out_date)}
-        </div>
-      </div>
-    </div>
+    <ReservationCard
+      reservation={bookingToReservation(booking)}
+      showSuccessBanner={false}
+    />
   );
 }
 

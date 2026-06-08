@@ -2,12 +2,15 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type CreateCheckoutSessionInput = {
   bookingId: string;
-  addonIds: string[];
+  addonIds?: string[];
   secondaryBookingId?: string | null;
-  secondaryAddonIds: string[];
+  secondaryAddonIds?: string[];
   eventSlug: string;
   sectionSlug: string;
-  cotRequested: boolean;
+  cotRequested?: boolean;
+  /** When set, creates a one-shot balance-payment session for the
+   * already-deposit-paid booking instead of the full initial flow. */
+  paymentType?: "balance";
 };
 
 /**

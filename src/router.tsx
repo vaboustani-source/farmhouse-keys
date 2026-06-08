@@ -4,6 +4,12 @@ import { routeTree } from "./routeTree.gen";
 function DefaultErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
 
+  const path = typeof window !== "undefined" ? window.location.pathname : "";
+  const isGuestRoute =
+    path.startsWith("/book/") ||
+    path.startsWith("/tracker/") ||
+    path.startsWith("/update-payment/");
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
@@ -42,13 +48,27 @@ function DefaultErrorComponent({ error, reset }: { error: Error; reset: () => vo
           >
             Try again
           </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Go home
-          </a>
+          {isGuestRoute ? (
+            <a
+              href="https://gilbertsvillefarmhouse.com"
+              className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            >
+              Return to Gilbertsville Farmhouse
+            </a>
+          ) : (
+            <a
+              href="/"
+              className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            >
+              Go home
+            </a>
+          )}
         </div>
+        {isGuestRoute && (
+          <p className="mt-4 text-xs text-muted-foreground">
+            Or reach out to your planning team for assistance.
+          </p>
+        )}
       </div>
     </div>
   );

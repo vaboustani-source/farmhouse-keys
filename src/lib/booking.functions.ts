@@ -74,7 +74,7 @@ export const fetchSessionConfirmation = createServerFn({ method: "POST" })
     const { data: bookings, error } = await supabaseAdmin
       .from("lb_bookings")
       .select(
-        "id, guest_name, guest_email, payment_status, payment_schedule, total_amount, addons_selected, deposit_paid_at, final_paid_at, covered_at, covered_by_booking_id, is_primary, section_id, event_id",
+        "id, guest_name, guest_email, payment_status, payment_schedule, total_amount, base_amount, addon_amount, resort_fee, tax_amount, addons_selected, deposit_paid_at, final_paid_at, covered_at, covered_by_booking_id, is_primary, section_id, event_id, payment_update_token",
       )
       .eq("stripe_session_id", data.sessionId);
     if (error) throw error;
@@ -83,15 +83,63 @@ export const fetchSessionConfirmation = createServerFn({ method: "POST" })
     const sectionIds = [...new Set(bookings.map((b) => b.section_id))];
     const eventIds = [...new Set(bookings.map((b) => b.event_id))];
     const [sections, events] = await Promise.all([
-      supabaseAdmin.from("lb_room_sections").select("id, section_name, nights").in("id", sectionIds),
+      supabaseAdmin
+        .from("lb_room_sections")
+        .select("id, section_name, nights, guest_nightly_rate, resort_fee_percent")
+        .in("id", sectionIds),
       supabaseAdmin.from("lb_events").select("id, wedding_name, check_in_date, check_out_date").in("id", eventIds),
     ]);
+
+    // Resolve payer first name for any "covered" rows.
+    const coveredByIds = [
+      ...new Set(
+        bookings
+          .map((b) => b.covered_by_booking_id)
+          .filter((x): x is string => !!x),
+      ),
+    ];
+    const payerMap = new Map<string, string>();
+    if (coveredByIds.length > 0) {
+      const { data: payers } = await supabaseAdmin
+        .from("lb_bookings")
+        .select("id, guest_name")
+        .in("id", coveredByIds);
+      for (const p of payers ?? []) payerMap.set(p.id, p.guest_name);
+    }
 
     return {
       bookings: bookings.map((b) => ({
         ...b,
         section: sections.data?.find((s) => s.id === b.section_id) ?? null,
         event: events.data?.find((e) => e.id === b.event_id) ?? null,
+        payer_name: b.covered_by_booking_id
+          ? payerMap.get(b.covered_by_booking_id) ?? null
+          : null,
       })),
+    };
+  });
+
+/* ───────────── Reservation extras (payment_update_token, payer) ───────────── */
+
+export const getReservationExtras = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ bookingId: z.string().uuid() }).parse)
+  .handler(async ({ data }) => {
+    const { data: row } = await supabaseAdmin
+      .from("lb_bookings")
+      .select("payment_update_token, covered_by_booking_id")
+      .eq("id", data.bookingId)
+      .single();
+    let payerName: string | null = null;
+    if (row?.covered_by_booking_id) {
+      const { data: payer } = await supabaseAdmin
+        .from("lb_bookings")
+        .select("guest_name")
+        .eq("id", row.covered_by_booking_id)
+        .single();
+      payerName = payer?.guest_name ?? null;
+    }
+    return {
+      paymentUpdateToken: row?.payment_update_token ?? null,
+      payerName,
     };
   });

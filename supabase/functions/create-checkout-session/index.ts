@@ -153,8 +153,80 @@ serve(async (req) => {
       eventSlug,
       sectionSlug,
       cotRequested = false,
+      paymentType = null,
     } = data;
     parsedBookingId = bookingId;
+
+    // ── BALANCE PAYMENT FLOW (early-pay / pay-now from reservation card) ──
+    if (paymentType === "balance") {
+      const { data: bk } = await supabaseAdmin
+        .from("lb_bookings")
+        .select("id, event_id, section_id, guest_email, guest_name, payment_status, total_amount, final_paid_at")
+        .eq("id", bookingId)
+        .single();
+      if (!bk) throw new Error("Booking not found");
+      if (bk.payment_status === "paid" || bk.final_paid_at) {
+        const baseUrl = getAppBaseUrl(req);
+        return new Response(
+          JSON.stringify({
+            already_paid: true,
+            redirect_url: `${baseUrl}/book/${eventSlug}/${sectionSlug}?success=true`,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const { data: section } = await supabaseAdmin
+        .from("lb_room_sections")
+        .select("section_name")
+        .eq("id", bk.section_id)
+        .single();
+
+      // Balance = 50% of total_amount (pre-tax). Stripe auto-tax adds tax on top.
+      const balanceCents = Math.round((Number(bk.total_amount) || 0) * 0.5 * 100);
+      if (balanceCents <= 0) throw new Error("No balance due");
+
+      const baseUrl = getAppBaseUrl(req);
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "usd",
+              unit_amount: balanceCents,
+              tax_behavior: "exclusive",
+              product_data: {
+                name: `Balance payment · ${section?.section_name ?? "your room"}`,
+                tax_code: "txcd_20030000",
+              },
+            },
+          },
+        ],
+        customer_email: bk.guest_email,
+        automatic_tax: { enabled: true },
+        success_url: `${baseUrl}/book/${eventSlug}/${sectionSlug}?success=true&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/book/${eventSlug}/${sectionSlug}?cancelled=true`,
+        expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
+        metadata: {
+          primary_booking_id: bookingId,
+          payment_type: "balance",
+          event_slug: eventSlug,
+          section_slug: sectionSlug,
+        },
+      });
+
+      // Update session id so the post-pay page can find it by stripe_session_id.
+      await supabaseAdmin
+        .from("lb_bookings")
+        .update({ stripe_session_id: session.id })
+        .eq("id", bookingId);
+
+      return new Response(JSON.stringify({ url: session.url }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // ── Double-booking guard ─────────────────────────────────────
     const { data: existingBk } = await supabaseAdmin

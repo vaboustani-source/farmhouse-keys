@@ -808,6 +808,7 @@ function ConfirmationView({
   const [bookings, setBookings] = useState<ConfirmationBookings>([]);
   const [loading, setLoading] = useState(true);
   const [timedOut, setTimedOut] = useState(false);
+  const [renderError, setRenderError] = useState(false);
 
   useEffect(() => {
     // Clear any saved booking session data
@@ -819,6 +820,8 @@ function ConfirmationView({
 
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get("session_id");
+    const paymentType = params.get("type"); // "balance" for balance payments
+    console.log("Polling for session:", sessionId, "type:", paymentType);
     if (!sessionId) {
       setLoading(false);
       setTimedOut(true);
@@ -832,18 +835,26 @@ function ConfirmationView({
       if (cancelled) return;
       try {
         const { bookings } = await fetcher({ data: { sessionId } });
-        const ready = bookings.find(
-          (b) =>
+        const ready = bookings.find((b) => {
+          if (paymentType === "balance") {
+            // Balance payment transitions deposit_paid → paid
+            return b.payment_status === "paid";
+          }
+          return (
             b.payment_status === "paid" ||
             b.payment_status === "deposit_paid" ||
-            b.payment_status === "covered",
-        );
+            b.payment_status === "covered"
+          );
+        });
+        console.log("Poll result:", ready?.payment_status ?? "not-ready");
         if (ready) {
           setBookings(bookings);
           setLoading(false);
           return;
         }
-      } catch {}
+      } catch (err) {
+        console.error("fetchSessionConfirmation failed", err);
+      }
       attempts++;
       if (attempts >= MAX_ATTEMPTS) {
         setLoading(false);
@@ -859,6 +870,40 @@ function ConfirmationView({
   }, [fetcher]);
 
   const primary = bookings.find((b) => b.is_primary || !b.covered_by_booking_id);
+  console.log("Rendering confirmation for:", primary?.payment_status ?? "none");
+
+  const softFallback = (
+    <div className="mt-16 text-center">
+      <h1 className="font-serif text-3xl font-medium md:text-4xl">
+        Your payment was received.
+      </h1>
+      <p className="mt-3 text-sm text-[#6B6B6B]">
+        Your confirmation is on its way — check your email shortly.
+      </p>
+    </div>
+  );
+
+  let primaryCard: React.ReactNode = null;
+  if (!loading && primary && !renderError) {
+    try {
+      primaryCard = (
+        <div className="mt-10">
+          {timedOut && (
+            <div className="mb-6 rounded-md border border-[#E8E2D9] bg-white p-5 text-center text-sm text-[#6B6B6B]">
+              Your payment was received. Your confirmation is on its way — check your email shortly.
+            </div>
+          )}
+          <ReservationCard
+            reservation={sessionRowToReservation(primary)}
+            showSuccessBanner
+          />
+        </div>
+      );
+    } catch (err) {
+      console.error("ConfirmationView render failed", err);
+      primaryCard = softFallback;
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#FAF8F4] font-sans text-[#1A1A1A]">
@@ -866,28 +911,12 @@ function ConfirmationView({
         <Wordmark />
         {loading && <LoadingConfirmation />}
         {!loading && primary && (
-          <div className="mt-10">
-            {timedOut && (
-              <div className="mb-6 rounded-md border border-[#E8E2D9] bg-white p-5 text-center text-sm text-[#6B6B6B]">
-                Your payment was received. Your confirmation is on its way — check your email shortly.
-              </div>
-            )}
-            <ReservationCard
-              reservation={sessionRowToReservation(primary)}
-              showSuccessBanner
-            />
-          </div>
+          <ReviewErrorBoundary onError={(e) => { console.error("ReservationCard crashed", e); setRenderError(true); }}>
+            {primaryCard ?? softFallback}
+          </ReviewErrorBoundary>
         )}
-        {!loading && !primary && (
-          <div className="mt-16 text-center">
-            <h1 className="font-serif text-3xl font-medium md:text-4xl">
-              Your payment was received.
-            </h1>
-            <p className="mt-3 text-sm text-[#6B6B6B]">
-              Your confirmation is on its way — check your email shortly.
-            </p>
-          </div>
-        )}
+        {!loading && !primary && softFallback}
+        {!loading && renderError && softFallback}
       </div>
     </div>
   );

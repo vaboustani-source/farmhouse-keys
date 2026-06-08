@@ -279,6 +279,80 @@ serve(async (req) => {
         metadata.payment_schedule === "deposit_50_balance_50";
       if (!primaryId) return new Response("ok", { status: 200 });
 
+      // ── BALANCE PAYMENT (guest pre-paid balance via reservation card) ──
+      if (metadata.payment_type === "balance") {
+        const { data: bk } = await supabaseAdmin
+          .from("lb_bookings")
+          .select("id, guest_name, guest_email, total_amount, payment_status, event_id, section_id, final_paid_at")
+          .eq("id", primaryId)
+          .single();
+        if (!bk || bk.final_paid_at) return new Response("ok", { status: 200 });
+
+        const piId =
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : session.payment_intent?.id ?? null;
+        const now = new Date().toISOString();
+        await supabaseAdmin
+          .from("lb_bookings")
+          .update({
+            payment_status: "paid",
+            final_paid_at: now,
+            stripe_payment_intent_id: piId,
+          })
+          .eq("id", primaryId);
+
+        const { data: section } = await supabaseAdmin
+          .from("lb_room_sections")
+          .select("section_name")
+          .eq("id", bk.section_id)
+          .single();
+        const { data: ev } = await supabaseAdmin
+          .from("lb_events")
+          .select("wedding_name, check_in_date, check_out_date")
+          .eq("id", bk.event_id)
+          .single();
+
+        const amountPaid = (session.amount_total ?? 0) / 100;
+        try {
+          await sendPaidInFullConfirmation({
+            to: bk.guest_email,
+            guestName: bk.guest_name,
+            weddingName: ev?.wedding_name ?? "your wedding weekend",
+            sectionName: section?.section_name ?? "your section",
+            checkIn: ev?.check_in_date ?? "",
+            checkOut: ev?.check_out_date ?? "",
+            amountPaid,
+          });
+          await sendAdminNotification({
+            guestName: bk.guest_name,
+            guestEmail: bk.guest_email,
+            sectionName: section?.section_name ?? "",
+            amount: amountPaid,
+            paymentType: "full",
+            weddingName: ev?.wedding_name ?? "",
+            checkIn: ev?.check_in_date ?? "",
+            checkOut: ev?.check_out_date ?? "",
+          });
+        } catch (e) {
+          console.error("balance-payment email failed", e);
+        }
+        await logActivity({
+          eventId: bk.event_id,
+          bookingId: bk.id,
+          actor: "guest",
+          actorName: bk.guest_name,
+          action: "payment.balance_paid_early",
+          label: `Balance paid early — ${bk.guest_name}`,
+          metadata: {
+            amount: amountPaid,
+            section_name: section?.section_name ?? null,
+            stripe_session_id: session.id,
+          },
+        });
+        return new Response("ok", { status: 200 });
+      }
+
       const { data: existingPrimary } = await supabaseAdmin
         .from("lb_bookings")
         .select("payment_status, final_paid_at, deposit_paid_at")

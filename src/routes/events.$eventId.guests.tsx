@@ -1,49 +1,69 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { ChevronDown, ChevronRight, Mail, Plus, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import {
   supabase,
-  type GuestInvitation,
   type LbEvent,
   type LbRoomSection,
 } from "@/integrations/supabase/client";
 import { AdminShell } from "@/components/lb/AdminShell";
 import { EventLayout } from "@/components/lb/EventNav";
+import {
+  sendBookingInvitation,
+  sendSectionPendingInvitations,
+} from "@/lib/invitations.functions";
 
 export const Route = createFileRoute("/events/$eventId/guests")({
   component: GuestsPage,
 });
 
-const inviteSchema = z.object({
+const newBookingSchema = z.object({
   guest_name: z.string().trim().min(1, "Name is required").max(120),
   guest_email: z.string().trim().toLowerCase().email("Enter a valid email").max(255),
   section_id: z.string().uuid("Choose a section"),
-  invite_group: z.string().trim().min(1).max(60),
-  room_allocation: z.number().int().min(1).max(5),
-  secondary_booking_for: z.string().trim().max(200).optional().nullable(),
 });
 
-type InviteForm = z.infer<typeof inviteSchema>;
+type NewBookingForm = z.infer<typeof newBookingSchema>;
+
+type BookingRow = {
+  id: string;
+  guest_name: string;
+  guest_email: string;
+  payment_status: string;
+  section_id: string;
+  total_amount: number | null;
+  deposit_paid_at: string | null;
+  final_paid_at: string | null;
+  booked_at: string | null;
+  room_assignment: string | null;
+  cot_requested: boolean | null;
+  removed: boolean | null;
+  invitation_sent_at: string | null;
+  invitation_count: number | null;
+};
 
 async function fetchAll(eventId: string) {
-  const [evt, sec, inv] = await Promise.all([
+  const [evt, sec, bk] = await Promise.all([
     supabase.from("lb_events").select("*").eq("id", eventId).single(),
     supabase.from("lb_room_sections").select("*").eq("event_id", eventId).order("sort_order"),
     supabase
-      .from("guest_invitations")
-      .select("*")
+      .from("lb_bookings")
+      .select(
+        "id, guest_name, guest_email, payment_status, section_id, total_amount, deposit_paid_at, final_paid_at, booked_at, room_assignment, cot_requested, removed, invitation_sent_at, invitation_count",
+      )
       .eq("event_id", eventId)
-      .order("invite_group")
+      .neq("removed", true)
       .order("guest_name"),
   ]);
   if (evt.error) throw evt.error;
   return {
     event: evt.data as LbEvent,
     sections: (sec.data ?? []) as LbRoomSection[],
-    invitations: (inv.data ?? []) as GuestInvitation[],
+    bookings: (bk.data ?? []) as BookingRow[],
   };
 }
 
@@ -51,123 +71,175 @@ function GuestsPage() {
   const { eventId } = Route.useParams();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
-    queryKey: ["guest_invitations_page", eventId],
+    queryKey: ["guest_bookings_page", eventId],
     queryFn: () => fetchAll(eventId),
   });
 
-  const upsert = useMutation({
-    mutationFn: async (input: InviteForm & { id?: string }) => {
-      const parsed = inviteSchema.parse(input);
-      const payload = {
+  const invalidate = () =>
+    qc.invalidateQueries({ queryKey: ["guest_bookings_page", eventId] });
+
+  const sendOne = useServerFn(sendBookingInvitation);
+  const sendSection = useServerFn(sendSectionPendingInvitations);
+
+  const createBooking = useMutation({
+    mutationFn: async (input: NewBookingForm) => {
+      const parsed = newBookingSchema.parse(input);
+      const { error } = await supabase.from("lb_bookings").insert({
         event_id: eventId,
+        section_id: parsed.section_id,
         guest_name: parsed.guest_name,
         guest_email: parsed.guest_email,
-        section_id: parsed.section_id,
-        invite_group: parsed.invite_group,
-        room_allocation: parsed.room_allocation,
-        secondary_booking_for: parsed.secondary_booking_for || null,
-      };
-      if (input.id) {
-        const { error } = await supabase
-          .from("guest_invitations")
-          .update(payload)
-          .eq("id", input.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("guest_invitations").insert(payload);
-        if (error) throw error;
-      }
+        payment_status: "pending",
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["guest_invitations_page", eventId] });
+      invalidate();
+      toast.success("Guest added");
     },
-    onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : "Could not save invitation";
-      if (msg.includes("guest_invitations_unique_per_event")) {
-        toast.error("That email is already on this event's guest list.");
-      } else {
-        toast.error(msg);
-      }
-    },
+    onError: (err) =>
+      toast.error(err instanceof Error ? err.message : "Could not add guest"),
   });
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("guest_invitations").delete().eq("id", id);
+      const { error } = await supabase
+        .from("lb_bookings")
+        .update({ removed: true, removed_at: new Date().toISOString() })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["guest_invitations_page", eventId] });
-      toast.success("Invitation removed");
+      invalidate();
+      toast.success("Guest removed");
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Could not remove"),
+    onError: (err) =>
+      toast.error(err instanceof Error ? err.message : "Could not remove"),
+  });
+
+  const updateRoom = useMutation({
+    mutationFn: async ({ id, room }: { id: string; room: string }) => {
+      const { error } = await supabase
+        .from("lb_bookings")
+        .update({ room_assignment: room || null })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+    onError: (err) =>
+      toast.error(err instanceof Error ? err.message : "Could not update room"),
+  });
+
+  const sendInvite = useMutation({
+    mutationFn: async (bookingId: string) => {
+      const res = await sendOne({ data: { bookingId } });
+      if (!res.ok) throw new Error(res.reason);
+      return res;
+    },
+    onSuccess: () => {
+      invalidate();
+      toast.success("Invitation sent");
+    },
+    onError: (err) =>
+      toast.error(err instanceof Error ? err.message : "Could not send"),
+  });
+
+  const sendSectionInvites = useMutation({
+    mutationFn: async (sectionId: string) => {
+      return await sendSection({ data: { eventId, sectionId } });
+    },
+    onSuccess: (res) => {
+      invalidate();
+      if (res.total === 0) toast.info("No pending guests to send to.");
+      else toast.success(`Sent ${res.sent} / ${res.total} invitations`);
+    },
+    onError: (err) =>
+      toast.error(err instanceof Error ? err.message : "Could not send"),
   });
 
   if (isLoading || !data) {
     return (
       <AdminShell>
-      <EventLayout eventId={eventId} currentTab="guests">
-        <div className="text-sm text-muted-foreground">Loading…</div>
-      </EventLayout>
-    </AdminShell>
+        <EventLayout eventId={eventId} currentTab="guests">
+          <div className="text-sm text-muted-foreground">Loading…</div>
+        </EventLayout>
+      </AdminShell>
     );
   }
 
-  const { event, sections, invitations } = data;
+  const { event, sections, bookings } = data;
   const activeSections = sections.filter((s) => s.is_active);
-  const totalInvited = invitations.length;
-  const totalBooked = invitations.reduce((s, i) => s + i.rooms_booked, 0);
-  const totalAllocated = invitations.reduce((s, i) => s + i.room_allocation, 0);
+  const totalInvited = bookings.length;
+  const totalAllocated = bookings.length;
+  const totalBooked = bookings.filter((b) =>
+    ["paid", "deposit_paid", "covered"].includes(b.payment_status),
+  ).length;
+  const totalPaidFull = bookings.filter((b) => b.payment_status === "paid").length;
 
   return (
     <AdminShell>
       <EventLayout eventId={eventId} currentTab="guests">
-      <div className="mb-6">
-        <Link
-          to="/events/$eventId"
-          params={{ eventId }}
-          className="text-xs uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
-        >
-          ← Back to {event.couple_names}
-        </Link>
-        <h1 className="mt-2 font-serif text-4xl font-medium text-foreground">
-          Guest Lodging Invitations
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Add the email address for each guest invited to book a room. Only invited guests can
-          access the private booking link for this block.
-        </p>
-      </div>
-
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Stat label="Invited" value={String(totalInvited)} />
-        <Stat label="Rooms allocated" value={String(totalAllocated)} />
-        <Stat label="Rooms booked" value={String(totalBooked)} />
-      </div>
-
-      {activeSections.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-8 text-center">
-          <Users className="mx-auto h-8 w-8 text-muted-foreground" />
-          <p className="mt-3 text-sm text-foreground">
-            Activate at least one room section before inviting guests.
-          </p>
+        <div className="mb-6">
           <Link
-            to="/events/$eventId/edit"
+            to="/events/$eventId"
             params={{ eventId }}
-            className="mt-4 inline-flex items-center rounded-full bg-primary px-4 py-2 text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
+            className="text-xs uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
           >
-            Edit block
+            ← Back to {event.couple_names}
           </Link>
+          <h1 className="mt-2 font-serif text-4xl font-medium text-foreground">
+            Guest Lodging Invitations
+          </h1>
+          <p
+            className="mt-2 max-w-2xl italic"
+            style={{
+              fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+              fontSize: 13,
+              color: "#9A9188",
+            }}
+          >
+            Guest list syncs automatically from the Planning Hub. Add guests here only for last-minute additions.
+          </p>
         </div>
-      ) : (
-        <GuestList
-          invitations={invitations}
-          sections={sections}
-          onSave={(form, id) => upsert.mutateAsync({ ...form, id })}
-          onRemove={(id) => remove.mutate(id)}
-          saving={upsert.isPending}
-        />
-      )}
+
+        <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Stat label="Invited" value={String(totalInvited)} />
+          <Stat label="Rooms allocated" value={String(totalAllocated)} />
+          <Stat label="Rooms booked" value={String(totalBooked)} />
+          <Stat label="Paid in full" value={String(totalPaidFull)} />
+        </div>
+
+        {activeSections.length === 0 ? (
+          <div className="rounded-lg border border-border bg-card p-8 text-center">
+            <Users className="mx-auto h-8 w-8 text-muted-foreground" />
+            <p className="mt-3 text-sm text-foreground">
+              Activate at least one room section before inviting guests.
+            </p>
+            <Link
+              to="/events/$eventId/edit"
+              params={{ eventId }}
+              className="mt-4 inline-flex items-center rounded-full bg-primary px-4 py-2 text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
+            >
+              Edit block
+            </Link>
+          </div>
+        ) : (
+          <BookingList
+            bookings={bookings}
+            sections={sections}
+            onAdd={(form) => createBooking.mutateAsync(form)}
+            onRemove={(id) => remove.mutate(id)}
+            onUpdateRoom={(id, room) => updateRoom.mutate({ id, room })}
+            onSendInvite={(id) => sendInvite.mutate(id)}
+            onSendSection={(sectionId) => {
+              if (confirm("Send booking links to all pending guests in this section?")) {
+                sendSectionInvites.mutate(sectionId);
+              }
+            }}
+            saving={createBooking.isPending}
+            sendingId={sendInvite.isPending ? sendInvite.variables ?? null : null}
+          />
+        )}
       </EventLayout>
     </AdminShell>
   );
@@ -182,224 +254,221 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function GuestList({
-  invitations,
+const fmtMoney = (n: number) =>
+  n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+function paidAmount(b: BookingRow): number {
+  const total = Number(b.total_amount) || 0;
+  if (b.payment_status === "paid" || b.payment_status === "covered") return total;
+  if (b.payment_status === "deposit_paid") return total / 2;
+  return 0;
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const styles: Record<string, { bg: string; fg: string; label: string }> = {
+    pending: { bg: "#EDE9E2", fg: "#6B6359", label: "Awaiting" },
+    deposit_paid: { bg: "#FBF6E7", fg: "#7a6420", label: "Deposit paid" },
+    paid: { bg: "#E4EDE0", fg: "#2C3E2D", label: "Paid in full" },
+    covered: { bg: "#E4EDE0", fg: "#2C3E2D", label: "Covered" },
+    payment_failed: { bg: "#FDF3F0", fg: "#C0392B", label: "Payment failed" },
+  };
+  const s = styles[status] ?? styles.pending;
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+      style={{ backgroundColor: s.bg, color: s.fg }}
+    >
+      {s.label}
+    </span>
+  );
+}
+
+function BookingList({
+  bookings,
   sections,
-  onSave,
+  onAdd,
   onRemove,
+  onUpdateRoom,
+  onSendInvite,
+  onSendSection,
   saving,
+  sendingId,
 }: {
-  invitations: GuestInvitation[];
+  bookings: BookingRow[];
   sections: LbRoomSection[];
-  onSave: (form: InviteForm, id?: string) => Promise<void>;
+  onAdd: (form: NewBookingForm) => Promise<void>;
   onRemove: (id: string) => void;
+  onUpdateRoom: (id: string, room: string) => void;
+  onSendInvite: (id: string) => void;
+  onSendSection: (sectionId: string) => void;
   saving: boolean;
+  sendingId: string | null;
 }) {
-  const groups = useMemo(() => {
-    const map = new Map<string, GuestInvitation[]>();
-    const order = ["Bridal Party", "Family", "Friends", "Plus-Ones", "Guests"];
-    for (const inv of invitations) {
-      const key = inv.invite_group || "Guests";
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(inv);
+  const grouped = useMemo(() => {
+    const map = new Map<string, BookingRow[]>();
+    for (const b of bookings) {
+      if (!map.has(b.section_id)) map.set(b.section_id, []);
+      map.get(b.section_id)!.push(b);
     }
-    const keys = Array.from(map.keys()).sort((a, b) => {
-      const ai = order.indexOf(a);
-      const bi = order.indexOf(b);
-      if (ai === -1 && bi === -1) return a.localeCompare(b);
-      if (ai === -1) return 1;
-      if (bi === -1) return -1;
-      return ai - bi;
-    });
-    return keys.map((k) => ({ name: k, invites: map.get(k)! }));
-  }, [invitations]);
+    return sections
+      .filter((s) => s.is_active || map.has(s.id))
+      .map((s) => ({ section: s, rows: map.get(s.id) ?? [] }));
+  }, [bookings, sections]);
 
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [adding, setAdding] = useState<string | null>(null);
-
-  const isOpen = (g: string) => open[g] !== false;
-
-  const sectionName = (id: string) =>
-    sections.find((s) => s.id === id)?.section_name ?? "Unknown section";
+  const isOpen = (id: string) => open[id] !== false;
 
   return (
     <div className="space-y-4">
-      {groups.length === 0 && !adding && (
-        <div className="rounded-lg border border-dashed border-border bg-card/50 p-8 text-center">
-          <p className="text-sm text-foreground">No guests invited yet. Add the first one below.</p>
-        </div>
-      )}
-
-      {groups.map((g) => (
-        <div key={g.name} className="rounded-lg border border-border bg-card">
-          <button
-            onClick={() => setOpen((o) => ({ ...o, [g.name]: !isOpen(g.name) }))}
-            className="flex w-full items-center justify-between px-5 py-4 text-left"
-          >
-            <div className="flex items-center gap-3">
-              {isOpen(g.name) ? (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              )}
-              <span className="font-serif text-xl text-foreground">{g.name}</span>
-              <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                {g.invites.length} invited
-              </span>
-            </div>
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => {
-                e.stopPropagation();
-                setAdding(g.name);
-                setOpen((o) => ({ ...o, [g.name]: true }));
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setAdding(g.name);
-                }
-              }}
-              className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs text-foreground hover:bg-muted"
-            >
-              <Plus className="h-3 w-3" /> Add guest
-            </span>
-          </button>
-
-          {isOpen(g.name) && (
-            <div className="divide-y divide-border border-t border-border">
-              {g.invites.map((inv) => (
-                <InviteRow
-                  key={inv.id}
-                  invite={inv}
-                  sections={sections}
-                  sectionName={sectionName(inv.section_id)}
-                  onSave={onSave}
-                  onRemove={onRemove}
-                  saving={saving}
-                />
-              ))}
-              {adding === g.name && (
-                <NewInviteRow
-                  groupName={g.name}
-                  sections={sections}
-                  saving={saving}
-                  onCancel={() => setAdding(null)}
-                  onSave={async (form) => {
-                    await onSave(form);
-                    setAdding(null);
+      {grouped.map(({ section, rows }) => {
+        const booked = rows.filter((r) =>
+          ["paid", "deposit_paid", "covered"].includes(r.payment_status),
+        ).length;
+        const paidFull = rows.filter((r) => r.payment_status === "paid").length;
+        const capacity = section.total_rooms ?? rows.length;
+        return (
+          <div key={section.id} className="rounded-lg border border-border bg-card">
+            <div className="flex w-full items-center justify-between gap-3 px-5 py-4">
+              <button
+                onClick={() => setOpen((o) => ({ ...o, [section.id]: !isOpen(section.id) }))}
+                className="flex flex-1 items-center gap-3 text-left"
+              >
+                {isOpen(section.id) ? (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className="font-serif text-xl text-foreground">{section.section_name}</span>
+                <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                  {rows.length}/{capacity} invited · {booked} booked · {paidFull} paid in full
+                </span>
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onSendSection(section.id)}
+                  className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs text-foreground hover:bg-muted"
+                >
+                  <Mail className="h-3 w-3" /> Send to all pending
+                </button>
+                <button
+                  onClick={() => {
+                    setAdding(section.id);
+                    setOpen((o) => ({ ...o, [section.id]: true }));
                   }}
-                />
-              )}
+                  className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs text-foreground hover:bg-muted"
+                >
+                  <Plus className="h-3 w-3" /> Add guest
+                </button>
+              </div>
             </div>
-          )}
-        </div>
-      ))}
 
-      {/* Add a new group */}
-      <NewGroupAdder
-        sections={sections}
-        existingGroups={groups.map((g) => g.name)}
-        saving={saving}
-        onSave={onSave}
-      />
+            {isOpen(section.id) && (
+              <div className="divide-y divide-border border-t border-border">
+                {rows.length === 0 && adding !== section.id && (
+                  <div className="px-5 py-4 text-sm text-muted-foreground">
+                    No guests in this section yet.
+                  </div>
+                )}
+                {rows.map((b) => (
+                  <BookingRowView
+                    key={b.id}
+                    booking={b}
+                    onRemove={onRemove}
+                    onUpdateRoom={onUpdateRoom}
+                    onSendInvite={onSendInvite}
+                    sending={sendingId === b.id}
+                  />
+                ))}
+                {adding === section.id && (
+                  <NewBookingRow
+                    sectionId={section.id}
+                    sections={sections}
+                    saving={saving}
+                    onCancel={() => setAdding(null)}
+                    onSave={async (form) => {
+                      await onAdd(form);
+                      setAdding(null);
+                    }}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function InviteRow({
-  invite,
-  sections,
-  sectionName,
-  onSave,
+function BookingRowView({
+  booking,
   onRemove,
-  saving,
+  onUpdateRoom,
+  onSendInvite,
+  sending,
 }: {
-  invite: GuestInvitation;
-  sections: LbRoomSection[];
-  sectionName: string;
-  onSave: (form: InviteForm, id?: string) => Promise<void>;
+  booking: BookingRow;
   onRemove: (id: string) => void;
-  saving: boolean;
+  onUpdateRoom: (id: string, room: string) => void;
+  onSendInvite: (id: string) => void;
+  sending: boolean;
 }) {
-  const [editing, setEditing] = useState(false);
-
-  const status = invite.rooms_booked > 0 ? "booked" : invite.last_accessed_at ? "viewed" : "invited";
-  const dot =
-    status === "booked"
-      ? "bg-primary"
-      : status === "viewed"
-        ? "bg-accent"
-        : "bg-muted-foreground/40";
-
-  if (editing) {
-    return (
-      <NewInviteRow
-        groupName={invite.invite_group}
-        sections={sections}
-        saving={saving}
-        initial={{
-          guest_name: invite.guest_name,
-          guest_email: invite.guest_email,
-          section_id: invite.section_id,
-          invite_group: invite.invite_group,
-          room_allocation: invite.room_allocation,
-          secondary_booking_for: invite.secondary_booking_for ?? "",
-        }}
-        onCancel={() => setEditing(false)}
-        onSave={async (form) => {
-          await onSave(form, invite.id);
-          setEditing(false);
-        }}
-      />
-    );
-  }
+  const [room, setRoom] = useState(booking.room_assignment ?? "");
+  const paid = paidAmount(booking);
+  const total = Number(booking.total_amount) || 0;
+  const sentAt = booking.invitation_sent_at
+    ? new Date(booking.invitation_sent_at).toLocaleString()
+    : null;
 
   return (
-    <div className="group flex items-center gap-4 px-5 py-3">
-      <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} aria-hidden />
+    <div className="group flex flex-wrap items-center gap-4 px-5 py-3">
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <span className="truncate font-medium text-foreground">{invite.guest_name}</span>
-          <span className="truncate text-xs text-muted-foreground">{invite.guest_email}</span>
+          <span className="truncate font-medium text-foreground">{booking.guest_name}</span>
+          <span className="truncate text-xs text-muted-foreground">{booking.guest_email}</span>
         </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] uppercase tracking-wider text-muted-foreground">
-          <span>{sectionName}</span>
-          <span>·</span>
-          <span>
-            {invite.rooms_booked}/{invite.room_allocation} rooms
-          </span>
-          {invite.secondary_booking_for && (
-            <>
-              <span>·</span>
-              <span className="normal-case tracking-normal text-muted-foreground">
-                Extra room for: {invite.secondary_booking_for}
-              </span>
-            </>
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <StatusBadge status={booking.payment_status} />
+          {total > 0 && (
+            <span className="tabular-nums">
+              {fmtMoney(paid)} / {fmtMoney(total)}
+            </span>
           )}
         </div>
       </div>
-      <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
+      <div className="flex items-center gap-2">
+        <input
+          value={room}
+          onChange={(e) => setRoom(e.target.value)}
+          onBlur={() => {
+            if ((booking.room_assignment ?? "") !== room) onUpdateRoom(booking.id, room);
+          }}
+          placeholder="Room"
+          className="w-24 rounded border border-border bg-background px-2 py-1 text-xs focus:border-primary focus:outline-none"
+        />
         <button
-          onClick={() => setEditing(true)}
-          className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-          aria-label="Edit"
+          onClick={() => onSendInvite(booking.id)}
+          disabled={sending}
+          title={sentAt ? `Last sent ${sentAt}` : undefined}
+          className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs text-foreground hover:bg-muted disabled:opacity-50"
         >
-          <Pencil className="h-3.5 w-3.5" />
+          <Mail className="h-3 w-3" />
+          {sending ? "Sending…" : booking.invitation_sent_at ? "Sent ✓" : "Send link"}
         </button>
         <button
           onClick={() => {
-            if (invite.rooms_booked > 0) {
+            if (
+              ["paid", "deposit_paid", "covered"].includes(booking.payment_status)
+            ) {
               if (
                 !confirm(
-                  "This guest has already booked a room. Removing the invitation revokes future access but does not cancel completed bookings. Continue?",
+                  "This guest has already paid. Removing the booking marks it removed but does not refund. Continue?",
                 )
               )
                 return;
             }
-            onRemove(invite.id);
+            onRemove(booking.id);
           }}
           className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           aria-label="Remove"
@@ -411,36 +480,28 @@ function InviteRow({
   );
 }
 
-function NewInviteRow({
-  groupName,
+function NewBookingRow({
+  sectionId,
   sections,
   saving,
   onSave,
   onCancel,
-  initial,
 }: {
-  groupName: string;
+  sectionId: string;
   sections: LbRoomSection[];
   saving: boolean;
-  onSave: (form: InviteForm) => Promise<void>;
+  onSave: (form: NewBookingForm) => Promise<void>;
   onCancel: () => void;
-  initial?: Partial<InviteForm> & { secondary_booking_for?: string };
 }) {
   const activeSections = sections.filter((s) => s.is_active);
-  const [form, setForm] = useState<InviteForm>({
-    guest_name: initial?.guest_name ?? "",
-    guest_email: initial?.guest_email ?? "",
-    section_id: initial?.section_id ?? activeSections[0]?.id ?? "",
-    invite_group: initial?.invite_group ?? groupName,
-    room_allocation: initial?.room_allocation ?? 1,
-    secondary_booking_for: initial?.secondary_booking_for ?? "",
+  const [form, setForm] = useState<NewBookingForm>({
+    guest_name: "",
+    guest_email: "",
+    section_id: sectionId,
   });
 
   const submit = async () => {
-    const result = inviteSchema.safeParse({
-      ...form,
-      secondary_booking_for: form.secondary_booking_for || null,
-    });
+    const result = newBookingSchema.safeParse(form);
     if (!result.success) {
       toast.error(result.error.issues[0]?.message ?? "Check the form");
       return;
@@ -451,7 +512,7 @@ function NewInviteRow({
   return (
     <div className="bg-background/50 px-5 py-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
-        <Field label="Name" className="md:col-span-3">
+        <Field label="Name" className="md:col-span-4">
           <input
             value={form.guest_name}
             onChange={(e) => setForm({ ...form, guest_name: e.target.value })}
@@ -459,7 +520,7 @@ function NewInviteRow({
             placeholder="Jane Doe"
           />
         </Field>
-        <Field label="Email" className="md:col-span-3">
+        <Field label="Email" className="md:col-span-4">
           <input
             type="email"
             value={form.guest_email}
@@ -468,13 +529,12 @@ function NewInviteRow({
             placeholder="jane@email.com"
           />
         </Field>
-        <Field label="Section" className="md:col-span-3">
+        <Field label="Section" className="md:col-span-4">
           <select
             value={form.section_id}
             onChange={(e) => setForm({ ...form, section_id: e.target.value })}
             className="w-full rounded border border-border bg-background px-2.5 py-1.5 text-sm focus:border-primary focus:outline-none"
           >
-            {activeSections.length === 0 && <option value="">No active sections</option>}
             {activeSections.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.section_name}
@@ -482,29 +542,6 @@ function NewInviteRow({
             ))}
           </select>
         </Field>
-        <Field label="Rooms allowed" className="md:col-span-3">
-          <select
-            value={form.room_allocation}
-            onChange={(e) => setForm({ ...form, room_allocation: Number(e.target.value) })}
-            className="w-full rounded border border-border bg-background px-2.5 py-1.5 text-sm focus:border-primary focus:outline-none"
-          >
-            {[1, 2, 3, 4, 5].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </Field>
-        {form.room_allocation > 1 && (
-          <Field label="Who is the additional room for?" className="md:col-span-12">
-            <input
-              value={form.secondary_booking_for ?? ""}
-              onChange={(e) => setForm({ ...form, secondary_booking_for: e.target.value })}
-              className="w-full rounded border border-border bg-background px-2.5 py-1.5 text-sm focus:border-primary focus:outline-none"
-              placeholder="e.g. Their kids, Their parents"
-            />
-          </Field>
-        )}
       </div>
       <div className="mt-3 flex justify-end gap-2">
         <button
@@ -518,108 +555,8 @@ function NewInviteRow({
           disabled={saving}
           className="rounded-full bg-primary px-4 py-1.5 text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {saving ? "Saving…" : initial ? "Save changes" : "Add to list"}
+          {saving ? "Saving…" : "Add guest"}
         </button>
-      </div>
-    </div>
-  );
-}
-
-function NewGroupAdder({
-  sections,
-  existingGroups,
-  saving,
-  onSave,
-}: {
-  sections: LbRoomSection[];
-  existingGroups: string[];
-  saving: boolean;
-  onSave: (form: InviteForm, id?: string) => Promise<void>;
-}) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded-full border border-dashed border-border bg-transparent px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground hover:border-primary hover:text-foreground"
-      >
-        <Plus className="h-3 w-3" /> New group
-      </button>
-    );
-  }
-
-  return (
-    <div className="rounded-lg border border-dashed border-border bg-card/50 p-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex-1 min-w-[200px]">
-          <label className="block text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-            Group name
-          </label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. College Friends"
-            className="mt-1 w-full rounded border border-border bg-background px-2.5 py-1.5 text-sm focus:border-primary focus:outline-none"
-          />
-        </div>
-        <button
-          onClick={() => {
-            const trimmed = name.trim();
-            if (!trimmed) {
-              toast.error("Give the group a name");
-              return;
-            }
-            if (existingGroups.includes(trimmed)) {
-              toast.error("That group already exists");
-              return;
-            }
-            // Seed an empty placeholder by opening the new-invite row in that group:
-            // simplest path is to create the group by adding the first guest via the
-            // section's "Add guest" button. So we just close and rely on user to add.
-            toast.info(`Add a guest under "${trimmed}" using its Add guest button.`);
-            setOpen(false);
-            setName("");
-          }}
-          disabled={saving || sections.filter((s) => s.is_active).length === 0}
-          className="rounded-full bg-primary px-4 py-1.5 text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        >
-          Continue
-        </button>
-        <button
-          onClick={() => {
-            setOpen(false);
-            setName("");
-          }}
-          className="rounded-full border border-border px-3 py-1.5 text-xs uppercase tracking-wider text-muted-foreground hover:bg-muted"
-        >
-          Cancel
-        </button>
-      </div>
-      <p className="mt-2 text-xs text-muted-foreground">
-        Hint: a group appears once you add the first guest to it. You can also type any group name
-        directly when editing a guest.
-      </p>
-      {/* Inline first-guest creation for the brand new group */}
-      <div className="mt-4">
-        <p className="mb-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-          Or add the first guest to "{name || "—"}" right now:
-        </p>
-        <NewInviteRow
-          groupName={name || "Guests"}
-          sections={sections}
-          saving={saving}
-          onCancel={() => {
-            setOpen(false);
-            setName("");
-          }}
-          onSave={async (form) => {
-            await onSave({ ...form, invite_group: name.trim() || form.invite_group });
-            setOpen(false);
-            setName("");
-          }}
-        />
       </div>
     </div>
   );

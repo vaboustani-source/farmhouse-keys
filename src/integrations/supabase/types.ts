@@ -1872,6 +1872,8 @@ export type Database = {
           guest_name: string
           guest_phone: string | null
           id: string
+          invitation_count: number
+          invitation_sent_at: string | null
           is_primary: boolean
           nights_booked: number
           payment_schedule: string
@@ -1917,6 +1919,8 @@ export type Database = {
           guest_name: string
           guest_phone?: string | null
           id?: string
+          invitation_count?: number
+          invitation_sent_at?: string | null
           is_primary?: boolean
           nights_booked?: number
           payment_schedule?: string
@@ -1962,6 +1966,8 @@ export type Database = {
           guest_name?: string
           guest_phone?: string | null
           id?: string
+          invitation_count?: number
+          invitation_sent_at?: string | null
           is_primary?: boolean
           nights_booked?: number
           payment_schedule?: string

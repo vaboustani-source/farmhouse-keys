@@ -1,0 +1,1 @@
+ALTER TABLE public.lb_bookings ADD COLUMN IF NOT EXISTS invitation_sent_at timestamptz; ALTER TABLE public.lb_bookings ADD COLUMN IF NOT EXISTS invitation_count integer NOT NULL DEFAULT 0;

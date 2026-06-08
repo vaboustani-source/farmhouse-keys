@@ -883,7 +883,7 @@ function ConfirmationView({
     </div>
   );
 
-  let primaryCard: React.ReactNode = null;
+  let primaryCard: ReactNode = null;
   if (!loading && primary && !renderError) {
     try {
       primaryCard = (

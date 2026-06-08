@@ -82,7 +82,7 @@ function TrackerPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FAF8F4] font-sans text-[#1A1A1A]">
+      <div className="min-h-dvh bg-[#FAF8F4] font-sans text-[#1A1A1A]">
         <div className="mx-auto max-w-3xl px-4 py-24 text-center text-sm text-[#6B6B6B]">
           Loading…
         </div>
@@ -92,7 +92,7 @@ function TrackerPage() {
 
   if (notFound || !event) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#FAF8F4] px-6 font-sans text-[#1A1A1A]">
+      <div className="flex min-h-dvh items-center justify-center bg-[#FAF8F4] px-6 font-sans text-[#1A1A1A]">
         <div className="max-w-md text-center">
           <div className="font-serif text-2xl text-[#2C3E2D]">Gilbertsville Farmhouse</div>
           <p className="mt-8 font-serif text-2xl">
@@ -115,18 +115,18 @@ function TrackerPage() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-[#FAF8F4] font-sans text-[#1A1A1A]">
+    <div className="min-h-dvh bg-[#FAF8F4] font-sans text-[#1A1A1A]">
       <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
         {/* Header */}
         <div className="text-center">
           <div className="font-serif text-2xl tracking-wide text-[#2C3E2D]">
             Gilbertsville Farmhouse
           </div>
-          <div className="mt-1 text-[10px] uppercase tracking-[0.24em] text-[#6B6B6B]">
+          <div className="mt-1 text-xs uppercase tracking-[0.24em] text-[#6B6B6B]">
             A private estate
           </div>
           <div className="mx-auto mt-6 h-px w-16 bg-[#C9A84C]" />
-          <h1 className="mt-8 font-serif text-4xl font-medium md:text-5xl">
+          <h1 className="mt-8 font-serif text-3xl font-medium md:text-4xl lg:text-5xl break-words">
             {event.coupleNames}'s Weekend
           </h1>
           <p className="mt-3 text-sm text-[#6B6B6B]">
@@ -180,7 +180,7 @@ function TrackerPage() {
           </p>
           <a
             href="https://gilbertsvillefarmhouse.com"
-            className="mt-2 inline-block text-xs uppercase tracking-[0.16em] text-[#2C3E2D] hover:text-[#C9A84C]"
+            className="mt-2 inline-flex min-h-[44px] items-center px-3 py-2 text-xs uppercase tracking-[0.16em] text-[#2C3E2D] hover:text-[#C9A84C] focus-visible:text-[#C9A84C]"
           >
             gilbertsvillefarmhouse.com
           </a>
@@ -221,7 +221,7 @@ function SummaryCard({
         />
       </div>
       {isFull && (
-        <div className="mt-2 text-[10px] uppercase tracking-[0.18em] text-[#2C3E2D]">
+        <div className="mt-2 text-xs uppercase tracking-[0.18em] text-[#2C3E2D]">
           Full
         </div>
       )}
@@ -387,14 +387,14 @@ function PendingRow({
               <button
                 onClick={handleSend}
                 disabled={sending}
-                className="rounded bg-[#C9A84C] px-3 py-1.5 text-[11px] uppercase tracking-[0.16em] text-white hover:bg-[#b8973f] disabled:opacity-50"
+                className="rounded bg-[#C9A84C] px-4 py-3 min-h-[44px] text-xs uppercase tracking-[0.16em] text-white hover:bg-[#b8973f] disabled:opacity-50"
               >
                 {sending ? "Sending…" : "Send"}
               </button>
               <button
                 onClick={() => setConfirming(false)}
                 disabled={sending}
-                className="rounded border border-[#E8E2D9] px-3 py-1.5 text-[11px] uppercase tracking-[0.16em] text-[#6B6B6B] hover:text-[#1A1A1A]"
+                className="rounded border border-[#E8E2D9] px-4 py-3 min-h-[44px] text-xs uppercase tracking-[0.16em] text-[#6B6B6B] hover:text-[#1A1A1A]"
               >
                 Cancel
               </button>
@@ -403,7 +403,7 @@ function PendingRow({
         ) : (
           <button
             onClick={() => setConfirming(true)}
-            className="mt-1 rounded border border-transparent px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-[#2C3E2D] transition-colors hover:border-[#C9A84C]"
+            className="mt-1 inline-flex min-h-[44px] items-center rounded border border-transparent px-3 py-2 text-xs uppercase tracking-[0.16em] text-[#2C3E2D] transition-colors hover:border-[#C9A84C]"
           >
             Nudge
           </button>

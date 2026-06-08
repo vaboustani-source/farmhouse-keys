@@ -6,6 +6,7 @@ import {
   lookupSecondaryGuest,
   getSectionAddons,
   fetchSessionConfirmation,
+  getReservationExtras,
 } from "@/lib/booking.functions";
 import { createCheckoutSession, checkSessionStatus } from "@/lib/checkout";
 import { ReviewErrorBoundary } from "@/components/ReviewErrorBoundary";
@@ -112,9 +113,9 @@ function BookingFlow() {
       checkSessionStatus(sessionId)
         .then(({ status }) => {
           if (status === "complete") {
-            // Guest paid then hit back — send to confirmation
+            // Guest paid then hit back — show confirmation view in-place
             window.location.replace(
-              `/book/${eventSlug}/${sectionSlug}/confirmation?session_id=${sessionId}`,
+              `/book/${eventSlug}/${sectionSlug}?success=true&session_id=${sessionId}`,
             );
             return;
           }
@@ -274,7 +275,7 @@ function EmailGate({
               return;
             }
             if (status === "complete") {
-              window.location.href = `/book/${eventSlug}/${sectionSlug}/confirmation?session_id=${sid}`;
+              window.location.href = `/book/${eventSlug}/${sectionSlug}?success=true&session_id=${sid}`;
               return;
             }
             // expired → proceed normally; lock will be replaced when they click Reserve

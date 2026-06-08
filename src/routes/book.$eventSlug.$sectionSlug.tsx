@@ -76,20 +76,22 @@ function BookingFlow() {
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [cancelledBanner, setCancelledBanner] = useState<string | null>(null);
   const [checkingReturn, setCheckingReturn] = useState(false);
+  // Hydration-safe post-payment detection. Server and initial client render
+  // are identical (mounted=false, showSuccess=false). After hydration we read
+  // the URL and flip to the confirmation view entirely client-side.
+  const [mounted, setMounted] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("success") === "true") setShowSuccess(true);
   }, []);
 
-  if (showSuccess) {
-    return <ConfirmationView eventSlug={eventSlug} sectionSlug={sectionSlug} />;
-  }
-
   // Restore session
   useEffect(() => {
+    if (typeof window === "undefined") return;
     const saved = sessionStorage.getItem(`gfh_booking_${eventSlug}_${sectionSlug}`);
     if (saved) {
       try {
@@ -141,6 +143,11 @@ function BookingFlow() {
       sessionStorage.removeItem(stripeSidKey);
     }
   }, [eventSlug, sectionSlug]);
+
+  // Post-hydration: render confirmation view client-side only.
+  if (mounted && showSuccess) {
+    return <ConfirmationView eventSlug={eventSlug} sectionSlug={sectionSlug} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#FAF8F4] font-sans text-[#1A1A1A]">

@@ -329,25 +329,25 @@ function BookingList({
         const capacity = section.total_rooms ?? rows.length;
         return (
           <div key={section.id} className="rounded-lg border border-border bg-card">
-            <div className="flex w-full items-center justify-between gap-3 px-5 py-4">
+            <div className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4">
               <button
                 onClick={() => setOpen((o) => ({ ...o, [section.id]: !isOpen(section.id) }))}
-                className="flex flex-1 items-center gap-3 text-left"
+                className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-left"
               >
                 {isOpen(section.id) ? (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                 ) : (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 )}
-                <span className="font-serif text-xl text-foreground">{section.section_name}</span>
+                <span className="font-serif text-xl text-foreground break-words">{section.section_name}</span>
                 <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                   {rows.length}/{capacity} invited · {booked} booked · {paidFull} paid in full
                 </span>
               </button>
-              <div className="flex items-center gap-2">
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                 <button
                   onClick={() => onSendSection(section.id)}
-                  className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs text-foreground hover:bg-muted"
+                  className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 min-h-[36px] text-xs text-foreground hover:bg-muted"
                 >
                   <Mail className="h-3 w-3" /> Send to all pending
                 </button>
@@ -356,7 +356,7 @@ function BookingList({
                     setAdding(section.id);
                     setOpen((o) => ({ ...o, [section.id]: true }));
                   }}
-                  className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs text-foreground hover:bg-muted"
+                  className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 min-h-[36px] text-xs text-foreground hover:bg-muted"
                 >
                   <Plus className="h-3 w-3" /> Add guest
                 </button>
@@ -451,7 +451,7 @@ function BookingRowView({
           onClick={() => onSendInvite(booking.id)}
           disabled={sending}
           title={sentAt ? `Last sent ${sentAt}` : undefined}
-          className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs text-foreground hover:bg-muted disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 min-h-[36px] text-xs text-foreground hover:bg-muted disabled:opacity-50"
         >
           <Mail className="h-3 w-3" />
           {sending ? "Sending…" : booking.invitation_sent_at ? "Sent ✓" : "Send link"}
@@ -470,10 +470,10 @@ function BookingRowView({
             }
             onRemove(booking.id);
           }}
-          className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          className="inline-flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           aria-label="Remove"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-4 w-4" />
         </button>
       </div>
     </div>

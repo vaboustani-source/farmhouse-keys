@@ -115,49 +115,49 @@ function EventDetailPage() {
   return (
     <AdminShell>
       <EventLayout eventId={eventId} currentTab="overview">
-      <div className="mb-6 flex items-end justify-between gap-6">
-        <div>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4 md:gap-6">
+        <div className="min-w-0">
           <Link to="/" className="text-xs uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground">
             ← All blocks
           </Link>
-          <h1 className="mt-2 font-serif text-4xl font-medium text-foreground">{event.couple_names}</h1>
+          <h1 className="mt-2 font-serif text-3xl sm:text-4xl font-medium text-foreground break-words">{event.couple_names}</h1>
           <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground">
             <span>{formatDate(event.wedding_date)}</span>
             <span>·</span>
             <StatusBadge status={event.status} />
           </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 md:gap-3">
           <button
             onClick={() => exportGuestManifest(event, sections, bookings)}
-            className="inline-flex items-center gap-2 rounded-full border border-emerald-800 px-4 py-2 text-sm text-emerald-800 hover:bg-emerald-50"
+            className="inline-flex items-center gap-2 rounded-full border border-emerald-800 px-4 py-2.5 min-h-[44px] text-sm text-emerald-800 hover:bg-emerald-50"
           >
             <Download className="h-4 w-4" /> Export Manifest
           </button>
           <button
             onClick={() => exportRoomAssignments(event, sections, bookings)}
-            className="inline-flex items-center gap-2 rounded-full border border-emerald-800 px-4 py-2 text-sm text-emerald-800 hover:bg-emerald-50"
+            className="inline-flex items-center gap-2 rounded-full border border-emerald-800 px-4 py-2.5 min-h-[44px] text-sm text-emerald-800 hover:bg-emerald-50"
           >
             <Download className="h-4 w-4" /> Room Assignment Sheet
           </button>
           <Link
             to="/events/$eventId/guests"
             params={{ eventId }}
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm hover:bg-muted"
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 min-h-[44px] text-sm hover:bg-muted"
           >
             <Users className="h-4 w-4" /> Guest list
           </Link>
           <Link
             to="/events/$eventId/payments"
             params={{ eventId }}
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm hover:bg-muted"
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 min-h-[44px] text-sm hover:bg-muted"
           >
             <Receipt className="h-4 w-4" /> Payments
           </Link>
           <Link
             to="/events/$eventId/edit"
             params={{ eventId }}
-            className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 min-h-[44px] text-sm text-primary-foreground hover:bg-primary/90"
           >
             <Pencil className="h-4 w-4" /> Edit block
           </Link>
@@ -179,7 +179,7 @@ function EventDetailPage() {
       </div>
 
       <div className="mb-10 rounded-lg border border-border bg-card px-6 py-8 text-center">
-        <div className="font-serif text-5xl text-foreground">
+        <div className="font-serif text-3xl sm:text-5xl text-foreground">
           {guestsConfirmed} <span className="text-muted-foreground">of</span> {GUEST_CAPACITY}{" "}
           <span className="text-foreground">guests confirmed</span>
         </div>

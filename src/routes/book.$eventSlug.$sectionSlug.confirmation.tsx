@@ -75,16 +75,16 @@ function ConfirmationPage() {
   const secondary = bookings.find((b) => b.covered_by_booking_id);
 
   return (
-    <div className="min-h-screen bg-[#FAF8F4] font-sans text-[#1A1A1A]">
+    <div className="min-h-dvh bg-[#FAF8F4] font-sans text-[#1A1A1A]">
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
         <div className="font-serif text-2xl tracking-wide text-[#2C3E2D]">Gilbertsville Farmhouse</div>
-        <div className="mt-1 text-[10px] uppercase tracking-[0.24em] text-[#6B6B6B]">A private estate</div>
+        <div className="mt-1 text-xs uppercase tracking-[0.24em] text-[#6B6B6B]">A private estate</div>
 
         {loading && <p className="mt-16 text-sm text-[#6B6B6B]">Confirming your reservation…</p>}
 
         {!loading && !timedOut && primary && (
           <>
-            <h1 className="mt-12 font-serif text-4xl font-medium md:text-5xl">
+            <h1 className="mt-12 font-serif text-3xl font-medium md:text-4xl lg:text-5xl break-words">
               {primary.payment_status === "deposit_paid" ? "Your room is reserved." : "You're confirmed."}
             </h1>
             {primary.payment_status === "deposit_paid" && (
@@ -107,19 +107,19 @@ function ConfirmationPage() {
                 )}
               </div>
               {primary.payment_status === "deposit_paid" && (
-                <p className="mt-4 text-xs text-[#6B6B6B]">
+                <p className="mt-4 text-sm text-[#6B6B6B]">
                   Your remaining balance of {fmtMoney(Number(primary.total_amount) * 0.5)} will be requested before check-in.
                 </p>
               )}
-              <p className="mt-4 text-xs text-[#6B6B6B]">A confirmation has been sent to {primary.guest_email}.</p>
+              <p className="mt-4 text-sm text-[#6B6B6B]">A confirmation has been sent to <span className="break-all">{primary.guest_email}</span>.</p>
             </div>
 
             {secondary && (
               <div className="mt-4 rounded-md border border-[#E8E2D9] bg-white p-6 text-left">
                 <div className="font-serif text-xl">{secondary.guest_name}'s room is confirmed too.</div>
                 <div className="mt-1 text-sm text-[#6B6B6B]">{secondary.section?.section_name}</div>
-                <p className="mt-3 text-xs text-[#6B6B6B]">
-                  A confirmation has been sent to {secondary.guest_email}.
+                <p className="mt-3 text-sm text-[#6B6B6B]">
+                  A confirmation has been sent to <span className="break-all">{secondary.guest_email}</span>.
                 </p>
               </div>
             )}
@@ -127,7 +127,7 @@ function ConfirmationPage() {
             <p className="mt-12 font-serif text-lg text-[#6B6B6B]">We look forward to welcoming you.</p>
             <a
               href="https://gilbertsvillefarmhouse.com"
-              className="mt-2 inline-block text-xs uppercase tracking-[0.16em] text-[#2C3E2D] hover:text-[#C9A84C]"
+              className="mt-2 inline-flex min-h-[44px] items-center px-3 py-2 text-xs uppercase tracking-[0.16em] text-[#2C3E2D] hover:text-[#C9A84C] focus-visible:text-[#C9A84C]"
             >
               gilbertsvillefarmhouse.com
             </a>
@@ -158,9 +158,9 @@ function ConfirmationPage() {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between">
-      <span className="text-[#6B6B6B]">{label}</span>
-      <span className="tabular-nums">{value}</span>
+    <div className="flex justify-between gap-3">
+      <span className="min-w-0 flex-1 break-words text-[#6B6B6B]">{label}</span>
+      <span className="shrink-0 tabular-nums">{value}</span>
     </div>
   );
 }

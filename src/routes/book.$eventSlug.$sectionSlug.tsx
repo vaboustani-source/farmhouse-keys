@@ -150,7 +150,7 @@ function BookingFlow() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF8F4] font-sans text-[#1A1A1A]">
+    <div className="min-h-dvh bg-[#FAF8F4] font-sans text-[#1A1A1A]">
       <div className="mx-auto max-w-2xl px-4 py-10 md:py-16">
         <Wordmark />
         {step === 2 && booking && (
@@ -168,7 +168,7 @@ function BookingFlow() {
             {cancelledBanner}
             <button
               onClick={() => setCancelledBanner(null)}
-              className="ml-3 text-xs uppercase tracking-[0.16em] text-[#7a6420]/70 hover:text-[#7a6420]"
+              className="ml-3 inline-flex min-h-[44px] items-center px-3 py-2 text-xs uppercase tracking-[0.16em] text-[#7a6420]/70 hover:text-[#7a6420]"
             >
               Dismiss
             </button>
@@ -315,7 +315,7 @@ function EmailGate({
 
   return (
     <div className="text-center">
-      <h1 className="font-serif text-4xl font-medium md:text-5xl">Welcome to your weekend.</h1>
+      <h1 className="font-serif text-3xl font-medium md:text-4xl lg:text-5xl">Welcome to your weekend.</h1>
       <p className="mt-3 text-sm text-[#6B6B6B]">Enter the email on your invitation.</p>
       {busyMessage && (
         <div className="mx-auto mt-6 max-w-sm rounded-md border border-[#C9A84C]/40 bg-[#FBF6E7] p-4 text-sm text-[#7a6420]">
@@ -327,6 +327,8 @@ function EmailGate({
           type="email"
           required
           autoFocus
+          autoComplete="email"
+          inputMode="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
@@ -335,7 +337,7 @@ function EmailGate({
         <button
           type="submit"
           disabled={loading || !email}
-          className="w-full rounded bg-[#2C3E2D] px-4 py-3 text-sm uppercase tracking-[0.16em] text-white transition-colors hover:bg-[#2C3E2D]/90 disabled:opacity-50"
+          className="w-full rounded bg-[#2C3E2D] px-4 py-3 min-h-[44px] text-sm uppercase tracking-[0.16em] text-white transition-colors hover:bg-[#2C3E2D]/90 disabled:opacity-50"
         >
           {loading ? "Checking your invitation…" : "Continue"}
         </button>
@@ -515,7 +517,7 @@ function ReviewStep({
     <div>
       <button
         onClick={onBack}
-        className="mb-6 text-xs uppercase tracking-[0.16em] text-[#6B6B6B] hover:text-[#1A1A1A]"
+        className="mb-6 inline-flex min-h-[44px] items-center -ml-1 px-2 py-2 text-xs uppercase tracking-[0.16em] text-[#6B6B6B] hover:text-[#1A1A1A]"
       >
         ← Back
       </button>
@@ -610,18 +612,20 @@ function ReviewStep({
         <div className="mt-4 rounded-md border border-[#E8E2D9] bg-white p-6">
           <h2 className="font-serif text-xl">Covering a room for someone else?</h2>
           <p className="mt-1 text-xs text-[#6B6B6B]">You may add one additional guest's room to this reservation.</p>
-          <form onSubmit={lookupSecondHandler} className="mt-4 flex gap-2">
+          <form onSubmit={lookupSecondHandler} className="mt-4 flex flex-col gap-2 sm:flex-row">
             <input
               type="email"
+              autoComplete="email"
+              inputMode="email"
               value={secondaryEmail}
               onChange={(e) => setSecondaryEmail(e.target.value)}
               placeholder="guest@example.com"
-              className="flex-1 rounded border border-[#E8E2D9] bg-white px-3 py-2 text-sm focus:border-[#2C3E2D] focus:outline-none"
+              className="flex-1 rounded border border-[#E8E2D9] bg-white px-3 py-2 min-h-[44px] text-base focus:border-[#2C3E2D] focus:outline-none"
             />
             <button
               type="submit"
               disabled={lookingUpSecondary || !secondaryEmail}
-              className="rounded border border-[#2C3E2D] px-4 py-2 text-xs uppercase tracking-[0.16em] text-[#2C3E2D] disabled:opacity-50"
+              className="rounded border border-[#2C3E2D] px-4 py-2 min-h-[44px] text-xs uppercase tracking-[0.16em] text-[#2C3E2D] disabled:opacity-50"
             >
               {lookingUpSecondary ? "Checking…" : "Add"}
             </button>
@@ -645,7 +649,7 @@ function ReviewStep({
                 setSecondarySelectedIds([]);
                 setSecondaryEmail("");
               }}
-              className="text-xs uppercase tracking-[0.16em] text-[#6B6B6B] hover:text-[#1A1A1A]"
+              className="inline-flex min-h-[44px] items-center px-3 py-2 text-xs uppercase tracking-[0.16em] text-[#6B6B6B] hover:text-[#1A1A1A]"
             >
               Remove
             </button>
@@ -793,9 +797,9 @@ function ReviewStep({
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between">
-      <span className="text-[#6B6B6B]">{label}</span>
-      <span className="tabular-nums">{value}</span>
+    <div className="flex justify-between gap-3">
+      <span className="min-w-0 flex-1 break-words text-[#6B6B6B]">{label}</span>
+      <span className="shrink-0 tabular-nums">{value}</span>
     </div>
   );
 }
@@ -913,7 +917,7 @@ function ConfirmationView({
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF8F4] font-sans text-[#1A1A1A]">
+    <div className="min-h-dvh bg-[#FAF8F4] font-sans text-[#1A1A1A]">
       <div className="mx-auto max-w-2xl px-4 py-10 md:py-16">
         <Wordmark />
         {loading && <LoadingConfirmation />}
@@ -1105,7 +1109,7 @@ function ReservationCard({
         <SuccessBanner email={r.guestEmail} isDeposit={isDeposit && !isFullSchedule} />
       )}
 
-      <div className="rounded-[4px] border border-[#E8E2D9] bg-white p-8 md:p-12">
+      <div className="rounded-[4px] border border-[#E8E2D9] bg-white p-5 sm:p-8 md:p-12">
         {isOverdue && (
           <div
             className="mb-6 rounded-sm border-l-[3px] border-[#C0392B] bg-[#FDF3F0] px-5 py-4"
@@ -1377,7 +1381,7 @@ function CoveredCard({
   const r = reservation;
   return (
     <div className="mx-auto max-w-[600px]">
-      <div className="rounded-[4px] border border-[#E8E2D9] bg-white p-8 md:p-12">
+      <div className="rounded-[4px] border border-[#E8E2D9] bg-white p-5 sm:p-8 md:p-12">
         <h1
           style={{
             fontFamily: "'Cormorant Garamond', serif",
@@ -1620,7 +1624,7 @@ function SuccessBanner({ email, isDeposit }: { email: string; isDeposit: boolean
   }, []);
   return (
     <div
-      className="mb-8 rounded-[4px] p-8 text-center transition-opacity duration-1000"
+      className="mb-8 rounded-[4px] p-5 sm:p-8 text-center transition-opacity duration-1000"
       style={{ backgroundColor: "#2C3E2D", opacity }}
     >
       <div className="mx-auto flex h-12 w-12 items-center justify-center">
@@ -1648,7 +1652,7 @@ function SuccessBanner({ email, isDeposit }: { email: string; isDeposit: boolean
           marginTop: 6,
         }}
       >
-        A confirmation has been sent to {email}
+        A confirmation has been sent to <span className="break-all">{email}</span>
       </p>
     </div>
   );
@@ -1679,8 +1683,9 @@ function Divider() {
 
 function InvoiceRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-4">
+    <div className="flex justify-between gap-3">
       <span
+        className="min-w-0 flex-1 break-words"
         style={{
           fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
           fontSize: 14,
@@ -1690,7 +1695,7 @@ function InvoiceRow({ label, value }: { label: string; value: string }) {
         {label}
       </span>
       <span
-        className="tabular-nums"
+        className="shrink-0 tabular-nums"
         style={{
           fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
           fontSize: 14,
@@ -1768,9 +1773,9 @@ function PaymentRow({
 
   return (
     <div className="flex items-start justify-between gap-4">
-      <div className="flex items-start gap-3">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
         <span className="mt-0.5">{icon}</span>
-        <div>
+        <div className="min-w-0">
           <div
             style={{
               fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",

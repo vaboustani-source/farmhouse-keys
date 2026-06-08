@@ -77,7 +77,7 @@ function PaymentSummaryPage() {
       <h1 className="mt-2 mb-2 font-serif text-4xl font-medium text-foreground">Payment summary</h1>
       <p className="mb-8 text-sm text-muted-foreground">{event.couple_names} · {paid.length} paid reservation{paid.length === 1 ? "" : "s"}</p>
 
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-5">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-5">
         <Stat label="Base lodging" value={formatMoney(totals.base)} />
         <Stat label="Add-ons" value={formatMoney(totals.addons)} />
         <Stat label="Resort fees" value={formatMoney(totals.resort)} />
@@ -108,7 +108,8 @@ function PaymentSummaryPage() {
           )}
         </button>
         {showExtras && additional.length > 0 && (
-          <table className="w-full border-t border-border text-sm">
+          <div className="overflow-x-auto border-t border-border">
+          <table className="w-full min-w-[560px] text-sm">
             <thead className="bg-muted/40 text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Date</th>
@@ -140,12 +141,13 @@ function PaymentSummaryPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
       <h2 className="mb-3 font-serif text-2xl text-foreground">By section</h2>
-      <div className="mb-10 overflow-hidden rounded-lg border border-border bg-card">
-        <table className="w-full text-sm">
+      <div className="mb-10 overflow-x-auto rounded-lg border border-border bg-card">
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">Section</th>
@@ -177,8 +179,8 @@ function PaymentSummaryPage() {
       </div>
 
       <h2 className="mb-3 font-serif text-2xl text-foreground">Transaction log</h2>
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">Date</th>
@@ -203,7 +205,7 @@ function PaymentSummaryPage() {
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{b.stripe_payment_id ?? "—"}</td>
+                <td className="px-4 py-3 font-mono text-xs text-muted-foreground"><span className="block max-w-[140px] truncate" title={b.stripe_payment_id ?? undefined}>{b.stripe_payment_id ?? "—"}</span></td>
                 <td className="px-4 py-3 text-xs uppercase tracking-wider">{b.payment_status}</td>
                 <td className="px-4 py-3 text-right tabular-nums">
                   <div>{formatMoney(b.total_amount)}</div>

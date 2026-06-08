@@ -18,7 +18,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+      <div className="flex min-h-dvh items-center justify-center bg-background text-sm text-muted-foreground">
         One moment…
       </div>
     );
@@ -29,24 +29,24 @@ export function AdminShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-dvh bg-background text-foreground">
       <header className="border-b border-border bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/40">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-          <Link to="/" className="flex items-center gap-3">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-y-3 px-4 py-4 md:px-6 md:py-5">
+          <Link to="/" className="flex min-w-0 items-center gap-3">
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <span className="font-serif text-lg leading-none">G</span>
             </span>
-            <div className="leading-tight">
-              <div className="font-serif text-lg text-foreground">Gilbertsville Farmhouse</div>
+            <div className="min-w-0 leading-tight">
+              <div className="font-serif text-base sm:text-lg text-foreground truncate">Gilbertsville Farmhouse</div>
               <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                 Lodging Manager
               </div>
             </div>
           </Link>
-          <nav className="flex items-center gap-6 text-sm">
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             <Link
               to="/"
-              className={`transition-colors ${
+              className={`inline-flex min-h-[44px] items-center transition-colors ${
                 path === "/" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -54,7 +54,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             </Link>
             <Link
               to="/activity"
-              className={`transition-colors ${
+              className={`inline-flex min-h-[44px] items-center transition-colors ${
                 path.startsWith("/activity") ? "text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -72,15 +72,15 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 signOut();
                 toast.success("Signed out");
               }}
-              className="text-xs uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
+              className="inline-flex min-h-[44px] items-center px-2 text-xs uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
             >
               Sign out
             </button>
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-6 py-10">{children}</main>
-      <footer className="mx-auto max-w-6xl px-6 py-10 text-xs text-muted-foreground">
+      <main className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-10">{children}</main>
+      <footer className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-10 text-xs text-muted-foreground">
         A private estate. Tended by hand.
       </footer>
       <CustomDomainBanner />
@@ -114,7 +114,7 @@ function SignInScreen({
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">

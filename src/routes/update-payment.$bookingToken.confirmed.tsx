@@ -57,13 +57,13 @@ function ConfirmedPage() {
   }, [bookingToken]);
 
   return (
-    <div className="min-h-screen bg-[#FAF8F4] font-sans text-[#1A1A1A]">
+    <div className="min-h-dvh bg-[#FAF8F4] font-sans text-[#1A1A1A]">
       <div className="mx-auto w-full max-w-[560px] px-4 py-16">
         <div className="text-center">
           <div className="font-serif text-2xl tracking-wide text-[#2C3E2D]">
             Gilbertsville Farmhouse
           </div>
-          <div className="mt-1 text-[10px] uppercase tracking-[0.24em] text-[#6B6B6B]">
+          <div className="mt-1 text-xs uppercase tracking-[0.24em] text-[#6B6B6B]">
             A private estate
           </div>
         </div>
@@ -80,14 +80,14 @@ function ConfirmedPage() {
         )}
 
         {!info.loading && info.balance > 0 && (
-          <div className="mt-8 rounded-md border border-[#E8E2D9] bg-white p-6">
-            <dl className="grid grid-cols-2 gap-y-2 text-sm">
+          <div className="mt-8 rounded-md border border-[#E8E2D9] bg-white p-5 sm:p-6">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-sm">
               <dt className="text-[#6B6B6B]">Balance due</dt>
-              <dd className="text-right tabular-nums">{fmtMoney(info.balance)}</dd>
+              <dd className="min-w-0 break-words text-right tabular-nums">{fmtMoney(info.balance)}</dd>
               <dt className="text-[#6B6B6B]">Charge date</dt>
-              <dd className="text-right tabular-nums">{fmtDate(info.chargeDate)}</dd>
+              <dd className="min-w-0 break-words text-right tabular-nums">{fmtDate(info.chargeDate)}</dd>
               <dt className="text-[#6B6B6B]">Lodging</dt>
-              <dd className="text-right">{info.sectionName || "—"}</dd>
+              <dd className="min-w-0 break-words text-right">{info.sectionName || "—"}</dd>
             </dl>
           </div>
         )}

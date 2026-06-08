@@ -205,7 +205,7 @@ serve(async (req) => {
         ],
         customer_email: bk.guest_email,
         automatic_tax: { enabled: true },
-        success_url: `${baseUrl}/book/${eventSlug}/${sectionSlug}?success=true&session_id={CHECKOUT_SESSION_ID}`,
+        success_url: `${baseUrl}/book/${eventSlug}/${sectionSlug}?success=true&type=balance&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/book/${eventSlug}/${sectionSlug}?cancelled=true`,
         expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
         metadata: {

@@ -34,13 +34,13 @@ const fmtDate = (d: string | null | undefined) =>
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#FAF8F4] font-sans text-[#1A1A1A]">
+    <div className="min-h-dvh bg-[#FAF8F4] font-sans text-[#1A1A1A]">
       <div className="mx-auto w-full max-w-[560px] px-4 py-16">
         <div className="text-center">
           <div className="font-serif text-2xl tracking-wide text-[#2C3E2D]">
             Gilbertsville Farmhouse
           </div>
-          <div className="mt-1 text-[10px] uppercase tracking-[0.24em] text-[#6B6B6B]">
+          <div className="mt-1 text-xs uppercase tracking-[0.24em] text-[#6B6B6B]">
             A private estate
           </div>
         </div>
@@ -53,7 +53,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 function MessagePanel({ title, body }: { title: string; body: string }) {
   return (
     <Shell>
-      <div className="mt-12 rounded-md border border-[#E8E2D9] bg-white p-8 text-center">
+      <div className="mt-12 rounded-md border border-[#E8E2D9] bg-white p-6 sm:p-8 text-center">
         <h1 className="font-serif text-2xl text-[#1A1A1A]">{title}</h1>
         <p className="mt-3 text-sm text-[#6B6B6B]">{body}</p>
       </div>
@@ -175,22 +175,22 @@ function UpdatePaymentPage() {
         </div>
       )}
 
-      <div className="mt-6 rounded-md border border-[#E8E2D9] bg-white p-6">
+      <div className="mt-6 rounded-md border border-[#E8E2D9] bg-white p-5 sm:p-6">
         <div className="text-[11px] uppercase tracking-[0.18em] text-[#9A9188]">Reservation</div>
         <div className="mt-1 font-serif text-xl text-[#1A1A1A]">{booking.sectionName}</div>
-        <dl className="mt-4 grid grid-cols-2 gap-y-2 text-sm">
+        <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-sm">
           <dt className="text-[#6B6B6B]">Check-in</dt>
-          <dd className="text-right tabular-nums">{fmtDate(booking.checkInDate)}</dd>
+          <dd className="min-w-0 break-words text-right tabular-nums">{fmtDate(booking.checkInDate)}</dd>
           <dt className="text-[#6B6B6B]">Check-out</dt>
-          <dd className="text-right tabular-nums">{fmtDate(booking.checkOutDate)}</dd>
+          <dd className="min-w-0 break-words text-right tabular-nums">{fmtDate(booking.checkOutDate)}</dd>
           <dt className="text-[#6B6B6B]">Balance due</dt>
-          <dd className="text-right tabular-nums">{fmtMoney(booking.balance)}</dd>
+          <dd className="min-w-0 break-words text-right tabular-nums">{fmtMoney(booking.balance)}</dd>
           <dt className="text-[#6B6B6B]">Charge date</dt>
-          <dd className="text-right tabular-nums">{fmtDate(booking.chargeDate)}</dd>
+          <dd className="min-w-0 break-words text-right tabular-nums">{fmtDate(booking.chargeDate)}</dd>
         </dl>
       </div>
 
-      <div className="mt-8 rounded-md border border-[#E8E2D9] bg-white p-6">
+      <div className="mt-8 rounded-md border border-[#E8E2D9] bg-white p-5 sm:p-6">
         <div className="mb-3 text-sm font-medium text-[#1A1A1A]">New card details</div>
         <Elements
           stripe={stripePromise}
@@ -245,7 +245,7 @@ function SetupForm({ bookingToken }: { bookingToken: string }) {
       <button
         type="submit"
         disabled={!stripe || submitting}
-        className="mt-5 w-full rounded-md bg-[#2C3E2D] px-4 py-3 text-sm font-medium text-white hover:bg-[#243223] disabled:opacity-60"
+        className="mt-5 w-full rounded-md bg-[#2C3E2D] px-4 py-3 min-h-[44px] text-sm font-medium text-white hover:bg-[#243223] disabled:opacity-60"
       >
         {submitting ? "Saving your card…" : "Save payment method"}
       </button>

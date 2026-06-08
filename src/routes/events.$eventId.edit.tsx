@@ -77,12 +77,12 @@ function EditEventPage() {
   return (
     <AdminShell>
       <EventLayout eventId={eventId} currentTab="settings">
-      <div className="mb-8 flex items-end justify-between gap-6">
-        <div>
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-y-3 gap-x-6">
+        <div className="min-w-0">
           <Link to="/" className="text-xs uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground">
             ← All blocks
           </Link>
-          <h1 className="mt-2 font-serif text-4xl font-medium text-foreground">
+          <h1 className="mt-2 font-serif text-3xl sm:text-4xl font-medium text-foreground break-words">
             {event.couple_names}
           </h1>
           <p className="text-sm text-muted-foreground">{event.wedding_name}</p>
@@ -451,10 +451,10 @@ function SectionCard({
           </div>
 
           {local.is_active && bookingUrl && (
-            <div className="mt-5 flex items-center gap-3 rounded-md border border-accent/40 bg-accent/10 p-3">
+            <div className="mt-5 flex flex-wrap items-center gap-3 rounded-md border border-accent/40 bg-accent/10 p-3">
               <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Booking link</span>
-              <code className="flex-1 truncate text-xs text-foreground">{bookingUrl}</code>
-              <button onClick={copyLink} className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-xs hover:bg-muted">
+              <code className="min-w-0 flex-1 truncate text-xs text-foreground">{bookingUrl}</code>
+              <button onClick={copyLink} className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-2 min-h-[36px] text-xs hover:bg-muted">
                 <Copy className="h-3 w-3" /> Copy
               </button>
             </div>

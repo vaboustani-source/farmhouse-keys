@@ -101,18 +101,18 @@ const TAB_LABEL: Record<EventTabKey, string> = {
 export function EventBreadcrumb({ eventId, tab }: { eventId: string; tab: EventTabKey }) {
   const name = useEventName(eventId);
   return (
-    <nav className="mb-6 flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-      <Link to="/" className="hover:text-foreground">All events</Link>
+    <nav className="mb-6 flex items-center gap-2 overflow-hidden text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+      <Link to="/" className="shrink-0 hover:text-foreground">All events</Link>
       <span>›</span>
       <Link
         to="/events/$eventId"
         params={{ eventId }}
-        className="truncate hover:text-foreground"
+        className="min-w-0 truncate hover:text-foreground"
       >
         {name || "…"}
       </Link>
-      <span>›</span>
-      <span className="text-foreground">{TAB_LABEL[tab]}</span>
+      <span className="shrink-0">›</span>
+      <span className="shrink-0 text-foreground">{TAB_LABEL[tab]}</span>
     </nav>
   );
 }
@@ -196,7 +196,7 @@ export function EventMobileTabs({ eventId, currentTab }: { eventId: string; curr
               <Link
                 to={it.to}
                 params={{ eventId }}
-                className={`relative flex flex-col items-center gap-0.5 px-2 py-2 text-[10px] uppercase tracking-wider ${
+                className={`relative flex min-h-[52px] flex-col items-center justify-center gap-0.5 px-2 py-2.5 text-[11px] uppercase tracking-wider ${
                   active ? "text-primary" : "text-muted-foreground"
                 }`}
                 aria-label={it.label}

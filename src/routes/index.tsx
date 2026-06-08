@@ -129,9 +129,9 @@ function EventListPage() {
 
   return (
     <AdminShell>
-      <div className="mb-10 flex items-end justify-between gap-6">
+      <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
         <div>
-          <h1 className="font-serif text-5xl font-medium leading-tight text-foreground">
+          <h1 className="font-serif text-3xl sm:text-5xl font-medium leading-tight text-foreground">
             Lodging Blocks
           </h1>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
@@ -153,8 +153,8 @@ function EventListPage() {
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               <tr>
                 <th className="px-5 py-4 font-medium">Couple</th>

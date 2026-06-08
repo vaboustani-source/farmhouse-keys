@@ -203,18 +203,18 @@ function SectionBookingsPage() {
       >
         ← Back to event
       </Link>
-      <div className="mt-2 mb-6 flex items-end justify-between gap-6">
-        <div>
-          <h1 className="font-serif text-4xl font-medium text-foreground">{section.section_name}</h1>
+      <div className="mt-2 mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+        <div className="min-w-0">
+          <h1 className="font-serif text-3xl sm:text-4xl font-medium text-foreground break-words">{section.section_name}</h1>
           <p className="text-sm text-muted-foreground">
             {bookings.length} reservation{bookings.length === 1 ? "" : "s"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value as typeof filter)}
-            className="rounded-md border border-border bg-card px-3 py-2 text-sm"
+            className="rounded-md border border-border bg-card px-3 py-2 min-h-[44px] text-sm"
           >
             <option value="all">All statuses</option>
             <option value="paid">Paid</option>
@@ -223,7 +223,7 @@ function SectionBookingsPage() {
           </select>
           <button
             onClick={exportCsv}
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm hover:bg-muted"
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 min-h-[44px] text-sm hover:bg-muted"
           >
             <Download className="h-4 w-4" /> Export CSV
           </button>
@@ -236,8 +236,8 @@ function SectionBookingsPage() {
           <p className="mt-2 text-sm text-muted-foreground">The link is out there.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+          <table className="w-full min-w-[1100px] text-sm">
             <thead className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Guest</th>
@@ -379,7 +379,7 @@ function SectionBookingsPage() {
                               setOpenRefundId(null);
                               setOpenAdjustId(openAdjustId === b.id ? null : b.id);
                             }}
-                            className="rounded border border-primary/40 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider text-primary hover:bg-primary/5"
+                        className="rounded border border-primary/40 px-3 py-1.5 min-h-[36px] text-[11px] font-medium uppercase tracking-wider text-primary hover:bg-primary/5"
                           >
                             {openAdjustId === b.id ? "Close" : "Adjust"}
                           </button>
@@ -390,7 +390,7 @@ function SectionBookingsPage() {
                               setOpenAdjustId(null);
                               setOpenRefundId(openRefundId === b.id ? null : b.id);
                             }}
-                            className="rounded border border-red-300 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider text-red-700 hover:bg-red-50"
+                        className="rounded border border-red-300 px-3 py-1.5 min-h-[36px] text-[11px] font-medium uppercase tracking-wider text-red-700 hover:bg-red-50"
                           >
                             {openRefundId === b.id ? "Close" : "Refund"}
                           </button>

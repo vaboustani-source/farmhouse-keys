@@ -859,19 +859,27 @@ function ConfirmationView({
   }, [fetcher]);
 
   const primary = bookings.find((b) => b.is_primary || !b.covered_by_booking_id);
-  const secondary = bookings.find((b) => b.covered_by_booking_id);
 
   return (
     <div className="min-h-screen bg-[#FAF8F4] font-sans text-[#1A1A1A]">
-      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+      <div className="mx-auto max-w-2xl px-4 py-10 md:py-16">
         <Wordmark />
-
-        {loading && (
-          <p className="mt-16 text-sm text-[#6B6B6B]">Confirming your reservation…</p>
+        {loading && <LoadingConfirmation />}
+        {!loading && primary && (
+          <div className="mt-10">
+            {timedOut && (
+              <div className="mb-6 rounded-md border border-[#E8E2D9] bg-white p-5 text-center text-sm text-[#6B6B6B]">
+                Your payment was received. Your confirmation is on its way — check your email shortly.
+              </div>
+            )}
+            <ReservationCard
+              reservation={sessionRowToReservation(primary)}
+              showSuccessBanner
+            />
+          </div>
         )}
-
-        {!loading && timedOut && (
-          <div className="mt-16">
+        {!loading && !primary && (
+          <div className="mt-16 text-center">
             <h1 className="font-serif text-3xl font-medium md:text-4xl">
               Your payment was received.
             </h1>
@@ -880,96 +888,894 @@ function ConfirmationView({
             </p>
           </div>
         )}
-
-        {!loading && !timedOut && primary && (
-          <ConfirmationContent primary={primary} secondary={secondary ?? null} />
-        )}
       </div>
     </div>
   );
 }
 
-function ConfirmationContent({
-  primary,
-  secondary,
-}: {
-  primary: NonNullable<ConfirmationBookings[number]>;
-  secondary: ConfirmationBookings[number] | null;
-}) {
-  const isDeposit = primary.payment_status === "deposit_paid";
-  const total = Number(primary.total_amount) || 0;
-  const half = total / 2;
-  const checkIn = primary.event?.check_in_date ?? null;
-  const nextPaymentDate = checkIn ? fmtDateFull(addDays(checkIn, -30)) : "";
-
+function LoadingConfirmation() {
   return (
-    <>
-      <div className="mt-8 flex justify-center">
-        <span className="inline-flex items-center gap-2 rounded-full bg-[#E8F0E5] px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-[#2C3E2D]">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#2C3E2D]" />
-          {isDeposit ? "Deposit confirmed" : "Confirmed"}
-        </span>
-      </div>
-
-      <h1 className="mt-6 font-serif text-4xl font-medium md:text-5xl">
-        {isDeposit ? "Your room is reserved." : "You're confirmed."}
-      </h1>
-
-      {primary.event?.wedding_name && (
-        <p
-          className="mt-3 text-xl text-[#6B6B6B]"
-          style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}
-        >
-          {primary.event.wedding_name}
-        </p>
-      )}
-
-      <div className="mt-10 rounded-md border border-[#E8E2D9] bg-white p-6 text-left">
-        <div className="font-serif text-xl">{primary.section?.section_name}</div>
-        <div className="mt-3 space-y-1 text-sm">
-          <Row label="Check-in" value={fmtDate(primary.event?.check_in_date)} />
-          <Row label="Check-out" value={fmtDate(primary.event?.check_out_date)} />
-          {isDeposit ? (
-            <>
-              <Row label="Amount charged today" value={fmtMoney(half)} />
-              <Row label="Next payment due" value={fmtMoney(half)} />
-              {nextPaymentDate && <Row label="Payment date" value={nextPaymentDate} />}
-            </>
-          ) : (
-            <Row label="Paid in full" value={fmtMoney(total)} />
-          )}
-        </div>
-        {isDeposit && (
-          <p className="mt-4 text-xs text-[#6B6B6B]">
-            Your card will be charged automatically — no action needed.
-          </p>
-        )}
-      </div>
-
-      <p className="mt-4 text-xs text-[#6B6B6B]">
-        A confirmation has been sent to {primary.guest_email}.
-      </p>
-
-      {secondary && (
-        <div className="mt-6 rounded-md border border-[#E8E2D9] bg-white p-6 text-left">
-          <div className="font-serif text-xl">
-            {secondary.guest_name}'s room is confirmed too.
-          </div>
-          <p className="mt-3 text-xs text-[#6B6B6B]">
-            A confirmation has been sent to {secondary.guest_email}.
-          </p>
-        </div>
-      )}
-
-      <p className="mt-12 font-serif text-lg text-[#6B6B6B]">
-        We look forward to welcoming you.
-      </p>
-      <a
-        href="https://gilbertsvillefarmhouse.com"
-        className="mt-2 inline-block text-xs uppercase tracking-[0.16em] text-[#2C3E2D] hover:text-[#C9A84C]"
+    <div className="mt-20 text-center">
+      <p
+        className="text-sm text-[#6B6B6B]"
+        style={{
+          animation: "gfhBreath 2.4s ease-in-out infinite",
+        }}
       >
-        gilbertsvillefarmhouse.com
-      </a>
-    </>
+        Confirming your reservation…
+      </p>
+      <style>{`@keyframes gfhBreath { 0%,100% { opacity:.55 } 50% { opacity:1 } }`}</style>
+    </div>
   );
 }
+
+/* ───────────── Reservation Card (states 1-5) ───────────── */
+
+type Reservation = {
+  bookingId: string;
+  guestName: string;
+  guestEmail: string;
+  paymentStatus: string;
+  paymentSchedule: string | null;
+  depositPaidAt: string | null;
+  finalPaidAt: string | null;
+  totalAmount: number;
+  baseAmount: number;
+  addonAmount: number;
+  resortFee: number;
+  taxAmount: number;
+  resortFeePercent: number;
+  weddingName: string | null;
+  checkInDate: string | null;
+  checkOutDate: string | null;
+  sectionName: string | null;
+  nights: number;
+  isPrimary: boolean;
+  paymentUpdateToken: string | null;
+  payerName: string | null;
+};
+
+function bookingToReservation(b: Booking): Reservation {
+  const base = Number(b.base_amount) || 0;
+  const addon = Number(b.addon_amount) || 0;
+  const resort = Number(b.resort_fee) || 0;
+  // Tax may not be stored — estimate at 8% on (base+addon+resort)
+  const tax = Number(b.tax_amount) || (base + addon + resort) * 0.08;
+  const storedTotal = Number(b.total_amount) || base + addon + resort;
+  const total = storedTotal + (Number(b.tax_amount) ? 0 : tax);
+  return {
+    bookingId: b.booking_id,
+    guestName: b.guest_name,
+    guestEmail: b.guest_email,
+    paymentStatus: b.payment_status,
+    paymentSchedule: b.payment_schedule ?? null,
+    depositPaidAt: b.deposit_paid_at ?? null,
+    finalPaidAt: b.final_paid_at ?? null,
+    totalAmount: total,
+    baseAmount: base,
+    addonAmount: addon,
+    resortFee: resort,
+    taxAmount: tax,
+    resortFeePercent: Number(b.resort_fee_percent) || 0,
+    weddingName: b.wedding_name ?? null,
+    checkInDate: b.check_in_date ?? null,
+    checkOutDate: b.check_out_date ?? null,
+    sectionName: b.section_name ?? null,
+    nights: Number(b.nights) || 2,
+    isPrimary: !!b.is_primary,
+    paymentUpdateToken: null,
+    payerName: null,
+  };
+}
+
+function sessionRowToReservation(
+  r: NonNullable<ConfirmationBookings[number]>,
+): Reservation {
+  const base = Number(r.base_amount) || 0;
+  const addon = Number(r.addon_amount) || 0;
+  const resort = Number(r.resort_fee) || 0;
+  const tax = Number(r.tax_amount) || (base + addon + resort) * 0.08;
+  const storedTotal = Number(r.total_amount) || base + addon + resort;
+  const total = storedTotal + (Number(r.tax_amount) ? 0 : tax);
+  return {
+    bookingId: r.id,
+    guestName: r.guest_name,
+    guestEmail: r.guest_email,
+    paymentStatus: r.payment_status as string,
+    paymentSchedule: (r.payment_schedule as string | null) ?? null,
+    depositPaidAt: (r.deposit_paid_at as string | null) ?? null,
+    finalPaidAt: (r.final_paid_at as string | null) ?? null,
+    totalAmount: total,
+    baseAmount: base,
+    addonAmount: addon,
+    resortFee: resort,
+    taxAmount: tax,
+    resortFeePercent: Number(r.section?.resort_fee_percent) || 0,
+    weddingName: r.event?.wedding_name ?? null,
+    checkInDate: r.event?.check_in_date ?? null,
+    checkOutDate: r.event?.check_out_date ?? null,
+    sectionName: r.section?.section_name ?? null,
+    nights: Number(r.section?.nights) || 2,
+    isPrimary: !!r.is_primary,
+    paymentUpdateToken: (r.payment_update_token as string | null) ?? null,
+    payerName: (r as { payer_name?: string | null }).payer_name ?? null,
+  };
+}
+
+function daysBetween(fromIso: string, toIso: string) {
+  const a = new Date(fromIso + "T00:00:00").getTime();
+  const b = new Date(toIso + "T00:00:00").getTime();
+  return Math.round((b - a) / 86400000);
+}
+
+function ReservationCard({
+  reservation,
+  showSuccessBanner,
+}: {
+  reservation: Reservation;
+  showSuccessBanner: boolean;
+}) {
+  const r = reservation;
+  const [extras, setExtras] = useState<{
+    token: string | null;
+    payer: string | null;
+  }>({ token: r.paymentUpdateToken, payer: r.payerName });
+  const fetchExtras = useServerFn(getReservationExtras);
+
+  useEffect(() => {
+    if (
+      (r.paymentStatus === "payment_failed" || r.paymentStatus === "covered") &&
+      !extras.token &&
+      !extras.payer
+    ) {
+      fetchExtras({ data: { bookingId: r.bookingId } })
+        .then(({ paymentUpdateToken, payerName }) =>
+          setExtras({ token: paymentUpdateToken, payer: payerName }),
+        )
+        .catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [r.bookingId, r.paymentStatus]);
+
+  // Covered state — minimal layout, no money
+  if (r.paymentStatus === "covered") {
+    return (
+      <CoveredCard
+        reservation={r}
+        payerName={extras.payer ?? r.payerName}
+      />
+    );
+  }
+
+  const isPaid = r.paymentStatus === "paid";
+  const isDeposit = r.paymentStatus === "deposit_paid";
+  const isFailed = r.paymentStatus === "payment_failed";
+  const isFullSchedule = r.paymentSchedule === "full";
+
+  const deposit = r.totalAmount / 2;
+  const balance = r.totalAmount / 2;
+  const balanceDueIso =
+    r.checkInDate ? addDays(r.checkInDate, -30) : null;
+  const today = new Date().toISOString().slice(0, 10);
+  const daysUntilBalance =
+    balanceDueIso ? daysBetween(today, balanceDueIso) : 999;
+  const isApproaching = isDeposit && daysUntilBalance <= 14 && daysUntilBalance >= 0;
+  const isOverdue =
+    (isDeposit && daysUntilBalance < 0) || isFailed;
+
+  return (
+    <div className="mx-auto max-w-[600px]">
+      {showSuccessBanner && (
+        <SuccessBanner email={r.guestEmail} isDeposit={isDeposit && !isFullSchedule} />
+      )}
+
+      <div className="rounded-[4px] border border-[#E8E2D9] bg-white p-8 md:p-12">
+        {isOverdue && (
+          <div
+            className="mb-6 rounded-sm border-l-[3px] border-[#C0392B] bg-[#FDF3F0] px-5 py-4"
+            style={{
+              fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+              fontSize: 14,
+              color: "#C0392B",
+            }}
+          >
+            Your scheduled payment didn't go through. Your room is still held — please pay below or update your card.
+          </div>
+        )}
+
+        {/* SECTION A — Header */}
+        <h1
+          style={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: 28,
+            color: "#1A1A1A",
+            margin: 0,
+            lineHeight: 1.2,
+          }}
+        >
+          {isPaid || isFullSchedule ? "You're confirmed." : "Your room is reserved."}
+        </h1>
+        {r.weddingName && (
+          <p
+            style={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontStyle: "italic",
+              fontSize: 18,
+              color: "#6B6B6B",
+              marginTop: 6,
+              marginBottom: 0,
+            }}
+          >
+            {r.weddingName}
+          </p>
+        )}
+
+        {/* SECTION B — Stay details */}
+        <SectionLabel>YOUR STAY</SectionLabel>
+        <div className="mt-2">
+          <div
+            style={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontSize: 20,
+              color: "#1A1A1A",
+            }}
+          >
+            {r.sectionName}
+          </div>
+          <div
+            style={{
+              fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+              fontSize: 14,
+              color: "#3A3A3A",
+              marginTop: 4,
+            }}
+          >
+            {fmtStayRange(r.checkInDate)} → {fmtStayRange(r.checkOutDate)}
+          </div>
+          <div
+            style={{
+              fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+              fontSize: 13,
+              color: "#6B6B6B",
+              marginTop: 2,
+            }}
+          >
+            {r.nights} {r.nights === 1 ? "night" : "nights"}
+          </div>
+        </div>
+
+        <Divider />
+
+        {/* SECTION C — Invoice */}
+        <SectionLabel>YOUR STAY</SectionLabel>
+        <div className="mt-3 space-y-2">
+          <InvoiceRow
+            label={`Lodging · ${r.sectionName ?? ""} · ${r.nights} ${r.nights === 1 ? "night" : "nights"}`}
+            value={fmtMoney(r.baseAmount + r.addonAmount)}
+          />
+          <InvoiceRow
+            label={`Resort Fee (${r.resortFeePercent}%)`}
+            value={fmtMoney(r.resortFee)}
+          />
+          <InvoiceRow label="NY Sales Tax (8%)" value={fmtMoney(r.taxAmount)} />
+        </div>
+        <div className="mt-3 border-t border-[#E8E2D9] pt-3">
+          <div className="flex items-baseline justify-between">
+            <span
+              style={{
+                fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#1A1A1A",
+              }}
+            >
+              Total
+            </span>
+            <span
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: 20,
+                color: "#2C3E2D",
+              }}
+            >
+              {fmtMoney(r.totalAmount)}
+            </span>
+          </div>
+        </div>
+
+        <Divider />
+
+        {/* SECTION D — Payment timeline */}
+        <SectionLabel>PAYMENT</SectionLabel>
+        <div className="mt-3 space-y-3">
+          <PaymentRow
+            status="paid"
+            label="Deposit"
+            sub={r.depositPaidAt ? `Paid ${fmtDateFull(r.depositPaidAt.slice(0, 10))}` : "Paid"}
+            amount={fmtMoney(deposit)}
+            amountMuted
+          />
+          {isPaid ? (
+            <>
+              <PaymentRow
+                status="paid"
+                label="Balance"
+                sub={r.finalPaidAt ? `Paid ${fmtDateFull(r.finalPaidAt.slice(0, 10))}` : "Paid"}
+                amount={fmtMoney(balance)}
+                amountMuted
+              />
+              <div className="flex items-baseline justify-between border-t border-[#E8E2D9] pt-3">
+                <span
+                  style={{
+                    fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "#2C3E2D",
+                  }}
+                >
+                  Paid in full
+                </span>
+                <span
+                  style={{
+                    fontFamily: "'Cormorant Garamond', serif",
+                    fontSize: 20,
+                    color: "#2C3E2D",
+                  }}
+                >
+                  {fmtMoney(r.totalAmount)}
+                </span>
+              </div>
+            </>
+          ) : isOverdue ? (
+            <PaymentRow
+              status="overdue"
+              label="Remaining balance — past due"
+              sub={balanceDueIso ? `Was due ${fmtDateFull(balanceDueIso)}` : "Past due"}
+              amount={fmtMoney(balance)}
+              amountTone="overdue"
+            />
+          ) : isApproaching ? (
+            <PaymentRow
+              status="approaching"
+              label="Remaining balance"
+              sub={
+                balanceDueIso
+                  ? `Due in ${daysUntilBalance} ${daysUntilBalance === 1 ? "day" : "days"} · ${fmtDateFull(balanceDueIso)}`
+                  : "Due soon"
+              }
+              amount={fmtMoney(balance)}
+              amountStrong
+              subTone="gold"
+            />
+          ) : (
+            <PaymentRow
+              status="upcoming"
+              label="Remaining balance"
+              sub={balanceDueIso ? `Due ${fmtDateFull(balanceDueIso)}` : "Due before check-in"}
+              amount={fmtMoney(balance)}
+            />
+          )}
+        </div>
+
+        {!isPaid && !isOverdue && !isApproaching && balanceDueIso && (
+          <p
+            className="mt-4"
+            style={{
+              fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+              fontStyle: "italic",
+              fontSize: 12,
+              color: "#9A9188",
+            }}
+          >
+            Your card will be charged automatically on {fmtDateFull(balanceDueIso)}. Nothing to do.
+          </p>
+        )}
+
+        {!isPaid && (
+          <>
+            <Divider />
+            {/* SECTION E — Pay action */}
+            <PayBalanceArea
+              reservation={r}
+              balance={balance}
+              isApproaching={isApproaching}
+              isOverdue={isOverdue}
+              balanceDueIso={balanceDueIso}
+              token={extras.token}
+            />
+          </>
+        )}
+
+        <Divider />
+
+        {/* SECTION F — Cancellation policy */}
+        <SectionLabel>CANCELLATION POLICY</SectionLabel>
+        <p
+          className="mt-2"
+          style={{
+            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 12,
+            color: "#9A9188",
+            lineHeight: 1.5,
+          }}
+        >
+          Cancellation is possible up to 45 days prior to the first check-in date of your stay. After that time, the reservation is fully non-refundable.
+        </p>
+      </div>
+
+      {/* SECTION G — Footer */}
+      <div className="mt-8 text-center">
+        <p
+          style={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontStyle: "italic",
+            fontSize: 16,
+            color: "#6B6B6B",
+          }}
+        >
+          We look forward to welcoming you.
+        </p>
+        <a
+          href="https://gilbertsvillefarmhouse.com"
+          style={{
+            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 11,
+            color: "#9A9188",
+          }}
+          className="mt-2 inline-block hover:text-[#2C3E2D]"
+        >
+          gilbertsvillefarmhouse.com
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function CoveredCard({
+  reservation,
+  payerName,
+}: {
+  reservation: Reservation;
+  payerName: string | null;
+}) {
+  const r = reservation;
+  return (
+    <div className="mx-auto max-w-[600px]">
+      <div className="rounded-[4px] border border-[#E8E2D9] bg-white p-8 md:p-12">
+        <h1
+          style={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: 28,
+            color: "#1A1A1A",
+            margin: 0,
+          }}
+        >
+          Your room is taken care of.
+        </h1>
+        {r.weddingName && (
+          <p
+            style={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontStyle: "italic",
+              fontSize: 18,
+              color: "#6B6B6B",
+              marginTop: 6,
+            }}
+          >
+            {r.weddingName}
+          </p>
+        )}
+
+        <div className="mt-6">
+          <div
+            style={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontSize: 20,
+              color: "#1A1A1A",
+            }}
+          >
+            {r.sectionName}
+          </div>
+          <div
+            style={{
+              fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+              fontSize: 14,
+              color: "#3A3A3A",
+              marginTop: 4,
+            }}
+          >
+            {fmtStayRange(r.checkInDate)} → {fmtStayRange(r.checkOutDate)}
+          </div>
+        </div>
+
+        <p
+          className="mt-6"
+          style={{
+            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 15,
+            color: "#3A3A3A",
+            lineHeight: 1.6,
+          }}
+        >
+          {(payerName ? payerName.split(/\s+/)[0] : "Someone")} has reserved
+          your room for the weekend. You're confirmed.
+        </p>
+
+        <p
+          className="mt-8"
+          style={{
+            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 14,
+            color: "#6B6B6B",
+          }}
+        >
+          Your planning team will be in touch with arrival details.
+        </p>
+      </div>
+
+      <div className="mt-8 text-center">
+        <p
+          style={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontStyle: "italic",
+            fontSize: 16,
+            color: "#6B6B6B",
+          }}
+        >
+          We look forward to welcoming you.
+        </p>
+        <a
+          href="https://gilbertsvillefarmhouse.com"
+          style={{
+            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 11,
+            color: "#9A9188",
+          }}
+          className="mt-2 inline-block hover:text-[#2C3E2D]"
+        >
+          gilbertsvillefarmhouse.com
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function PayBalanceArea({
+  reservation,
+  balance,
+  isApproaching,
+  isOverdue,
+  balanceDueIso,
+  token,
+}: {
+  reservation: Reservation;
+  balance: number;
+  isApproaching: boolean;
+  isOverdue: boolean;
+  balanceDueIso: string | null;
+  token: string | null;
+}) {
+  const { eventSlug, sectionSlug } = Route.useParams();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const startBalanceCheckout = async () => {
+    setErr(null);
+    setBusy(true);
+    try {
+      const { url } = await createCheckoutSession({
+        bookingId: reservation.bookingId,
+        eventSlug,
+        sectionSlug,
+        paymentType: "balance",
+      });
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      setErr("Could not start checkout. Please try again.");
+    } catch (e) {
+      console.error("balance checkout failed", e);
+      setErr("Could not start checkout. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (isOverdue) {
+    return (
+      <div className="space-y-3">
+        <button
+          onClick={startBalanceCheckout}
+          disabled={busy}
+          className="w-full rounded bg-[#2C3E2D] px-4 py-3 transition-colors hover:bg-[#2C3E2D]/90 disabled:opacity-50"
+          style={{
+            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 13,
+            color: "#FAF8F4",
+            letterSpacing: "0.04em",
+          }}
+        >
+          {busy ? "Opening checkout…" : `Pay now — ${fmtMoney(balance)}`}
+        </button>
+        {token && (
+          <a
+            href={`/update-payment/${token}`}
+            className="block w-full rounded border border-[#E8E2D9] px-4 py-3 text-center transition-colors hover:border-[#C9A84C]"
+            style={{
+              fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+              fontSize: 13,
+              color: "#6B6B6B",
+            }}
+          >
+            Update payment method
+          </a>
+        )}
+        <p
+          style={{
+            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 12,
+            color: "#9A9188",
+          }}
+        >
+          Need help? Reach out to your planning team.
+        </p>
+        {err && <p className="text-xs text-[#C0392B]">{err}</p>}
+      </div>
+    );
+  }
+
+  if (isApproaching) {
+    return (
+      <div className="space-y-2">
+        <button
+          onClick={startBalanceCheckout}
+          disabled={busy}
+          className="w-full rounded bg-[#2C3E2D] px-4 py-3 transition-colors hover:bg-[#2C3E2D]/90 disabled:opacity-50"
+          style={{
+            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 13,
+            color: "#FAF8F4",
+            letterSpacing: "0.04em",
+          }}
+        >
+          {busy ? "Opening checkout…" : `Pay balance now — ${fmtMoney(balance)}`}
+        </button>
+        {balanceDueIso && (
+          <p
+            style={{
+              fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+              fontSize: 12,
+              color: "#9A9188",
+            }}
+          >
+            Or your card will be charged automatically on {fmtDateFull(balanceDueIso)}.
+          </p>
+        )}
+        {err && <p className="text-xs text-[#C0392B]">{err}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <button
+        onClick={startBalanceCheckout}
+        disabled={busy}
+        className="w-full rounded border border-[#E8E2D9] px-4 py-3 transition-colors hover:border-[#C9A84C] hover:text-[#2C3E2D] disabled:opacity-50"
+        style={{
+          fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+          fontSize: 13,
+          color: "#6B6B6B",
+        }}
+      >
+        {busy ? "Opening checkout…" : `Pay balance early — ${fmtMoney(balance)}`}
+      </button>
+      {err && <p className="mt-2 text-xs text-[#C0392B]">{err}</p>}
+    </div>
+  );
+}
+
+function SuccessBanner({ email, isDeposit }: { email: string; isDeposit: boolean }) {
+  const [opacity, setOpacity] = useState(1);
+  useEffect(() => {
+    const t = setTimeout(() => setOpacity(0.9), 10000);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div
+      className="mb-8 rounded-[4px] p-8 text-center transition-opacity duration-1000"
+      style={{ backgroundColor: "#2C3E2D", opacity }}
+    >
+      <div className="mx-auto flex h-12 w-12 items-center justify-center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="h-10 w-10">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      <h2
+        className="mt-2"
+        style={{
+          fontFamily: "'Cormorant Garamond', serif",
+          fontSize: 24,
+          color: "#FFFFFF",
+          margin: 0,
+          marginTop: 12,
+        }}
+      >
+        {isDeposit ? "Your deposit is confirmed." : "You're confirmed."}
+      </h2>
+      <p
+        style={{
+          fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+          fontSize: 13,
+          color: "#C9A84C",
+          marginTop: 6,
+        }}
+      >
+        A confirmation has been sent to {email}
+      </p>
+    </div>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      className="mt-6"
+      style={{
+        fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+        fontSize: 11,
+        letterSpacing: 2,
+        textTransform: "uppercase",
+        color: "#9A9188",
+        margin: 0,
+        marginTop: 24,
+      }}
+    >
+      {children}
+    </p>
+  );
+}
+
+function Divider() {
+  return <div className="my-6 h-px bg-[#E8E2D9]" />;
+}
+
+function InvoiceRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <span
+        style={{
+          fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+          fontSize: 14,
+          color: "#3A3A3A",
+        }}
+      >
+        {label}
+      </span>
+      <span
+        className="tabular-nums"
+        style={{
+          fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+          fontSize: 14,
+          color: "#1A1A1A",
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function PaymentRow({
+  status,
+  label,
+  sub,
+  amount,
+  amountMuted,
+  amountStrong,
+  amountTone,
+  subTone,
+}: {
+  status: "paid" | "upcoming" | "approaching" | "overdue";
+  label: string;
+  sub: string;
+  amount: string;
+  amountMuted?: boolean;
+  amountStrong?: boolean;
+  amountTone?: "overdue";
+  subTone?: "gold";
+}) {
+  let icon: React.ReactNode;
+  if (status === "paid") {
+    icon = (
+      <span
+        className="flex h-5 w-5 items-center justify-center rounded-full"
+        style={{ backgroundColor: "#2C3E2D" }}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" className="h-3 w-3">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      </span>
+    );
+  } else if (status === "approaching") {
+    icon = (
+      <span
+        className="flex h-5 w-5 items-center justify-center rounded-full"
+        style={{ backgroundColor: "#C9A84C" }}
+      />
+    );
+  } else if (status === "overdue") {
+    icon = (
+      <span
+        className="flex h-5 w-5 items-center justify-center rounded-full"
+        style={{ backgroundColor: "#C0392B" }}
+      >
+        <span className="text-[10px] font-bold text-white">!</span>
+      </span>
+    );
+  } else {
+    icon = (
+      <span
+        className="block h-5 w-5 rounded-full border"
+        style={{ borderColor: "#E8E2D9" }}
+      />
+    );
+  }
+
+  const labelColor =
+    amountTone === "overdue" ? "#C0392B" : status === "approaching" ? "#1A1A1A" : "#3A3A3A";
+  const subColor =
+    subTone === "gold" ? "#C9A84C" : "#9A9188";
+  const amountColor =
+    amountTone === "overdue" ? "#C0392B" : amountMuted ? "#9A9188" : "#1A1A1A";
+
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5">{icon}</span>
+        <div>
+          <div
+            style={{
+              fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+              fontSize: 14,
+              color: labelColor,
+            }}
+          >
+            {label}
+          </div>
+          <div
+            style={{
+              fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+              fontSize: 12,
+              color: subColor,
+              marginTop: 2,
+            }}
+          >
+            {sub}
+          </div>
+        </div>
+      </div>
+      <span
+        className="tabular-nums"
+        style={{
+          fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+          fontSize: 14,
+          fontWeight: amountStrong ? 600 : 400,
+          color: amountColor,
+        }}
+      >
+        {amount}
+      </span>
+    </div>
+  );
+}
+
+const fmtStayRange = (d: string | null | undefined) =>
+  d
+    ? new Date(d + "T00:00:00").toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      })
+    : "";

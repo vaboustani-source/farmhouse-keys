@@ -1157,9 +1157,6 @@ function ReservationCard({
 
   // Refunded state — surface the refund prominently
   const isRefunded = r.paymentStatus === "refunded" || r.refundAmount > 0;
-  if (isRefunded) {
-    return <RefundedCard reservation={r} />;
-  }
 
   const isPaid = r.paymentStatus === "paid";
   const isDeposit = r.paymentStatus === "deposit_paid";

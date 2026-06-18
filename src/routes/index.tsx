@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, Copy, Loader2 } from "lucide-react";
+import { ArrowUpRight, Copy, Loader2, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { supabase, type LbEvent, type LbRoomSection } from "@/integrations/supabase/client";
 import { AdminShell, FillBar, StatusBadge, formatDate } from "@/components/lb/AdminShell";
@@ -103,6 +103,8 @@ async function fetchEvents(): Promise<EventWithBlock[]> {
   }));
 }
 
+type SortKey = "couple" | "wedding_date" | "guests" | "status";
+
 function EventListPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -113,6 +115,7 @@ function EventListPage() {
     queryFn: fetchEvents,
     enabled: authReady,
   });
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
 
   const ensureBlock = useMutation({
     mutationFn: async (eventId: string) => {

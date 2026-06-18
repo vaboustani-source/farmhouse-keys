@@ -1453,7 +1453,7 @@ function CoveredCard({
             margin: 0,
           }}
         >
-          Your room is taken care of.
+          {r.guestName}, your room is taken care of.
         </h1>
         {r.weddingName && (
           <p

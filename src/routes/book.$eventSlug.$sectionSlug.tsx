@@ -1104,6 +1104,9 @@ function sessionRowToReservation(
     isPrimary: !!r.is_primary,
     paymentUpdateToken: (r.payment_update_token as string | null) ?? null,
     payerName: (r as { payer_name?: string | null }).payer_name ?? null,
+    refundAmount: Number((r as { refund_amount?: number | null }).refund_amount) || 0,
+    refundedAt: ((r as { refunded_at?: string | null }).refunded_at) ?? null,
+    refundReason: ((r as { refund_reason?: string | null }).refund_reason) ?? null,
   };
 }
 

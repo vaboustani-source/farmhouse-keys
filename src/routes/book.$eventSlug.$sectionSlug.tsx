@@ -1165,7 +1165,7 @@ function ReservationCard({
   return (
     <div className="mx-auto max-w-[600px]">
       {showSuccessBanner && (
-        <SuccessBanner email={r.guestEmail} isDeposit={isDeposit && !isFullSchedule} />
+        <SuccessBanner guestName={r.guestName} isDeposit={isDeposit && !isFullSchedule} />
       )}
 
       <div className="rounded-[4px] border border-[#E8E2D9] bg-white p-5 sm:p-8 md:p-12">

@@ -522,6 +522,30 @@ function ReviewStep({
         ← Back
       </button>
 
+      {/* Guest name header */}
+      <div className="mb-6">
+        <div
+          style={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: 24,
+            color: "#1A1A1A",
+          }}
+        >
+          {booking.guest_name},
+        </div>
+        <div
+          style={{
+            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 14,
+            color: "#C9A84C",
+            fontStyle: "italic",
+            marginTop: 4,
+          }}
+        >
+          Your room is held for you.
+        </div>
+      </div>
+
       {/* Card 1: Room details */}
       <div className="rounded-md border border-[#E8E2D9] bg-white p-6">
         <div className="font-serif text-3xl">{booking.section_name}</div>

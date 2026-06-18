@@ -184,10 +184,58 @@ export type Database = {
         }
         Relationships: []
       }
+      budget_items: {
+        Row: {
+          booked: boolean
+          category: string
+          created_at: string
+          created_by: string | null
+          estimated_amount: number
+          event_id: string
+          id: string
+          label: string | null
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          booked?: boolean
+          category: string
+          created_at?: string
+          created_by?: string | null
+          estimated_amount?: number
+          event_id: string
+          id?: string
+          label?: string | null
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          booked?: boolean
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          estimated_amount?: number
+          event_id?: string
+          id?: string
+          label?: string | null
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_items_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       builder_selections: {
         Row: {
           couple_id: string
           created_at: string
+          event_id: string | null
           id: string
           selections: Json
           status: string
@@ -197,6 +245,7 @@ export type Database = {
         Insert: {
           couple_id: string
           created_at?: string
+          event_id?: string | null
           id?: string
           selections?: Json
           status?: string
@@ -206,6 +255,7 @@ export type Database = {
         Update: {
           couple_id?: string
           created_at?: string
+          event_id?: string | null
           id?: string
           selections?: Json
           status?: string
@@ -218,6 +268,13 @@ export type Database = {
             columns: ["couple_id"]
             isOneToOne: true
             referencedRelation: "couples"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "builder_selections_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
         ]
@@ -401,6 +458,42 @@ export type Database = {
           },
         ]
       }
+      contract_audit_log: {
+        Row: {
+          action: string
+          actor_label: string | null
+          actor_user_id: string | null
+          contract_id: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_label?: string | null
+          actor_user_id?: string | null
+          contract_id: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_label?: string | null
+          actor_user_id?: string | null
+          contract_id?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       contract_signatures: {
         Row: {
           agreed_to_terms: boolean
@@ -412,6 +505,7 @@ export type Database = {
           signed_at: string
           signer_email: string
           signer_name: string
+          signer_role: string
           signer_user_id: string | null
           typed_name: string
           user_agent: string | null
@@ -426,6 +520,7 @@ export type Database = {
           signed_at?: string
           signer_email: string
           signer_name: string
+          signer_role?: string
           signer_user_id?: string | null
           typed_name: string
           user_agent?: string | null
@@ -440,6 +535,7 @@ export type Database = {
           signed_at?: string
           signer_email?: string
           signer_name?: string
+          signer_role?: string
           signer_user_id?: string | null
           typed_name?: string
           user_agent?: string | null
@@ -454,6 +550,45 @@ export type Database = {
           },
         ]
       }
+      contract_templates: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          document_type: string
+          id: string
+          is_active: boolean
+          name: string
+          requires_both_partners: boolean
+          requires_countersignature: boolean
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          document_type?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          requires_both_partners?: boolean
+          requires_countersignature?: boolean
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          document_type?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          requires_both_partners?: boolean
+          requires_countersignature?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contracts: {
         Row: {
           content: string
@@ -463,7 +598,9 @@ export type Database = {
           document_type: string | null
           event_id: string | null
           id: string
+          rendered_content: string | null
           requires_both_partners: boolean | null
+          requires_countersignature: boolean
           sent_at: string | null
           status: string | null
           title: string
@@ -476,7 +613,9 @@ export type Database = {
           document_type?: string | null
           event_id?: string | null
           id?: string
+          rendered_content?: string | null
           requires_both_partners?: boolean | null
+          requires_countersignature?: boolean
           sent_at?: string | null
           status?: string | null
           title: string
@@ -489,7 +628,9 @@ export type Database = {
           document_type?: string | null
           event_id?: string | null
           id?: string
+          rendered_content?: string | null
           requires_both_partners?: boolean | null
+          requires_countersignature?: boolean
           sent_at?: string | null
           status?: string | null
           title?: string
@@ -588,6 +729,7 @@ export type Database = {
         Row: {
           couple_id: string
           created_at: string
+          event_id: string | null
           group_label: string | null
           id: string
           menu_item_id: string
@@ -597,6 +739,7 @@ export type Database = {
         Insert: {
           couple_id: string
           created_at?: string
+          event_id?: string | null
           group_label?: string | null
           id?: string
           menu_item_id: string
@@ -606,6 +749,7 @@ export type Database = {
         Update: {
           couple_id?: string
           created_at?: string
+          event_id?: string | null
           group_label?: string | null
           id?: string
           menu_item_id?: string
@@ -618,6 +762,13 @@ export type Database = {
             columns: ["couple_id"]
             isOneToOne: false
             referencedRelation: "couples"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "couple_selections_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
         ]
@@ -909,6 +1060,45 @@ export type Database = {
           },
         ]
       }
+      email_templates: {
+        Row: {
+          body: string
+          created_at: string
+          cta_label: string | null
+          heading: string | null
+          id: string
+          key: string
+          name: string
+          subject: string
+          updated_at: string
+          variables: string | null
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          cta_label?: string | null
+          heading?: string | null
+          id?: string
+          key: string
+          name: string
+          subject: string
+          updated_at?: string
+          variables?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          cta_label?: string | null
+          heading?: string | null
+          id?: string
+          key?: string
+          name?: string
+          subject?: string
+          updated_at?: string
+          variables?: string | null
+        }
+        Relationships: []
+      }
       event_addons: {
         Row: {
           addon: string
@@ -933,6 +1123,41 @@ export type Database = {
             foreignKeyName: "event_addons_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_budgets: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          event_id: string
+          id: string
+          target_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          event_id: string
+          id?: string
+          target_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          event_id?: string
+          id?: string
+          target_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_budgets_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
             referencedRelation: "events"
             referencedColumns: ["id"]
           },
@@ -990,6 +1215,7 @@ export type Database = {
         Row: {
           arrival_date: string | null
           arrival_date_note: string | null
+          assigned_planner: string | null
           ceremony_location: string | null
           cocktail_hour_location: string | null
           count_at_30_days: number | null
@@ -1001,11 +1227,20 @@ export type Database = {
           departure_date_note: string | null
           estimated_guest_count: number | null
           event_type: string
+          handed_off_at: string | null
+          handed_off_by: string | null
           how_heard: string | null
           id: string
+          lifecycle_stage: string | null
           package_tier: string | null
           partner1_name: string | null
           partner2_name: string | null
+          pending_partner1_email: string | null
+          pending_partner1_name: string | null
+          pending_partner2_email: string | null
+          pending_partner2_name: string | null
+          portal_opened_at: string | null
+          portal_opened_by: string | null
           rehearsal_dinner_location: string | null
           status: string
           tasting_date: string | null
@@ -1018,6 +1253,7 @@ export type Database = {
         Insert: {
           arrival_date?: string | null
           arrival_date_note?: string | null
+          assigned_planner?: string | null
           ceremony_location?: string | null
           cocktail_hour_location?: string | null
           count_at_30_days?: number | null
@@ -1029,11 +1265,20 @@ export type Database = {
           departure_date_note?: string | null
           estimated_guest_count?: number | null
           event_type?: string
+          handed_off_at?: string | null
+          handed_off_by?: string | null
           how_heard?: string | null
           id?: string
+          lifecycle_stage?: string | null
           package_tier?: string | null
           partner1_name?: string | null
           partner2_name?: string | null
+          pending_partner1_email?: string | null
+          pending_partner1_name?: string | null
+          pending_partner2_email?: string | null
+          pending_partner2_name?: string | null
+          portal_opened_at?: string | null
+          portal_opened_by?: string | null
           rehearsal_dinner_location?: string | null
           status?: string
           tasting_date?: string | null
@@ -1046,6 +1291,7 @@ export type Database = {
         Update: {
           arrival_date?: string | null
           arrival_date_note?: string | null
+          assigned_planner?: string | null
           ceremony_location?: string | null
           cocktail_hour_location?: string | null
           count_at_30_days?: number | null
@@ -1057,11 +1303,20 @@ export type Database = {
           departure_date_note?: string | null
           estimated_guest_count?: number | null
           event_type?: string
+          handed_off_at?: string | null
+          handed_off_by?: string | null
           how_heard?: string | null
           id?: string
+          lifecycle_stage?: string | null
           package_tier?: string | null
           partner1_name?: string | null
           partner2_name?: string | null
+          pending_partner1_email?: string | null
+          pending_partner1_name?: string | null
+          pending_partner2_email?: string | null
+          pending_partner2_name?: string | null
+          portal_opened_at?: string | null
+          portal_opened_by?: string | null
           rehearsal_dinner_location?: string | null
           status?: string
           tasting_date?: string | null
@@ -1626,6 +1881,8 @@ export type Database = {
           event_id: string
           first_name: string
           id: string
+          invited_optional_meals: string[]
+          is_child: boolean
           is_plus_one: boolean | null
           last_name: string
           lodging_preference: string | null
@@ -1654,6 +1911,8 @@ export type Database = {
           event_id: string
           first_name: string
           id?: string
+          invited_optional_meals?: string[]
+          is_child?: boolean
           is_plus_one?: boolean | null
           last_name: string
           lodging_preference?: string | null
@@ -1682,6 +1941,8 @@ export type Database = {
           event_id?: string
           first_name?: string
           id?: string
+          invited_optional_meals?: string[]
+          is_child?: boolean
           is_plus_one?: boolean | null
           last_name?: string
           lodging_preference?: string | null
@@ -1708,6 +1969,101 @@ export type Database = {
             columns: ["plus_one_of"]
             isOneToOne: false
             referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guide_cards: {
+        Row: {
+          body: string
+          card_key: string
+          created_at: string
+          header: string
+          id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          card_key: string
+          created_at?: string
+          header: string
+          id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          card_key?: string
+          created_at?: string
+          header?: string
+          id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          access_tier: number | null
+          assigned_role: string | null
+          created_at: string
+          email: string
+          event_id: string | null
+          expires_at: string
+          id: string
+          invite_type: string
+          invited_by: string | null
+          invited_name: string | null
+          role_in_event: string | null
+          status: string
+          tab_access: Json | null
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          access_tier?: number | null
+          assigned_role?: string | null
+          created_at?: string
+          email: string
+          event_id?: string | null
+          expires_at?: string
+          id?: string
+          invite_type: string
+          invited_by?: string | null
+          invited_name?: string | null
+          role_in_event?: string | null
+          status?: string
+          tab_access?: Json | null
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          access_tier?: number | null
+          assigned_role?: string | null
+          created_at?: string
+          email?: string
+          event_id?: string | null
+          expires_at?: string
+          id?: string
+          invite_type?: string
+          invited_by?: string | null
+          invited_name?: string | null
+          role_in_event?: string | null
+          status?: string
+          tab_access?: Json | null
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
         ]
@@ -2448,6 +2804,94 @@ export type Database = {
           },
         ]
       }
+      menu_approvals: {
+        Row: {
+          admin_notes: string | null
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          event_id: string
+          final_price: number | null
+          final_price_label: string | null
+          id: string
+          status: string
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          event_id: string
+          final_price?: number | null
+          final_price_label?: string | null
+          id?: string
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          event_id?: string
+          final_price?: number | null
+          final_price_label?: string | null
+          id?: string
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_approvals_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      menu_finalization: {
+        Row: {
+          created_at: string
+          event_id: string
+          finalized: boolean
+          finalized_at: string | null
+          finalized_by: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          finalized?: boolean
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          finalized?: boolean
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_finalization_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       menu_guide: {
         Row: {
           body: string | null
@@ -3135,11 +3579,14 @@ export type Database = {
         Row: {
           category: string
           created_at: string
+          display_category: string | null
           id: string
           included_count: number | null
           is_active: boolean
           item_key: string
           item_label: string
+          last_updated_by: string | null
+          menu_item_id: string | null
           price: number
           sort_order: number
           updated_at: string
@@ -3147,11 +3594,14 @@ export type Database = {
         Insert: {
           category: string
           created_at?: string
+          display_category?: string | null
           id?: string
           included_count?: number | null
           is_active?: boolean
           item_key: string
           item_label: string
+          last_updated_by?: string | null
+          menu_item_id?: string | null
           price?: number
           sort_order?: number
           updated_at?: string
@@ -3159,11 +3609,14 @@ export type Database = {
         Update: {
           category?: string
           created_at?: string
+          display_category?: string | null
           id?: string
           included_count?: number | null
           is_active?: boolean
           item_key?: string
           item_label?: string
+          last_updated_by?: string | null
+          menu_item_id?: string | null
           price?: number
           sort_order?: number
           updated_at?: string
@@ -3392,6 +3845,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      scheduled_email_log: {
+        Row: {
+          id: string
+          key: string
+          marker: string
+          sent_at: string
+          target_id: string
+        }
+        Insert: {
+          id?: string
+          key: string
+          marker: string
+          sent_at?: string
+          target_id: string
+        }
+        Update: {
+          id?: string
+          key?: string
+          marker?: string
+          sent_at?: string
+          target_id?: string
+        }
+        Relationships: []
+      }
+      scheduled_emails: {
+        Row: {
+          anchor: string
+          created_at: string
+          description: string | null
+          direction: string
+          enabled: boolean
+          id: string
+          key: string
+          name: string
+          offset_days: number[]
+          updated_at: string
+        }
+        Insert: {
+          anchor: string
+          created_at?: string
+          description?: string | null
+          direction: string
+          enabled?: boolean
+          id?: string
+          key: string
+          name: string
+          offset_days: number[]
+          updated_at?: string
+        }
+        Update: {
+          anchor?: string
+          created_at?: string
+          description?: string | null
+          direction?: string
+          enabled?: boolean
+          id?: string
+          key?: string
+          name?: string
+          offset_days?: number[]
+          updated_at?: string
+        }
+        Relationships: []
       }
       seating_assignments: {
         Row: {
@@ -3639,6 +4155,8 @@ export type Database = {
           business_name: string | null
           category: string
           coi_received: boolean | null
+          coi_requested: boolean
+          coi_requested_at: string | null
           contact_name: string | null
           contract_uploaded: boolean | null
           created_at: string | null
@@ -3657,6 +4175,8 @@ export type Database = {
           business_name?: string | null
           category: string
           coi_received?: boolean | null
+          coi_requested?: boolean
+          coi_requested_at?: string | null
           contact_name?: string | null
           contract_uploaded?: boolean | null
           created_at?: string | null
@@ -3675,6 +4195,8 @@ export type Database = {
           business_name?: string | null
           category?: string
           coi_received?: boolean | null
+          coi_requested?: boolean
+          coi_requested_at?: string | null
           contact_name?: string | null
           contract_uploaded?: boolean | null
           created_at?: string | null
@@ -3758,6 +4280,19 @@ export type Database = {
         Args: { p_event_id: string }
         Returns: undefined
       }
+      get_invitation_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          assigned_role: string
+          email: string
+          event_id: string
+          expires_at: string
+          id: string
+          invite_type: string
+          invited_name: string
+          status: string
+        }[]
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_event_member: {
         Args: { _event_id: string; _user_id: string }
@@ -3806,6 +4341,37 @@ export type Database = {
           wedding_date: string
           wedding_name: string
         }[]
+      }
+      lookup_rsvp_config: {
+        Args: { p_token: string }
+        Returns: {
+          ask_dietary: boolean
+          ask_meal_preference: boolean
+          ask_song_request: boolean
+          color_accent: string
+          color_primary: string
+          color_secondary: string
+          conditional_reminders: Json
+          confirmation_message: string | null
+          created_at: string
+          custom_questions: Json
+          event_id: string
+          id: string
+          is_live: boolean
+          offsite_questions: Json
+          onsite_questions: Json
+          public_token: string | null
+          rsvp_deadline: string | null
+          updated_at: string
+          welcome_headline: string | null
+          welcome_message: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "rsvp_config"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       lookup_rsvp_event: {
         Args: { p_token: string }
@@ -3868,6 +4434,10 @@ export type Database = {
           sections: Json
           wedding_name: string
         }[]
+      }
+      restore_audit_record: {
+        Args: { p_audit_id: string; p_mode: string }
+        Returns: Json
       }
       seed_checklist: { Args: { p_event_id: string }; Returns: undefined }
       seed_milestones: {

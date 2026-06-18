@@ -499,35 +499,85 @@ function NewBookingRow({
     guest_email: "",
     section_id: sectionId,
   });
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [nameFocus, setNameFocus] = useState(false);
+  const [emailFocus, setEmailFocus] = useState(false);
+  const [flash, setFlash] = useState(false);
+
+  const isEmailValid = (v: string) => {
+    const s = v.trim();
+    if (s.length < 5) return false;
+    const at = s.indexOf("@");
+    if (at <= 0) return false;
+    const dot = s.indexOf(".", at + 1);
+    return dot > at + 1 && dot < s.length - 1;
+  };
+  const isNameValid = (v: string) => v.trim().length >= 2;
 
   const submit = async () => {
+    const nameOk = isNameValid(form.guest_name);
+    const emailOk = isEmailValid(form.guest_email);
+    setNameError(nameOk ? null : "Enter a valid name");
+    setEmailError(emailOk ? null : "Enter a valid email");
+    if (!nameOk || !emailOk) return;
     const result = newBookingSchema.safeParse(form);
     if (!result.success) {
       toast.error(result.error.issues[0]?.message ?? "Check the form");
       return;
     }
     await onSave(result.data);
+    setFlash(true);
+    setTimeout(() => setFlash(false), 800);
   };
 
+  const rowBorder = flash
+    ? "border-l-4 border-l-emerald-500"
+    : nameFocus || emailFocus
+      ? "border-l-4 border-l-yellow-400"
+      : "border-l-4 border-l-transparent";
+
   return (
-    <div className="bg-background/50 px-5 py-4">
+    <div className={`bg-background/50 px-5 py-4 transition-colors ${rowBorder}`}>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
         <Field label="Name" className="md:col-span-4">
           <input
             value={form.guest_name}
-            onChange={(e) => setForm({ ...form, guest_name: e.target.value })}
+            onChange={(e) => {
+              setForm({ ...form, guest_name: e.target.value });
+              if (nameError) setNameError(null);
+            }}
+            onFocus={() => setNameFocus(true)}
+            onBlur={() => {
+              setNameFocus(false);
+              setNameError(isNameValid(form.guest_name) ? null : "Enter a valid name");
+            }}
             className="w-full rounded border border-border bg-background px-2.5 py-1.5 text-sm focus:border-primary focus:outline-none"
             placeholder="Jane Doe"
           />
+          {nameError && (
+            <span className="mt-1 block text-[11px] text-red-600">{nameError}</span>
+          )}
         </Field>
         <Field label="Email" className="md:col-span-4">
           <input
             type="email"
             value={form.guest_email}
-            onChange={(e) => setForm({ ...form, guest_email: e.target.value })}
+            onChange={(e) => {
+              setForm({ ...form, guest_email: e.target.value });
+              if (emailError) setEmailError(null);
+            }}
+            onFocus={() => setEmailFocus(true)}
+            onBlur={() => {
+              setEmailFocus(false);
+              setEmailError(isEmailValid(form.guest_email) ? null : "Enter a valid email");
+            }}
             className="w-full rounded border border-border bg-background px-2.5 py-1.5 text-sm focus:border-primary focus:outline-none"
             placeholder="jane@email.com"
           />
+          {emailError && (
+            <span className="mt-1 block text-[11px] text-red-600">{emailError}</span>
+          )}
         </Field>
         <Field label="Section" className="md:col-span-4">
           <select

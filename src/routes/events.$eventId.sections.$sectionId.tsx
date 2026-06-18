@@ -127,7 +127,7 @@ function PaymentProgress({
       break;
   }
   return (
-    <div className="min-w-[160px]">
+    <div className="min-w-[120px]">
       <div className="h-2 w-full overflow-hidden rounded-full bg-border">
         <div
           className={`h-full rounded-full ${barClass} transition-all`}
@@ -240,7 +240,7 @@ function SectionBookingsPage() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border bg-card">
-          <table className="w-full min-w-[1100px] text-sm">
+          <table className="w-full min-w-[980px] text-sm">
             <thead className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Guest</th>

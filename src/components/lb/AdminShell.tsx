@@ -43,7 +43,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <header className="border-b border-border bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/40">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-y-3 px-4 py-4 md:px-6 md:py-5">
+        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-y-3 px-4 py-4 md:px-6 md:py-5">
           <Link to="/" className="flex min-w-0 items-center gap-3">
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <span className="font-serif text-lg leading-none">G</span>
@@ -113,8 +113,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-10">{children}</main>
-      <footer className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-10 text-xs text-muted-foreground">
+      <main className="mx-auto max-w-[1400px] px-4 py-6 md:px-6 md:py-10">{children}</main>
+      <footer className="mx-auto max-w-[1400px] px-4 py-6 md:px-6 md:py-10 text-xs text-muted-foreground">
         A private estate. Tended by hand.
       </footer>
       <CustomDomainBanner />

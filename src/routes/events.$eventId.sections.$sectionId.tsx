@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useState, type ReactNode } from "react";
-import { Download } from "lucide-react";
+import { Download, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { supabase, type LbBooking, type LbRoomSection } from "@/integrations/supabase/client";
 import { AdminShell, formatMoney } from "@/components/lb/AdminShell";
@@ -139,6 +139,8 @@ function PaymentProgress({
   );
 }
 
+type SortKey = "guest_name" | "nights_booked" | "addons_count" | "total_amount" | "paid" | "balance" | "payment_status" | "room_assignment" | "booked_at";
+
 function SectionBookingsPage() {
   const { eventId, sectionId } = Route.useParams();
   const { hasFullAccessForEvent } = useAuth();
@@ -147,6 +149,7 @@ function SectionBookingsPage() {
   const [filter, setFilter] = useState<"all" | "paid" | "pending" | "failed">("all");
   const [openRefundId, setOpenRefundId] = useState<string | null>(null);
   const [openAdjustId, setOpenAdjustId] = useState<string | null>(null);
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["lb_section_bookings", sectionId],
     queryFn: () => fetchSection(sectionId, eventId),
@@ -157,6 +160,62 @@ function SectionBookingsPage() {
   }
   const { section, bookings, checkInDate, additionalByBooking } = data;
   const filtered = bookings.filter((b) => filter === "all" || b.payment_status === filter);
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (!sort) return 0;
+    const dir = sort.dir === "asc" ? 1 : -1;
+    let valA: string | number = "";
+    let valB: string | number = "";
+    switch (sort.key) {
+      case "guest_name":
+        valA = a.guest_name.toLowerCase();
+        valB = b.guest_name.toLowerCase();
+        break;
+      case "nights_booked":
+        valA = a.nights_booked;
+        valB = b.nights_booked;
+        break;
+      case "addons_count":
+        valA = (a.addons_selected ?? []).length;
+        valB = (b.addons_selected ?? []).length;
+        break;
+      case "total_amount":
+        valA = Number(a.total_amount || 0);
+        valB = Number(b.total_amount || 0);
+        break;
+      case "paid": {
+        const pa = paymentBreakdown(a.payment_status, Number(a.total_amount || 0), Number(a.refund_amount || 0)).paid;
+        const pb = paymentBreakdown(b.payment_status, Number(b.total_amount || 0), Number(b.refund_amount || 0)).paid;
+        valA = pa;
+        valB = pb;
+        break;
+      }
+      case "balance": {
+        const ba = paymentBreakdown(a.payment_status, Number(a.total_amount || 0), Number(a.refund_amount || 0)).balance;
+        const bb = paymentBreakdown(b.payment_status, Number(b.total_amount || 0), Number(b.refund_amount || 0)).balance;
+        valA = ba;
+        valB = bb;
+        break;
+      }
+      case "payment_status":
+        valA = a.payment_status;
+        valB = b.payment_status;
+        break;
+      case "room_assignment":
+        valA = (a.room_assignment ?? "").toLowerCase();
+        valB = (b.room_assignment ?? "").toLowerCase();
+        break;
+      case "booked_at":
+        valA = new Date(a.booked_at).getTime();
+        valB = new Date(b.booked_at).getTime();
+        break;
+    }
+    if (typeof valA === "number" && typeof valB === "number") {
+      return (valA - valB) * dir;
+    }
+    return String(valA).localeCompare(String(valB)) * dir;
+  });
+
   const sectionTotals = bookings.reduce(
     (acc, b) => {
       if (b.removed) return acc;
@@ -194,6 +253,28 @@ function SectionBookingsPage() {
     a.download = `${section.section_name.replace(/\s+/g, "_")}_bookings.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const SortHeader = ({ label, sortKey }: { label: string; sortKey: SortKey }) => {
+    const active = sort?.key === sortKey;
+    return (
+      <th className="px-3 py-3 font-medium">
+        <button
+          type="button"
+          onClick={() =>
+            setSort((prev) =>
+              prev?.key === sortKey
+                ? { key: sortKey, dir: prev.dir === "asc" ? "desc" : "asc" }
+                : { key: sortKey, dir: "asc" }
+            )
+          }
+          className="inline-flex items-center gap-1 uppercase tracking-[0.16em] hover:text-foreground transition-colors"
+        >
+          {label}
+          <ArrowUpDown className={`h-3 w-3 ${active ? "text-foreground" : "text-muted-foreground/40"}`} />
+        </button>
+      </th>
+    );
   };
 
   return (
@@ -243,21 +324,21 @@ function SectionBookingsPage() {
           <table className="w-full min-w-[980px] text-sm">
             <thead className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               <tr>
-                <th className="px-3 py-3 font-medium">Guest</th>
-                <th className="px-3 py-3 font-medium">Nights</th>
-                <th className="px-3 py-3 font-medium">Add-ons</th>
-                <th className="px-3 py-3 font-medium">Total</th>
-                <th className="px-3 py-3 font-medium">Paid</th>
-                <th className="px-3 py-3 font-medium">Balance</th>
+                <SortHeader label="Guest" sortKey="guest_name" />
+                <SortHeader label="Nights" sortKey="nights_booked" />
+                <SortHeader label="Add-ons" sortKey="addons_count" />
+                <SortHeader label="Total" sortKey="total_amount" />
+                <SortHeader label="Paid" sortKey="paid" />
+                <SortHeader label="Balance" sortKey="balance" />
                 <th className="px-3 py-3 font-medium">Payment</th>
-                <th className="px-3 py-3 font-medium">Status</th>
-                <th className="px-3 py-3 font-medium">Room</th>
-                <th className="px-3 py-3 font-medium">Booked</th>
+                <SortHeader label="Status" sortKey="payment_status" />
+                <SortHeader label="Room" sortKey="room_assignment" />
+                <SortHeader label="Booked" sortKey="booked_at" />
                 <th className="px-3 py-3 font-medium"></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((b) => (
+              {sorted.map((b) => (
                 <Fragment key={b.id}>
                 <tr className={`border-b border-border last:border-0 hover:bg-muted/20 ${b.payment_status === "refunded" ? "opacity-70" : ""}`}>
                   <td className="px-3 py-3">

@@ -1460,6 +1460,250 @@ function ReservationCard({
   );
 }
 
+type Txn = {
+  kind: "payment" | "refund" | "charge";
+  label: string;
+  date: string;
+  amount: number;
+  reason?: string | null;
+};
+
+function TransactionHistory({ reservation }: { reservation: Reservation }) {
+  const r = reservation;
+  const [charges, setCharges] = useState<
+    Array<{ amount: number; description: string | null; charged_at: string | null }>
+  >([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("lb_additional_charges")
+        .select("amount, description, charged_at")
+        .eq("booking_id", r.bookingId);
+      if (!cancelled && data) {
+        setCharges(
+          data.map((d) => ({
+            amount: Number(d.amount) || 0,
+            description: d.description ?? null,
+            charged_at: (d.charged_at as string | null) ?? null,
+          })),
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [r.bookingId]);
+
+  const txns: Txn[] = [];
+  const deposit = r.totalAmount / 2;
+  const balance = r.totalAmount / 2;
+
+  if (r.depositPaidAt) {
+    txns.push({
+      kind: "payment",
+      label: "Deposit payment",
+      date: r.depositPaidAt,
+      amount: deposit,
+    });
+  }
+  if (r.finalPaidAt) {
+    txns.push({
+      kind: "payment",
+      label: "Balance payment",
+      date: r.finalPaidAt,
+      amount: balance,
+    });
+  }
+  if (r.refundAmount > 0 && r.refundedAt) {
+    txns.push({
+      kind: "refund",
+      label: "Refund",
+      date: r.refundedAt,
+      amount: r.refundAmount,
+      reason: r.refundReason,
+    });
+  }
+  for (const c of charges) {
+    if (!c.charged_at) continue;
+    txns.push({
+      kind: "charge",
+      label: c.description || "Additional charge",
+      date: c.charged_at,
+      amount: c.amount,
+    });
+  }
+
+  txns.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  if (txns.length === 0) return null;
+
+  const net = txns.reduce(
+    (sum, t) =>
+      sum + (t.kind === "refund" ? -t.amount : t.amount),
+    0,
+  );
+  const isZero = Math.abs(net) < 0.005;
+
+  const fmtTxnDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+
+  return (
+    <>
+      <SectionLabel>TRANSACTIONS</SectionLabel>
+      <div className="mt-3 space-y-4">
+        {txns.map((t, idx) => {
+          const isRefund = t.kind === "refund";
+          const isCharge = t.kind === "charge";
+          const dotBg = isRefund
+            ? "#C0392B"
+            : isCharge
+              ? "#C9A84C"
+              : "#2C3E2D";
+          const dotGlyph = isRefund ? "↩" : isCharge ? "💳" : "✓";
+          const labelColor = isRefund ? "#C0392B" : "#3A3A3A";
+          const amountColor = isRefund ? "#C0392B" : "#3A3A3A";
+          const amountText = isRefund
+            ? `-${fmtMoney(t.amount)}`
+            : fmtMoney(t.amount);
+          return (
+            <div key={idx}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 22,
+                      height: 22,
+                      borderRadius: 999,
+                      backgroundColor: dotBg,
+                      color: "#FFFFFF",
+                      fontSize: 12,
+                      lineHeight: 1,
+                      flexShrink: 0,
+                      marginTop: 2,
+                    }}
+                    aria-hidden="true"
+                  >
+                    {dotGlyph}
+                  </span>
+                  <div>
+                    <div
+                      style={{
+                        fontFamily:
+                          "'Jost', ui-sans-serif, system-ui, sans-serif",
+                        fontSize: 14,
+                        color: labelColor,
+                      }}
+                    >
+                      {isRefund ? "Refund" : t.label}
+                    </div>
+                    <div
+                      style={{
+                        fontFamily:
+                          "'Jost', ui-sans-serif, system-ui, sans-serif",
+                        fontSize: 12,
+                        color: "#9A9188",
+                        marginTop: 2,
+                      }}
+                    >
+                      {fmtTxnDate(t.date)}
+                    </div>
+                    {isRefund && t.reason && (
+                      <div
+                        style={{
+                          fontFamily:
+                            "'Jost', ui-sans-serif, system-ui, sans-serif",
+                          fontSize: 12,
+                          color: "#9A9188",
+                          fontStyle: "italic",
+                          marginTop: 2,
+                        }}
+                      >
+                        {t.reason}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <span
+                  style={{
+                    fontFamily:
+                      "'Jost', ui-sans-serif, system-ui, sans-serif",
+                    fontSize: 14,
+                    color: amountColor,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {amountText}
+                </span>
+              </div>
+              {isRefund && (
+                <p
+                  style={{
+                    fontFamily:
+                      "'Jost', ui-sans-serif, system-ui, sans-serif",
+                    fontSize: 11,
+                    color: "#9A9188",
+                    fontStyle: "italic",
+                    marginTop: 6,
+                    marginLeft: 34,
+                  }}
+                >
+                  Please allow 5–10 business days for the refund to appear on your statement.
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 border-t border-[#E8E2D9] pt-3">
+        <div className="flex items-baseline justify-between">
+          <span
+            style={{
+              fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+              fontSize: 14,
+              fontWeight: 600,
+              color: "#1A1A1A",
+            }}
+          >
+            Net total
+          </span>
+          {isZero ? (
+            <span
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: 20,
+                color: "#9A9188",
+              }}
+            >
+              $0.00 — Fully refunded
+            </span>
+          ) : (
+            <span
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: 20,
+                color: "#2C3E2D",
+              }}
+            >
+              {fmtMoney(net)}
+            </span>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 function RefundedCard({ reservation }: { reservation: Reservation }) {
   const r = reservation;
   const refundDateIso = r.refundedAt ? r.refundedAt.slice(0, 10) : null;

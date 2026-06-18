@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, Copy, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { ArrowUpRight, Copy, Loader2, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { supabase, type LbEvent, type LbRoomSection } from "@/integrations/supabase/client";
 import { AdminShell, FillBar, StatusBadge, formatDate } from "@/components/lb/AdminShell";
@@ -103,6 +104,8 @@ async function fetchEvents(): Promise<EventWithBlock[]> {
   }));
 }
 
+type SortKey = "couple" | "wedding_date" | "guests" | "status";
+
 function EventListPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -113,6 +116,7 @@ function EventListPage() {
     queryFn: fetchEvents,
     enabled: authReady,
   });
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
 
   const ensureBlock = useMutation({
     mutationFn: async (eventId: string) => {
@@ -126,6 +130,57 @@ function EventListPage() {
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Could not open block"),
   });
+
+  const sorted = (data ?? []).slice().sort((a, b) => {
+    if (!sort) return 0;
+    const dir = sort.dir === "asc" ? 1 : -1;
+    let valA: string | number = "";
+    let valB: string | number = "";
+    switch (sort.key) {
+      case "couple":
+        valA = [a.partner1_name, a.partner2_name].filter(Boolean).join(" & ") || a.title;
+        valB = [b.partner1_name, b.partner2_name].filter(Boolean).join(" & ") || b.title;
+        break;
+      case "wedding_date":
+        valA = a.wedding_date ? new Date(a.wedding_date).getTime() : 0;
+        valB = b.wedding_date ? new Date(b.wedding_date).getTime() : 0;
+        break;
+      case "guests":
+        valA = a.guestsConfirmed;
+        valB = b.guestsConfirmed;
+        break;
+      case "status":
+        valA = a.block?.status ?? a.status ?? "";
+        valB = b.block?.status ?? b.status ?? "";
+        break;
+    }
+    if (typeof valA === "number" && typeof valB === "number") {
+      return (valA - valB) * dir;
+    }
+    return String(valA).localeCompare(String(valB)) * dir;
+  });
+
+  const SortHeader = ({ label, sortKey }: { label: string; sortKey: SortKey }) => {
+    const active = sort?.key === sortKey;
+    return (
+      <th className="px-5 py-4 font-medium">
+        <button
+          type="button"
+          onClick={() =>
+            setSort((prev) =>
+              prev?.key === sortKey
+                ? { key: sortKey, dir: prev.dir === "asc" ? "desc" : "asc" }
+                : { key: sortKey, dir: "asc" }
+            )
+          }
+          className="inline-flex items-center gap-1 uppercase tracking-[0.16em] hover:text-foreground transition-colors"
+        >
+          {label}
+          <ArrowUpDown className={`h-3 w-3 ${active ? "text-foreground" : "text-muted-foreground/40"}`} />
+        </button>
+      </th>
+    );
+  };
 
   return (
     <AdminShell>
@@ -157,16 +212,16 @@ function EventListPage() {
           <table className="w-full min-w-[720px] text-sm">
             <thead className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               <tr>
-                <th className="px-5 py-4 font-medium">Couple</th>
-                <th className="px-5 py-4 font-medium">Wedding Date</th>
+                <SortHeader label="Couple" sortKey="couple" />
+                <SortHeader label="Wedding Date" sortKey="wedding_date" />
                 <th className="px-5 py-4 font-medium">Section Fill</th>
-                <th className="px-5 py-4 font-medium">Guests</th>
-                <th className="px-5 py-4 font-medium">Status</th>
+                <SortHeader label="Guests" sortKey="guests" />
+                <SortHeader label="Status" sortKey="status" />
                 <th className="px-5 py-4" />
               </tr>
             </thead>
             <tbody>
-              {data.map((e) => {
+              {sorted.map((e) => {
                 const activeSections = e.sections.filter((s) => s.is_active);
                 const couple = [e.partner1_name, e.partner2_name].filter(Boolean).join(" & ") || e.title;
                 const isPending = ensureBlock.isPending && ensureBlock.variables === e.id;

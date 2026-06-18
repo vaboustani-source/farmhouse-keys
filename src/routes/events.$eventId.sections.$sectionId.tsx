@@ -8,6 +8,7 @@ import { AdminShell, formatMoney } from "@/components/lb/AdminShell";
 import { EventLayout } from "@/components/lb/EventNav";
 import { RefundPanel } from "@/components/lb/RefundPanel";
 import { AdjustPanel } from "@/components/lb/AdjustPanel";
+import { useAuth } from "@/lib/useAuth";
 
 export const Route = createFileRoute("/events/$eventId/sections/$sectionId")({
   component: SectionBookingsPage,
@@ -140,6 +141,8 @@ function PaymentProgress({
 
 function SectionBookingsPage() {
   const { eventId, sectionId } = Route.useParams();
+  const { hasFullAccessForEvent } = useAuth();
+  const canManagePayments = hasFullAccessForEvent(eventId);
   const qc = useQueryClient();
   const [filter, setFilter] = useState<"all" | "paid" | "pending" | "failed">("all");
   const [openRefundId, setOpenRefundId] = useState<string | null>(null);
@@ -372,7 +375,8 @@ function SectionBookingsPage() {
                         Refunded {b.refunded_at ? new Date(b.refunded_at).toLocaleDateString() : ""}
                       </span>
                     ) : (
-                      <div className="flex justify-end gap-2">
+                     <div className="flex justify-end gap-2">
+                       {canManagePayments && (<>
                         {ADJUSTABLE.has(b.payment_status) && b.removed !== true && (
                           <button
                             onClick={() => {
@@ -395,11 +399,12 @@ function SectionBookingsPage() {
                             {openRefundId === b.id ? "Close" : "Refund"}
                           </button>
                         )}
+                       </>)}
                       </div>
                     )}
                   </td>
                 </tr>
-                {openRefundId === b.id && (
+                {canManagePayments && openRefundId === b.id && (
                   <tr className="bg-muted/30">
                     <td colSpan={11} className="px-4 py-4">
                       <RefundPanel
@@ -415,7 +420,7 @@ function SectionBookingsPage() {
                     </td>
                   </tr>
                 )}
-                {openAdjustId === b.id && (
+                {canManagePayments && openAdjustId === b.id && (
                   <tr className="bg-muted/30">
                     <td colSpan={11} className="px-4 py-4">
                       <AdjustPanel

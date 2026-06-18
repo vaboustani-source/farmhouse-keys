@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { CalendarCheck, CreditCard, History, LayoutGrid, Settings, SlidersHorizontal, Users } from "lucide-react";
 import { supabase, type LbEvent } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/useAuth";
 
 export type EventTabKey =
   | "overview"
@@ -134,7 +135,11 @@ type Item = {
 
 export function EventSidebar({ eventId, currentTab }: { eventId: string; currentTab: EventTabKey }) {
   const counts = useEventCounts(eventId);
-  const items = buildItems(counts);
+  const { hasFullAccessForEvent } = useAuth();
+  const fullAccess = hasFullAccessForEvent(eventId);
+  const items = buildItems(counts).filter(
+    (it) => fullAccess || (it.key !== "pricing" && it.key !== "settings"),
+  );
 
   return (
     <aside className="hidden md:block w-52 shrink-0">
@@ -168,20 +173,26 @@ export function EventSidebar({ eventId, currentTab }: { eventId: string; current
 
 export function EventMobileTabs({ eventId, currentTab }: { eventId: string; currentTab: EventTabKey }) {
   const counts = useEventCounts(eventId);
+  const { hasFullAccessForEvent } = useAuth();
+  const fullAccess = hasFullAccessForEvent(eventId);
   const all = buildItems(counts);
   // Mobile: 5 tabs max — merge Payments + Pricing into "Finance"
   const mobile: Array<{ key: EventTabKey; label: string; icon: typeof LayoutGrid; to: Item["to"]; badge?: Item["badge"] }> = [
     all.find((i) => i.key === "overview")!,
     all.find((i) => i.key === "guests")!,
     all.find((i) => i.key === "bookings")!,
-    {
-      key: currentTab === "pricing" ? "pricing" : "payments",
-      label: "Finance",
-      icon: CreditCard,
-      to: "/events/$eventId/payments",
-      badge: all.find((i) => i.key === "payments")!.badge,
-    },
-    all.find((i) => i.key === "settings")!,
+    ...(fullAccess
+      ? [{
+          key: (currentTab === "pricing" ? "pricing" : "payments") as EventTabKey,
+          label: "Finance",
+          icon: CreditCard,
+          to: "/events/$eventId/payments" as Item["to"],
+          badge: all.find((i) => i.key === "payments")!.badge,
+        }]
+      : []),
+    fullAccess
+      ? all.find((i) => i.key === "settings")!
+      : all.find((i) => i.key === "activity")!,
   ];
   return (
     <div className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-card/95 backdrop-blur">
@@ -283,6 +294,34 @@ export function EventLayout({
 }) {
   // Pull pathname so a stale tab doesn't stay highlighted after navigation.
   useRouterState({ select: (s) => s.location.pathname });
+  const { hasEventAccess, hasFullAccessForEvent, loading } = useAuth();
+  if (loading) return null;
+  if (!hasEventAccess(eventId)) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="max-w-sm rounded-lg border border-border bg-card p-6 text-center">
+          <h2 className="font-serif text-xl text-foreground">No access to this event</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            You don't have access to this event. Contact your administrator.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  const fullAccess = hasFullAccessForEvent(eventId);
+  // Block direct navigation to pricing/settings for limited roles.
+  if (!fullAccess && (currentTab === "pricing" || currentTab === "settings")) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="max-w-sm rounded-lg border border-border bg-card p-6 text-center">
+          <h2 className="font-serif text-xl text-foreground">Restricted</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            This section is available to admins only.
+          </p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex gap-8 pb-20 md:pb-0">
       <EventSidebar eventId={eventId} currentTab={currentTab} />

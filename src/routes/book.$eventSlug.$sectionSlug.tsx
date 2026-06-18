@@ -1449,6 +1449,156 @@ function ReservationCard({
   );
 }
 
+function RefundedCard({ reservation }: { reservation: Reservation }) {
+  const r = reservation;
+  const refundDateIso = r.refundedAt ? r.refundedAt.slice(0, 10) : null;
+  const isFullRefund =
+    r.refundAmount > 0 && Math.abs(r.refundAmount - r.totalAmount) < 0.5;
+  return (
+    <div className="mx-auto max-w-[600px]">
+      <div className="rounded-[4px] border border-[#E8E2D9] bg-white p-5 sm:p-8 md:p-12">
+        <span
+          style={{
+            display: "inline-block",
+            padding: "4px 12px",
+            backgroundColor: "#2C3E2D",
+            borderRadius: 2,
+            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 10,
+            letterSpacing: 2,
+            textTransform: "uppercase",
+            color: "#C9A84C",
+            fontWeight: 500,
+          }}
+        >
+          Refund processed
+        </span>
+
+        <h1
+          style={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: 28,
+            color: "#1A1A1A",
+            margin: "20px 0 0",
+            lineHeight: 1.2,
+          }}
+        >
+          {r.guestName}, your refund is on the way.
+        </h1>
+        {r.weddingName && (
+          <p
+            style={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontStyle: "italic",
+              fontSize: 18,
+              color: "#6B6B6B",
+              marginTop: 6,
+            }}
+          >
+            {r.weddingName}
+          </p>
+        )}
+
+        <Divider />
+
+        <SectionLabel>REFUND</SectionLabel>
+        <div className="mt-3 space-y-2">
+          <InvoiceRow
+            label={isFullRefund ? "Full refund" : "Refund"}
+            value={fmtMoney(r.refundAmount)}
+          />
+          {refundDateIso && (
+            <div
+              style={{
+                fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+                fontSize: 13,
+                color: "#6B6B6B",
+              }}
+            >
+              Issued {fmtDateFull(refundDateIso)}
+            </div>
+          )}
+          {r.refundReason && (
+            <div
+              style={{
+                fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+                fontSize: 13,
+                color: "#6B6B6B",
+              }}
+            >
+              {r.refundReason}
+            </div>
+          )}
+        </div>
+
+        <p
+          className="mt-6"
+          style={{
+            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 15,
+            color: "#3A3A3A",
+            lineHeight: 1.6,
+          }}
+        >
+          Please allow 5–10 business days for the refund to appear on your statement.
+        </p>
+
+        {r.sectionName && (
+          <>
+            <Divider />
+            <SectionLabel>ORIGINAL RESERVATION</SectionLabel>
+            <div className="mt-2">
+              <div
+                style={{
+                  fontFamily: "'Cormorant Garamond', serif",
+                  fontSize: 20,
+                  color: "#1A1A1A",
+                }}
+              >
+                {r.sectionName}
+              </div>
+              <div
+                style={{
+                  fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+                  fontSize: 14,
+                  color: "#3A3A3A",
+                  marginTop: 4,
+                }}
+              >
+                {fmtStayRange(r.checkInDate)} → {fmtStayRange(r.checkOutDate)}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="mt-8 text-center">
+        <p
+          style={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontStyle: "italic",
+            fontSize: 16,
+            color: "#6B6B6B",
+          }}
+        >
+          We hope to welcome you another time.
+        </p>
+        <a
+          href="https://gilbertsvillefarmhouse.com"
+          style={{
+            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 11,
+            color: "#9A9188",
+          }}
+          className="mt-2 inline-block hover:text-[#2C3E2D]"
+        >
+          gilbertsvillefarmhouse.com
+        </a>
+      </div>
+    </div>
+  );
+}
+
 function CoveredCard({
   reservation,
   payerName,

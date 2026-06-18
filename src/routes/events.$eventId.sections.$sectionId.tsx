@@ -160,6 +160,62 @@ function SectionBookingsPage() {
   }
   const { section, bookings, checkInDate, additionalByBooking } = data;
   const filtered = bookings.filter((b) => filter === "all" || b.payment_status === filter);
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (!sort) return 0;
+    const dir = sort.dir === "asc" ? 1 : -1;
+    let valA: string | number = "";
+    let valB: string | number = "";
+    switch (sort.key) {
+      case "guest_name":
+        valA = a.guest_name.toLowerCase();
+        valB = b.guest_name.toLowerCase();
+        break;
+      case "nights_booked":
+        valA = a.nights_booked;
+        valB = b.nights_booked;
+        break;
+      case "addons_count":
+        valA = (a.addons_selected ?? []).length;
+        valB = (b.addons_selected ?? []).length;
+        break;
+      case "total_amount":
+        valA = Number(a.total_amount || 0);
+        valB = Number(b.total_amount || 0);
+        break;
+      case "paid": {
+        const pa = paymentBreakdown(a.payment_status, Number(a.total_amount || 0), Number(a.refund_amount || 0)).paid;
+        const pb = paymentBreakdown(b.payment_status, Number(b.total_amount || 0), Number(b.refund_amount || 0)).paid;
+        valA = pa;
+        valB = pb;
+        break;
+      }
+      case "balance": {
+        const ba = paymentBreakdown(a.payment_status, Number(a.total_amount || 0), Number(a.refund_amount || 0)).balance;
+        const bb = paymentBreakdown(b.payment_status, Number(b.total_amount || 0), Number(b.refund_amount || 0)).balance;
+        valA = ba;
+        valB = bb;
+        break;
+      }
+      case "payment_status":
+        valA = a.payment_status;
+        valB = b.payment_status;
+        break;
+      case "room_assignment":
+        valA = (a.room_assignment ?? "").toLowerCase();
+        valB = (b.room_assignment ?? "").toLowerCase();
+        break;
+      case "booked_at":
+        valA = new Date(a.booked_at).getTime();
+        valB = new Date(b.booked_at).getTime();
+        break;
+    }
+    if (typeof valA === "number" && typeof valB === "number") {
+      return (valA - valB) * dir;
+    }
+    return String(valA).localeCompare(String(valB)) * dir;
+  });
+
   const sectionTotals = bookings.reduce(
     (acc, b) => {
       if (b.removed) return acc;

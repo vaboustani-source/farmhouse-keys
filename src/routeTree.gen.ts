@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TrackerAccessTokenRouteImport } from './routes/tracker.$accessToken'
@@ -28,6 +29,11 @@ import { Route as ApiPublicStripeWebhookRouteImport } from './routes/api/public/
 import { Route as EventsEventIdSectionsSectionIdRouteImport } from './routes/events.$eventId.sections.$sectionId'
 import { Route as BookEventSlugSectionSlugConfirmationRouteImport } from './routes/book.$eventSlug.$sectionSlug.confirmation'
 
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ActivityRoute = ActivityRouteImport.update({
   id: '/activity',
   path: '/activity',
@@ -127,6 +133,7 @@ const BookEventSlugSectionSlugConfirmationRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
+  '/login': typeof LoginRoute
   '/events/new': typeof EventsNewRoute
   '/tracker/$accessToken': typeof TrackerAccessTokenRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
@@ -147,6 +154,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
+  '/login': typeof LoginRoute
   '/events/new': typeof EventsNewRoute
   '/tracker/$accessToken': typeof TrackerAccessTokenRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
@@ -168,6 +176,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
+  '/login': typeof LoginRoute
   '/events/new': typeof EventsNewRoute
   '/tracker/$accessToken': typeof TrackerAccessTokenRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
@@ -190,6 +199,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/activity'
+    | '/login'
     | '/events/new'
     | '/tracker/$accessToken'
     | '/api/public/stripe-webhook'
@@ -210,6 +220,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/activity'
+    | '/login'
     | '/events/new'
     | '/tracker/$accessToken'
     | '/api/public/stripe-webhook'
@@ -230,6 +241,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/activity'
+    | '/login'
     | '/events/new'
     | '/tracker/$accessToken'
     | '/api/public/stripe-webhook'
@@ -251,6 +263,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ActivityRoute: typeof ActivityRoute
+  LoginRoute: typeof LoginRoute
   EventsNewRoute: typeof EventsNewRoute
   TrackerAccessTokenRoute: typeof TrackerAccessTokenRoute
   ApiPublicStripeWebhookRoute: typeof ApiPublicStripeWebhookRoute
@@ -270,6 +283,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/activity': {
       id: '/activity'
       path: '/activity'
@@ -417,6 +437,7 @@ const BookEventSlugSectionSlugRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActivityRoute: ActivityRoute,
+  LoginRoute: LoginRoute,
   EventsNewRoute: EventsNewRoute,
   TrackerAccessTokenRoute: TrackerAccessTokenRoute,
   ApiPublicStripeWebhookRoute: ApiPublicStripeWebhookRoute,

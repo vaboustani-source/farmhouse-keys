@@ -1388,7 +1388,7 @@ function ReservationCard({
           </p>
         )}
 
-        {!isPaid && (
+        {!isPaid && !isRefunded && (
           <>
             <Divider />
             {/* SECTION E — Pay action */}
@@ -1403,21 +1403,31 @@ function ReservationCard({
           </>
         )}
 
-        <Divider />
+        {r.paymentStatus !== "pending" && r.paymentStatus !== "covered" && (
+          <>
+            <Divider />
+            <TransactionHistory reservation={r} />
+          </>
+        )}
 
-        {/* SECTION F — Cancellation policy */}
-        <SectionLabel>CANCELLATION POLICY</SectionLabel>
-        <p
-          className="mt-2"
-          style={{
-            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
-            fontSize: 12,
-            color: "#9A9188",
-            lineHeight: 1.5,
-          }}
-        >
-          Cancellation is possible up to 45 days prior to the first check-in date of your stay. After that time, the reservation is fully non-refundable.
-        </p>
+        {!isRefunded && (
+          <>
+            <Divider />
+            {/* SECTION F — Cancellation policy */}
+            <SectionLabel>CANCELLATION POLICY</SectionLabel>
+            <p
+              className="mt-2"
+              style={{
+                fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+                fontSize: 12,
+                color: "#9A9188",
+                lineHeight: 1.5,
+              }}
+            >
+              Cancellation is possible up to 45 days prior to the first check-in date of your stay. After that time, the reservation is fully non-refundable.
+            </p>
+          </>
+        )}
       </div>
 
       {/* SECTION G — Footer */}
@@ -1430,7 +1440,9 @@ function ReservationCard({
             color: "#6B6B6B",
           }}
         >
-          We look forward to welcoming you.
+          {isRefunded
+            ? "If you have questions about your refund, reach out to your planning team."
+            : "We look forward to welcoming you."}
         </p>
         <a
           href="https://gilbertsvillefarmhouse.com"

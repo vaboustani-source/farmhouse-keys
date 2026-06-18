@@ -1716,7 +1716,7 @@ function SuccessBanner({ guestName, email, isDeposit }: { guestName: string; ema
           marginTop: 6,
         }}
       >
-        A confirmation has been sent to <span className="break-all">{guestName}</span>
+        A confirmation has been sent to <span className="break-all">{email}</span>
       </p>
     </div>
   );

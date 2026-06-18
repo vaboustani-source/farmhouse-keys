@@ -1679,7 +1679,7 @@ function PayBalanceArea({
   );
 }
 
-function SuccessBanner({ guestName, isDeposit }: { guestName: string; isDeposit: boolean }) {
+function SuccessBanner({ guestName, email, isDeposit }: { guestName: string; email: string; isDeposit: boolean }) {
   const [opacity, setOpacity] = useState(1);
   const firstName = guestName.split(/\s+/)[0];
   useEffect(() => {

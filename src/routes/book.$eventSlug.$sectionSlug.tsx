@@ -1192,7 +1192,11 @@ function ReservationCard({
             lineHeight: 1.2,
           }}
         >
-          {isPaid || isFullSchedule ? "You're confirmed." : "Your room is reserved."}
+          {isFailed
+            ? `${r.guestName}, we need your attention.`
+            : isPaid || isFullSchedule
+              ? `${r.guestName}, you're confirmed.`
+              : `${r.guestName}, your room is reserved.`}
         </h1>
         {r.weddingName && (
           <p

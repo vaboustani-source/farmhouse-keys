@@ -121,7 +121,7 @@ export const sendNudge = createServerFn({ method: "POST" })
     if (!key) return { ok: false, reason: "email_not_configured" as const };
     try {
       await new Resend(key).emails.send({
-        from: "Gilbertsville Farmhouse <noreply@gilbertsvillefarmhouse.com>",
+        from: "Gilbertsville Farmhouse <noreply@stay.gilbertsvillefarmhouse.com>",
         to: booking.guest_email,
         subject: tpl.subject,
         html: tpl.html,

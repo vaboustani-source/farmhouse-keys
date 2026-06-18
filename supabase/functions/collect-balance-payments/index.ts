@@ -15,7 +15,7 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const ADMIN_EMAIL =
   Deno.env.get("BRANDON_NOTIFICATION_EMAIL") ?? Deno.env.get("ADMIN_EMAIL") ?? "";
-const FROM = "Gilbertsville Farmhouse <noreply@gilbertsvillefarmhouse.com>";
+const FROM = "Gilbertsville Farmhouse <noreply@stay.gilbertsvillefarmhouse.com>";
 
 const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" });
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);

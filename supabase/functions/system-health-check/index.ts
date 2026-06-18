@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
 
     const resend = new Resend(resendKey);
     const { data, error } = await resend.emails.send({
-      from: "Gilbertsville Farmhouse <notifications@updates.gilbertsvillefarmhouse.com>",
+      from: "Gilbertsville Farmhouse <noreply@stay.gilbertsvillefarmhouse.com>",
       to: [to],
       subject,
       html,

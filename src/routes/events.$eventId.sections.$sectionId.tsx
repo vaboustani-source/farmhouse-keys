@@ -139,6 +139,8 @@ function PaymentProgress({
   );
 }
 
+type SortKey = "guest_name" | "nights_booked" | "addons_count" | "total_amount" | "paid" | "balance" | "payment_status" | "room_assignment" | "booked_at";
+
 function SectionBookingsPage() {
   const { eventId, sectionId } = Route.useParams();
   const { hasFullAccessForEvent } = useAuth();

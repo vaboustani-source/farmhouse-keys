@@ -260,15 +260,15 @@ function SectionBookingsPage() {
               {filtered.map((b) => (
                 <Fragment key={b.id}>
                 <tr className={`border-b border-border last:border-0 hover:bg-muted/20 ${b.payment_status === "refunded" ? "opacity-70" : ""}`}>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3">
                     <div className="text-foreground">{b.guest_name}</div>
                     <div className="text-xs text-muted-foreground">{b.guest_email}</div>
                   </td>
-                  <td className="px-4 py-3 tabular-nums">{b.nights_booked}</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                  <td className="px-3 py-3 tabular-nums">{b.nights_booked}</td>
+                  <td className="px-3 py-3 text-xs text-muted-foreground">
                     {(b.addons_selected ?? []).map((a) => a.name).join(", ") || "—"}
                   </td>
-                  <td className="px-4 py-3 tabular-nums">
+                  <td className="px-3 py-3 tabular-nums">
                     <div>{formatMoney(b.total_amount)}</div>
                     {b.payment_status === "refunded" && b.refund_amount != null && (
                       <div className="text-[11px] text-red-700/80">
@@ -321,9 +321,9 @@ function SectionBookingsPage() {
                     }
                     return (
                       <>
-                        <td className="px-4 py-3 tabular-nums">{paidCell}</td>
-                        <td className={`px-4 py-3 tabular-nums ${balanceClass}`}>{balanceCell}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3 tabular-nums">{paidCell}</td>
+                        <td className={`px-3 py-3 tabular-nums ${balanceClass}`}>{balanceCell}</td>
+                        <td className="px-3 py-3">
                           <PaymentProgress
                             status={b.payment_status}
                             total={total}
@@ -333,8 +333,8 @@ function SectionBookingsPage() {
                       </>
                     );
                   })()}
-                  <td className="px-4 py-3"><PaymentBadge status={b.payment_status} /></td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3"><PaymentBadge status={b.payment_status} /></td>
+                  <td className="px-3 py-3">
                     <input
                       defaultValue={b.room_assignment ?? ""}
                       placeholder="Assign…"
@@ -346,7 +346,7 @@ function SectionBookingsPage() {
                       className="w-28 rounded border border-border bg-background px-2 py-1 text-xs"
                     />
                   </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                  <td className="px-3 py-3 text-xs text-muted-foreground">
                     {new Date(b.booked_at).toLocaleDateString()}
                     {b.payment_schedule === "deposit_50_balance_50" &&
                       b.payment_update_token && (
@@ -369,7 +369,7 @@ function SectionBookingsPage() {
                         </div>
                       )}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-3 py-3 text-right">
                     {b.payment_status === "refunded" ? (
                       <span className="text-[11px] text-muted-foreground">
                         Refunded {b.refunded_at ? new Date(b.refunded_at).toLocaleDateString() : ""}
@@ -391,7 +391,7 @@ function SectionBookingsPage() {
                         {REFUNDABLE.has(b.payment_status) && b.removed !== true && (
                           <button
                             onClick={() => {
-                              setOpenAdjustId(null);
+                              setOpenRefundId(null);
                               setOpenRefundId(openRefundId === b.id ? null : b.id);
                             }}
                         className="rounded border border-red-300 px-3 py-1.5 min-h-[36px] text-[11px] font-medium uppercase tracking-wider text-red-700 hover:bg-red-50"
@@ -406,7 +406,7 @@ function SectionBookingsPage() {
                 </tr>
                 {canManagePayments && openRefundId === b.id && (
                   <tr className="bg-muted/30">
-                    <td colSpan={11} className="px-4 py-4">
+                    <td colSpan={11} className="px-3 py-4">
                       <RefundPanel
                         booking={b}
                         sectionName={section.section_name}

@@ -416,13 +416,13 @@ function SectionBookingsPage() {
                           setOpenRefundId(null);
                           qc.invalidateQueries({ queryKey: ["lb_section_bookings", sectionId] });
                         }}
-                      />
+                       />
                     </td>
                   </tr>
                 )}
                 {canManagePayments && openAdjustId === b.id && (
                   <tr className="bg-muted/30">
-                    <td colSpan={11} className="px-4 py-4">
+                    <td colSpan={11} className="px-3 py-4">
                       <AdjustPanel
                         booking={b}
                         section={section}

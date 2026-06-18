@@ -255,6 +255,28 @@ function SectionBookingsPage() {
     URL.revokeObjectURL(url);
   };
 
+  const SortHeader = ({ label, sortKey }: { label: string; sortKey: SortKey }) => {
+    const active = sort?.key === sortKey;
+    return (
+      <th className="px-3 py-3 font-medium">
+        <button
+          type="button"
+          onClick={() =>
+            setSort((prev) =>
+              prev?.key === sortKey
+                ? { key: sortKey, dir: prev.dir === "asc" ? "desc" : "asc" }
+                : { key: sortKey, dir: "asc" }
+            )
+          }
+          className="inline-flex items-center gap-1 uppercase tracking-[0.16em] hover:text-foreground transition-colors"
+        >
+          {label}
+          <ArrowUpDown className={`h-3 w-3 ${active ? "text-foreground" : "text-muted-foreground/40"}`} />
+        </button>
+      </th>
+    );
+  };
+
   return (
     <AdminShell>
       <EventLayout eventId={eventId} currentTab="bookings">

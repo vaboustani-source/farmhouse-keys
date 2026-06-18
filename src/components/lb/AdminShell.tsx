@@ -1,5 +1,5 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/useAuth";
 import { toast } from "sonner";
 import { CustomDomainBanner } from "@/components/lb/CustomDomainBanner";
@@ -7,7 +7,14 @@ import { CustomDomainBanner } from "@/components/lb/CustomDomainBanner";
 export function AdminShell({ children }: { children: ReactNode }) {
   const { location } = useRouterState();
   const path = location.pathname;
-  const { session, isAdmin, loading, signIn, signOut } = useAuth();
+  const { session, isAuthorized, loading, signOut, roleLabel } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && !session) {
+      navigate({ to: "/login", replace: true });
+    }
+  }, [loading, session, navigate]);
 
   const initials = (() => {
     const email = session?.user?.email ?? "";
@@ -24,8 +31,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!session || !isAdmin) {
-    return <SignInScreen onSignIn={signIn} signedInButNotAdmin={!!session && !isAdmin} onSignOut={signOut} />;
+  if (!session) {
+    // Redirecting in effect; render nothing to avoid a flash.
+    return null;
+  }
+
+  if (!isAuthorized) {
+    return <NoAccessScreen onSignOut={signOut} />;
   }
 
   return (
@@ -60,17 +72,30 @@ export function AdminShell({ children }: { children: ReactNode }) {
             >
               Activity Log
             </Link>
-            <span
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-[11px] font-medium uppercase text-foreground"
-              title={session?.user?.email ?? ""}
-              aria-label={session?.user?.email ?? "Admin"}
-            >
-              {initials}
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className="hidden sm:inline text-xs text-muted-foreground max-w-[180px] truncate"
+                title={session?.user?.email ?? ""}
+              >
+                {session?.user?.email}
+              </span>
+              {roleLabel && (
+                <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {roleLabel}
+                </span>
+              )}
+              <span
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-[11px] font-medium uppercase text-foreground sm:hidden"
+                aria-label={session?.user?.email ?? "User"}
+              >
+                {initials}
+              </span>
+            </div>
             <button
-              onClick={() => {
-                signOut();
+              onClick={async () => {
+                await signOut();
                 toast.success("Signed out");
+                navigate({ to: "/login", replace: true });
               }}
               className="inline-flex min-h-[44px] items-center px-2 text-xs uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
             >
@@ -84,6 +109,29 @@ export function AdminShell({ children }: { children: ReactNode }) {
         A private estate. Tended by hand.
       </footer>
       <CustomDomainBanner />
+    </div>
+  );
+}
+
+function NoAccessScreen({ onSignOut }: { onSignOut: () => Promise<void> }) {
+  const navigate = useNavigate();
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-background px-4">
+      <div className="w-full max-w-sm rounded-lg border border-border bg-card p-6 text-center">
+        <h2 className="font-serif text-xl text-foreground">No access</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          You don't have access to this system. Contact your administrator.
+        </p>
+        <button
+          onClick={async () => {
+            await onSignOut();
+            navigate({ to: "/login", replace: true });
+          }}
+          className="mt-4 inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
+        >
+          Sign out
+        </button>
+      </div>
     </div>
   );
 }

@@ -1204,7 +1204,9 @@ function ReservationCard({
             lineHeight: 1.2,
           }}
         >
-          {isFailed
+          {isRefunded
+            ? `Your reservation has been cancelled.`
+            : isFailed
             ? `${r.guestName}, we need your attention.`
             : isPaid || isFullSchedule
               ? `${r.guestName}, you're confirmed.`

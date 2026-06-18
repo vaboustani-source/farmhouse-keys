@@ -324,21 +324,21 @@ function SectionBookingsPage() {
           <table className="w-full min-w-[980px] text-sm">
             <thead className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               <tr>
-                <th className="px-3 py-3 font-medium">Guest</th>
-                <th className="px-3 py-3 font-medium">Nights</th>
-                <th className="px-3 py-3 font-medium">Add-ons</th>
-                <th className="px-3 py-3 font-medium">Total</th>
-                <th className="px-3 py-3 font-medium">Paid</th>
-                <th className="px-3 py-3 font-medium">Balance</th>
+                <SortHeader label="Guest" sortKey="guest_name" />
+                <SortHeader label="Nights" sortKey="nights_booked" />
+                <SortHeader label="Add-ons" sortKey="addons_count" />
+                <SortHeader label="Total" sortKey="total_amount" />
+                <SortHeader label="Paid" sortKey="paid" />
+                <SortHeader label="Balance" sortKey="balance" />
                 <th className="px-3 py-3 font-medium">Payment</th>
-                <th className="px-3 py-3 font-medium">Status</th>
-                <th className="px-3 py-3 font-medium">Room</th>
-                <th className="px-3 py-3 font-medium">Booked</th>
+                <SortHeader label="Status" sortKey="payment_status" />
+                <SortHeader label="Room" sortKey="room_assignment" />
+                <SortHeader label="Booked" sortKey="booked_at" />
                 <th className="px-3 py-3 font-medium"></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((b) => (
+              {sorted.map((b) => (
                 <Fragment key={b.id}>
                 <tr className={`border-b border-border last:border-0 hover:bg-muted/20 ${b.payment_status === "refunded" ? "opacity-70" : ""}`}>
                   <td className="px-3 py-3">

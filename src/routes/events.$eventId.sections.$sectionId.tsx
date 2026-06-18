@@ -149,6 +149,7 @@ function SectionBookingsPage() {
   const [filter, setFilter] = useState<"all" | "paid" | "pending" | "failed">("all");
   const [openRefundId, setOpenRefundId] = useState<string | null>(null);
   const [openAdjustId, setOpenAdjustId] = useState<string | null>(null);
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["lb_section_bookings", sectionId],
     queryFn: () => fetchSection(sectionId, eventId),

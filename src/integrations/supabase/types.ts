@@ -4332,6 +4332,9 @@ export type Database = {
           nights: number
           payment_schedule: string
           payment_status: string
+          refund_amount: number
+          refund_reason: string
+          refunded_at: string
           resort_fee: number
           resort_fee_percent: number
           section_id: string

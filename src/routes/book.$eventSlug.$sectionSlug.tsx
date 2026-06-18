@@ -1032,6 +1032,9 @@ type Reservation = {
   isPrimary: boolean;
   paymentUpdateToken: string | null;
   payerName: string | null;
+  refundAmount: number;
+  refundedAt: string | null;
+  refundReason: string | null;
 };
 
 function bookingToReservation(b: Booking): Reservation {

@@ -522,6 +522,30 @@ function ReviewStep({
         ← Back
       </button>
 
+      {/* Guest name header */}
+      <div className="mb-6">
+        <div
+          style={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: 24,
+            color: "#1A1A1A",
+          }}
+        >
+          {booking.guest_name},
+        </div>
+        <div
+          style={{
+            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 14,
+            color: "#C9A84C",
+            fontStyle: "italic",
+            marginTop: 4,
+          }}
+        >
+          Your room is held for you.
+        </div>
+      </div>
+
       {/* Card 1: Room details */}
       <div className="rounded-md border border-[#E8E2D9] bg-white p-6">
         <div className="font-serif text-3xl">{booking.section_name}</div>
@@ -1141,7 +1165,7 @@ function ReservationCard({
   return (
     <div className="mx-auto max-w-[600px]">
       {showSuccessBanner && (
-        <SuccessBanner email={r.guestEmail} isDeposit={isDeposit && !isFullSchedule} />
+        <SuccessBanner guestName={r.guestName} email={r.guestEmail} isDeposit={isDeposit && !isFullSchedule} />
       )}
 
       <div className="rounded-[4px] border border-[#E8E2D9] bg-white p-5 sm:p-8 md:p-12">
@@ -1168,7 +1192,11 @@ function ReservationCard({
             lineHeight: 1.2,
           }}
         >
-          {isPaid || isFullSchedule ? "You're confirmed." : "Your room is reserved."}
+          {isFailed
+            ? `${r.guestName}, we need your attention.`
+            : isPaid || isFullSchedule
+              ? `${r.guestName}, you're confirmed.`
+              : `${r.guestName}, your room is reserved.`}
         </h1>
         {r.weddingName && (
           <p
@@ -1425,7 +1453,7 @@ function CoveredCard({
             margin: 0,
           }}
         >
-          Your room is taken care of.
+          {r.guestName}, your room is taken care of.
         </h1>
         {r.weddingName && (
           <p
@@ -1651,8 +1679,9 @@ function PayBalanceArea({
   );
 }
 
-function SuccessBanner({ email, isDeposit }: { email: string; isDeposit: boolean }) {
+function SuccessBanner({ guestName, email, isDeposit }: { guestName: string; email: string; isDeposit: boolean }) {
   const [opacity, setOpacity] = useState(1);
+  const firstName = guestName.split(/\s+/)[0];
   useEffect(() => {
     const t = setTimeout(() => setOpacity(0.9), 10000);
     return () => clearTimeout(t);
@@ -1677,7 +1706,7 @@ function SuccessBanner({ email, isDeposit }: { email: string; isDeposit: boolean
           marginTop: 12,
         }}
       >
-        {isDeposit ? "Your deposit is confirmed." : "You're confirmed."}
+        You're all set, {firstName}.
       </h2>
       <p
         style={{

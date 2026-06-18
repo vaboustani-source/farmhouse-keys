@@ -439,13 +439,13 @@ function SectionBookingsPage() {
             </tbody>
             <tfoot>
               <tr className="border-t border-border bg-muted/30 text-sm">
-                <td colSpan={4} className="px-4 py-3 font-medium text-foreground">
+                <td colSpan={4} className="px-3 py-3 font-medium text-foreground">
                   {section.section_name} totals
                 </td>
-                <td className="px-4 py-3 tabular-nums text-foreground">
+                <td className="px-3 py-3 tabular-nums text-foreground">
                   Collected: {formatMoney(sectionTotals.collected)}
                 </td>
-                <td colSpan={6} className="px-4 py-3 tabular-nums text-muted-foreground">
+                <td colSpan={6} className="px-3 py-3 tabular-nums text-muted-foreground">
                   Outstanding: {formatMoney(sectionTotals.outstanding)}
                 </td>
               </tr>

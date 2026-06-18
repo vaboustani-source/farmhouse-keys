@@ -212,16 +212,16 @@ function EventListPage() {
           <table className="w-full min-w-[720px] text-sm">
             <thead className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               <tr>
-                <th className="px-5 py-4 font-medium">Couple</th>
-                <th className="px-5 py-4 font-medium">Wedding Date</th>
+                <SortHeader label="Couple" sortKey="couple" />
+                <SortHeader label="Wedding Date" sortKey="wedding_date" />
                 <th className="px-5 py-4 font-medium">Section Fill</th>
-                <th className="px-5 py-4 font-medium">Guests</th>
-                <th className="px-5 py-4 font-medium">Status</th>
+                <SortHeader label="Guests" sortKey="guests" />
+                <SortHeader label="Status" sortKey="status" />
                 <th className="px-5 py-4" />
               </tr>
             </thead>
             <tbody>
-              {data.map((e) => {
+              {sorted.map((e) => {
                 const activeSections = e.sections.filter((s) => s.is_active);
                 const couple = [e.partner1_name, e.partner2_name].filter(Boolean).join(" & ") || e.title;
                 const isPending = ensureBlock.isPending && ensureBlock.variables === e.id;

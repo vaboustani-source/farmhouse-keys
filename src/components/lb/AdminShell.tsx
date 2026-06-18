@@ -77,19 +77,28 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 className="hidden sm:inline text-xs text-muted-foreground max-w-[180px] truncate"
                 title={session?.user?.email ?? ""}
               >
-                {session?.user?.email}
+                {(session?.user?.user_metadata?.full_name as string | undefined) ?? session?.user?.email}
               </span>
               {roleLabel && (
                 <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
                   {roleLabel}
                 </span>
               )}
-              <span
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-[11px] font-medium uppercase text-foreground sm:hidden"
-                aria-label={session?.user?.email ?? "User"}
-              >
-                {initials}
-              </span>
+              {(session?.user?.user_metadata?.avatar_url as string | undefined) ? (
+                <img
+                  src={session?.user?.user_metadata?.avatar_url as string}
+                  alt=""
+                  className="h-8 w-8 rounded-full border border-border object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <span
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-[11px] font-medium uppercase text-foreground"
+                  aria-label={session?.user?.email ?? "User"}
+                >
+                  {initials}
+                </span>
+              )}
             </div>
             <button
               onClick={async () => {

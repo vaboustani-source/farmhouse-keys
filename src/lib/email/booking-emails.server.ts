@@ -13,7 +13,7 @@ function getResend() {
   return new Resend(key);
 }
 
-const FROM = "Gilbertsville Farmhouse <noreply@gilbertsvillefarmhouse.com>";
+const FROM = "Gilbertsville Farmhouse <noreply@stay.gilbertsvillefarmhouse.com>";
 
 const firstName = (full: string) => (full || "").trim().split(/\s+/)[0] || "there";
 const fmtDate = (d: string | null | undefined) =>

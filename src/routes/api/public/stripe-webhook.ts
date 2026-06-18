@@ -334,7 +334,7 @@ export const Route = createFileRoute("/api/public/stripe-webhook")({
                 if (adminTo && resendKey) {
                   const resend = new Resend(resendKey);
                   await resend.emails.send({
-                    from: "Gilbertsville Farmhouse <noreply@gilbertsvillefarmhouse.com>",
+                    from: "Gilbertsville Farmhouse <noreply@stay.gilbertsvillefarmhouse.com>",
                     to: adminTo,
                     subject: "Guest updated payment method",
                     html: `<p>${b.guest_name} updated their payment method for ${ev?.wedding_name ?? ""}.</p>`,

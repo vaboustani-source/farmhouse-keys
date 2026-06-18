@@ -60,7 +60,7 @@ async function sendOne(bookingId: string) {
   if (!key) return { ok: false as const, reason: "email_not_configured" };
   try {
     await new Resend(key).emails.send({
-      from: "Gilbertsville Farmhouse <noreply@gilbertsvillefarmhouse.com>",
+      from: "Gilbertsville Farmhouse <noreply@stay.gilbertsvillefarmhouse.com>",
       to: booking.guest_email,
       subject: tpl.subject,
       html: tpl.html,

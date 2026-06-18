@@ -18,7 +18,7 @@ const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
 );
 
-const FROM = "Gilbertsville Farmhouse <noreply@gilbertsvillefarmhouse.com>";
+const FROM = "Gilbertsville Farmhouse <noreply@stay.gilbertsvillefarmhouse.com>";
 
 function getResend() {
   const key = Deno.env.get("RESEND_API_KEY");

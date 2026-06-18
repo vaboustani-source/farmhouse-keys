@@ -815,7 +815,6 @@ function ConfirmationView({
   eventSlug: string;
   sectionSlug: string;
 }) {
-  const fetcher = useServerFn(fetchSessionConfirmation);
   const [bookings, setBookings] = useState<ConfirmationBookings>([]);
   const [loading, setLoading] = useState(true);
   const [timedOut, setTimedOut] = useState(false);
@@ -842,29 +841,65 @@ function ConfirmationView({
     let attempts = 0;
     const MAX_ATTEMPTS = 10;
     let cancelled = false;
+
+    const poll = async (sid: string) => {
+      const { data, error } = await supabase
+        .from("lb_bookings")
+        .select(
+          `id, guest_name, guest_email, payment_status, payment_schedule,
+           total_amount, base_amount, addon_amount, resort_fee, tax_amount,
+           deposit_paid_at, final_paid_at, addons_selected, cot_requested,
+           cot_fee, section_id, event_id, is_primary, covered_by_booking_id`,
+        )
+        .eq("stripe_session_id", sid)
+        .maybeSingle();
+      if (error) console.error("Poll error:", error);
+      return data;
+    };
+
     const tick = async () => {
       if (cancelled) return;
       try {
-        const { bookings } = await fetcher({ data: { sessionId } });
-        const ready = bookings.find((b) => {
-          if (paymentType === "balance") {
-            // Balance payment transitions deposit_paid → paid
-            return b.payment_status === "paid";
-          }
-          return (
-            b.payment_status === "paid" ||
-            b.payment_status === "deposit_paid" ||
-            b.payment_status === "covered"
-          );
-        });
-        console.log("Poll result:", ready?.payment_status ?? "not-ready");
-        if (ready) {
-          setBookings(bookings);
+        const data = await poll(sessionId);
+        console.log("Poll result:", data);
+        const isReady =
+          !!data &&
+          (paymentType === "balance"
+            ? data.payment_status === "paid"
+            : data.payment_status === "paid" ||
+              data.payment_status === "deposit_paid" ||
+              data.payment_status === "covered");
+        if (isReady && data) {
+          // Fetch section + event details for the reservation card
+          const [{ data: section }, { data: event }] = await Promise.all([
+            supabase
+              .from("lb_room_sections")
+              .select("section_name, guest_nightly_rate, resort_fee_percent, nights")
+              .eq("id", data.section_id)
+              .maybeSingle(),
+            supabase
+              .from("lb_events")
+              .select("wedding_name, couple_names, check_in_date, check_out_date")
+              .eq("id", data.event_id)
+              .maybeSingle(),
+          ]);
+          const enriched = [
+            {
+              ...data,
+              covered_at: null,
+              payment_update_token: null,
+              section: section ?? null,
+              event: event ?? null,
+              payer_name: null,
+            },
+          ] as unknown as ConfirmationBookings;
+          if (cancelled) return;
+          setBookings(enriched);
           setLoading(false);
           return;
         }
       } catch (err) {
-        console.error("fetchSessionConfirmation failed", err);
+        console.error("Polling failed", err);
       }
       attempts++;
       if (attempts >= MAX_ATTEMPTS) {
@@ -878,7 +913,7 @@ function ConfirmationView({
     return () => {
       cancelled = true;
     };
-  }, [fetcher]);
+  }, []);
 
   const primary = bookings.find((b) => b.is_primary || !b.covered_by_booking_id);
   console.log("Rendering confirmation for:", primary?.payment_status ?? "none");

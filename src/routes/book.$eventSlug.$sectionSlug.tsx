@@ -1679,8 +1679,9 @@ function PayBalanceArea({
   );
 }
 
-function SuccessBanner({ email, isDeposit }: { email: string; isDeposit: boolean }) {
+function SuccessBanner({ guestName, isDeposit }: { guestName: string; isDeposit: boolean }) {
   const [opacity, setOpacity] = useState(1);
+  const firstName = guestName.split(/\s+/)[0];
   useEffect(() => {
     const t = setTimeout(() => setOpacity(0.9), 10000);
     return () => clearTimeout(t);
@@ -1705,7 +1706,7 @@ function SuccessBanner({ email, isDeposit }: { email: string; isDeposit: boolean
           marginTop: 12,
         }}
       >
-        {isDeposit ? "Your deposit is confirmed." : "You're confirmed."}
+        You're all set, {firstName}.
       </h2>
       <p
         style={{
@@ -1715,7 +1716,7 @@ function SuccessBanner({ email, isDeposit }: { email: string; isDeposit: boolean
           marginTop: 6,
         }}
       >
-        A confirmation has been sent to <span className="break-all">{email}</span>
+        A confirmation has been sent to <span className="break-all">{guestName}</span>
       </p>
     </div>
   );

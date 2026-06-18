@@ -1064,6 +1064,9 @@ function bookingToReservation(b: Booking): Reservation {
     isPrimary: !!b.is_primary,
     paymentUpdateToken: null,
     payerName: null,
+    refundAmount: Number((b as { refund_amount?: number | null }).refund_amount) || 0,
+    refundedAt: ((b as { refunded_at?: string | null }).refunded_at) ?? null,
+    refundReason: ((b as { refund_reason?: string | null }).refund_reason) ?? null,
   };
 }
 

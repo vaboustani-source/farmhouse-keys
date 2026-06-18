@@ -181,14 +181,18 @@ export function EventMobileTabs({ eventId, currentTab }: { eventId: string; curr
     all.find((i) => i.key === "overview")!,
     all.find((i) => i.key === "guests")!,
     all.find((i) => i.key === "bookings")!,
-    ...(fullAccess ? [{
-      key: currentTab === "pricing" ? "pricing" : "payments",
-      label: "Finance",
-      icon: CreditCard,
-      to: "/events/$eventId/payments" as Item["to"],
-      badge: all.find((i) => i.key === "payments")!.badge,
-    }] : []),
-    ...(fullAccess ? [all.find((i) => i.key === "settings")!] : [all.find((i) => i.key === "activity")!]),
+    ...(fullAccess
+      ? [{
+          key: (currentTab === "pricing" ? "pricing" : "payments") as EventTabKey,
+          label: "Finance",
+          icon: CreditCard,
+          to: "/events/$eventId/payments" as Item["to"],
+          badge: all.find((i) => i.key === "payments")!.badge,
+        }]
+      : []),
+    fullAccess
+      ? all.find((i) => i.key === "settings")!
+      : all.find((i) => i.key === "activity")!,
   ];
   return (
     <div className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-card/95 backdrop-blur">

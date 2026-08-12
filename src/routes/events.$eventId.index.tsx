@@ -122,10 +122,40 @@ function EventDetailPage() {
           </Link>
           <h1 className="mt-2 font-serif text-3xl sm:text-4xl font-medium text-foreground break-words">{event.couple_names}</h1>
           <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground">
-            <span>{formatDate(event.wedding_date)}</span>
+            <span>{formatDate((event as LbEvent & { event_type?: string }).event_type === "popup" ? event.check_in_date : event.wedding_date)}</span>
             <span>·</span>
             <StatusBadge status={event.status} />
+            {(event as LbEvent & { event_type?: string }).event_type === "popup" && (
+              <>
+                <span>·</span>
+                <span className="rounded-full bg-accent/20 px-2.5 py-0.5 text-[10px] uppercase tracking-wider text-accent-foreground">
+                  Pop-Up Weekend
+                </span>
+              </>
+            )}
           </div>
+          {(event as LbEvent & { event_type?: string }).event_type === "popup" && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link
+                to="/events/$eventId/tiers"
+                params={{ eventId }}
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-[11px] uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
+              >
+                Tiers &amp; Itinerary
+              </Link>
+              {event.slug && (
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/stay/${event.slug}`);
+                    toast.success("Public link copied — ready to share");
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
+                >
+                  <Copy className="h-3 w-3" /> Public link
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap gap-2 md:gap-3">
           <button

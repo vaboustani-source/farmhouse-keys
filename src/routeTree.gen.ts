@@ -13,10 +13,13 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TrackerAccessTokenRouteImport } from './routes/tracker.$accessToken'
+import { Route as StayEventSlugRouteImport } from './routes/stay.$eventSlug'
+import { Route as PopupsNewRouteImport } from './routes/popups.new'
 import { Route as EventsNewRouteImport } from './routes/events.new'
 import { Route as UpdatePaymentBookingTokenIndexRouteImport } from './routes/update-payment.$bookingToken.index'
 import { Route as EventsEventIdIndexRouteImport } from './routes/events.$eventId.index'
 import { Route as UpdatePaymentBookingTokenConfirmedRouteImport } from './routes/update-payment.$bookingToken.confirmed'
+import { Route as EventsEventIdTiersRouteImport } from './routes/events.$eventId.tiers'
 import { Route as EventsEventIdSettingsRouteImport } from './routes/events.$eventId.settings'
 import { Route as EventsEventIdPricingRouteImport } from './routes/events.$eventId.pricing'
 import { Route as EventsEventIdPaymentsRouteImport } from './routes/events.$eventId.payments'
@@ -49,6 +52,16 @@ const TrackerAccessTokenRoute = TrackerAccessTokenRouteImport.update({
   path: '/tracker/$accessToken',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StayEventSlugRoute = StayEventSlugRouteImport.update({
+  id: '/stay/$eventSlug',
+  path: '/stay/$eventSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PopupsNewRoute = PopupsNewRouteImport.update({
+  id: '/popups/new',
+  path: '/popups/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EventsNewRoute = EventsNewRouteImport.update({
   id: '/events/new',
   path: '/events/new',
@@ -71,6 +84,11 @@ const UpdatePaymentBookingTokenConfirmedRoute =
     path: '/update-payment/$bookingToken/confirmed',
     getParentRoute: () => rootRouteImport,
   } as any)
+const EventsEventIdTiersRoute = EventsEventIdTiersRouteImport.update({
+  id: '/events/$eventId/tiers',
+  path: '/events/$eventId/tiers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EventsEventIdSettingsRoute = EventsEventIdSettingsRouteImport.update({
   id: '/events/$eventId/settings',
   path: '/events/$eventId/settings',
@@ -135,6 +153,8 @@ export interface FileRoutesByFullPath {
   '/activity': typeof ActivityRoute
   '/login': typeof LoginRoute
   '/events/new': typeof EventsNewRoute
+  '/popups/new': typeof PopupsNewRoute
+  '/stay/$eventSlug': typeof StayEventSlugRoute
   '/tracker/$accessToken': typeof TrackerAccessTokenRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
   '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
@@ -145,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
   '/events/$eventId/pricing': typeof EventsEventIdPricingRoute
   '/events/$eventId/settings': typeof EventsEventIdSettingsRoute
+  '/events/$eventId/tiers': typeof EventsEventIdTiersRoute
   '/update-payment/$bookingToken/confirmed': typeof UpdatePaymentBookingTokenConfirmedRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
   '/update-payment/$bookingToken/': typeof UpdatePaymentBookingTokenIndexRoute
@@ -156,6 +177,8 @@ export interface FileRoutesByTo {
   '/activity': typeof ActivityRoute
   '/login': typeof LoginRoute
   '/events/new': typeof EventsNewRoute
+  '/popups/new': typeof PopupsNewRoute
+  '/stay/$eventSlug': typeof StayEventSlugRoute
   '/tracker/$accessToken': typeof TrackerAccessTokenRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
   '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
@@ -166,6 +189,7 @@ export interface FileRoutesByTo {
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
   '/events/$eventId/pricing': typeof EventsEventIdPricingRoute
   '/events/$eventId/settings': typeof EventsEventIdSettingsRoute
+  '/events/$eventId/tiers': typeof EventsEventIdTiersRoute
   '/update-payment/$bookingToken/confirmed': typeof UpdatePaymentBookingTokenConfirmedRoute
   '/events/$eventId': typeof EventsEventIdIndexRoute
   '/update-payment/$bookingToken': typeof UpdatePaymentBookingTokenIndexRoute
@@ -178,6 +202,8 @@ export interface FileRoutesById {
   '/activity': typeof ActivityRoute
   '/login': typeof LoginRoute
   '/events/new': typeof EventsNewRoute
+  '/popups/new': typeof PopupsNewRoute
+  '/stay/$eventSlug': typeof StayEventSlugRoute
   '/tracker/$accessToken': typeof TrackerAccessTokenRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
   '/book/$eventSlug/$sectionSlug': typeof BookEventSlugSectionSlugRouteWithChildren
@@ -188,6 +214,7 @@ export interface FileRoutesById {
   '/events/$eventId/payments': typeof EventsEventIdPaymentsRoute
   '/events/$eventId/pricing': typeof EventsEventIdPricingRoute
   '/events/$eventId/settings': typeof EventsEventIdSettingsRoute
+  '/events/$eventId/tiers': typeof EventsEventIdTiersRoute
   '/update-payment/$bookingToken/confirmed': typeof UpdatePaymentBookingTokenConfirmedRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
   '/update-payment/$bookingToken/': typeof UpdatePaymentBookingTokenIndexRoute
@@ -201,6 +228,8 @@ export interface FileRouteTypes {
     | '/activity'
     | '/login'
     | '/events/new'
+    | '/popups/new'
+    | '/stay/$eventSlug'
     | '/tracker/$accessToken'
     | '/api/public/stripe-webhook'
     | '/book/$eventSlug/$sectionSlug'
@@ -211,6 +240,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/payments'
     | '/events/$eventId/pricing'
     | '/events/$eventId/settings'
+    | '/events/$eventId/tiers'
     | '/update-payment/$bookingToken/confirmed'
     | '/events/$eventId/'
     | '/update-payment/$bookingToken/'
@@ -222,6 +252,8 @@ export interface FileRouteTypes {
     | '/activity'
     | '/login'
     | '/events/new'
+    | '/popups/new'
+    | '/stay/$eventSlug'
     | '/tracker/$accessToken'
     | '/api/public/stripe-webhook'
     | '/book/$eventSlug/$sectionSlug'
@@ -232,6 +264,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/payments'
     | '/events/$eventId/pricing'
     | '/events/$eventId/settings'
+    | '/events/$eventId/tiers'
     | '/update-payment/$bookingToken/confirmed'
     | '/events/$eventId'
     | '/update-payment/$bookingToken'
@@ -243,6 +276,8 @@ export interface FileRouteTypes {
     | '/activity'
     | '/login'
     | '/events/new'
+    | '/popups/new'
+    | '/stay/$eventSlug'
     | '/tracker/$accessToken'
     | '/api/public/stripe-webhook'
     | '/book/$eventSlug/$sectionSlug'
@@ -253,6 +288,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/payments'
     | '/events/$eventId/pricing'
     | '/events/$eventId/settings'
+    | '/events/$eventId/tiers'
     | '/update-payment/$bookingToken/confirmed'
     | '/events/$eventId/'
     | '/update-payment/$bookingToken/'
@@ -265,6 +301,8 @@ export interface RootRouteChildren {
   ActivityRoute: typeof ActivityRoute
   LoginRoute: typeof LoginRoute
   EventsNewRoute: typeof EventsNewRoute
+  PopupsNewRoute: typeof PopupsNewRoute
+  StayEventSlugRoute: typeof StayEventSlugRoute
   TrackerAccessTokenRoute: typeof TrackerAccessTokenRoute
   ApiPublicStripeWebhookRoute: typeof ApiPublicStripeWebhookRoute
   BookEventSlugSectionSlugRoute: typeof BookEventSlugSectionSlugRouteWithChildren
@@ -275,6 +313,7 @@ export interface RootRouteChildren {
   EventsEventIdPaymentsRoute: typeof EventsEventIdPaymentsRoute
   EventsEventIdPricingRoute: typeof EventsEventIdPricingRoute
   EventsEventIdSettingsRoute: typeof EventsEventIdSettingsRoute
+  EventsEventIdTiersRoute: typeof EventsEventIdTiersRoute
   UpdatePaymentBookingTokenConfirmedRoute: typeof UpdatePaymentBookingTokenConfirmedRoute
   EventsEventIdIndexRoute: typeof EventsEventIdIndexRoute
   UpdatePaymentBookingTokenIndexRoute: typeof UpdatePaymentBookingTokenIndexRoute
@@ -311,6 +350,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrackerAccessTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stay/$eventSlug': {
+      id: '/stay/$eventSlug'
+      path: '/stay/$eventSlug'
+      fullPath: '/stay/$eventSlug'
+      preLoaderRoute: typeof StayEventSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/popups/new': {
+      id: '/popups/new'
+      path: '/popups/new'
+      fullPath: '/popups/new'
+      preLoaderRoute: typeof PopupsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/events/new': {
       id: '/events/new'
       path: '/events/new'
@@ -337,6 +390,13 @@ declare module '@tanstack/react-router' {
       path: '/update-payment/$bookingToken/confirmed'
       fullPath: '/update-payment/$bookingToken/confirmed'
       preLoaderRoute: typeof UpdatePaymentBookingTokenConfirmedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events/$eventId/tiers': {
+      id: '/events/$eventId/tiers'
+      path: '/events/$eventId/tiers'
+      fullPath: '/events/$eventId/tiers'
+      preLoaderRoute: typeof EventsEventIdTiersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/events/$eventId/settings': {
@@ -439,6 +499,8 @@ const rootRouteChildren: RootRouteChildren = {
   ActivityRoute: ActivityRoute,
   LoginRoute: LoginRoute,
   EventsNewRoute: EventsNewRoute,
+  PopupsNewRoute: PopupsNewRoute,
+  StayEventSlugRoute: StayEventSlugRoute,
   TrackerAccessTokenRoute: TrackerAccessTokenRoute,
   ApiPublicStripeWebhookRoute: ApiPublicStripeWebhookRoute,
   BookEventSlugSectionSlugRoute: BookEventSlugSectionSlugRouteWithChildren,
@@ -449,6 +511,7 @@ const rootRouteChildren: RootRouteChildren = {
   EventsEventIdPaymentsRoute: EventsEventIdPaymentsRoute,
   EventsEventIdPricingRoute: EventsEventIdPricingRoute,
   EventsEventIdSettingsRoute: EventsEventIdSettingsRoute,
+  EventsEventIdTiersRoute: EventsEventIdTiersRoute,
   UpdatePaymentBookingTokenConfirmedRoute:
     UpdatePaymentBookingTokenConfirmedRoute,
   EventsEventIdIndexRoute: EventsEventIdIndexRoute,
@@ -458,3 +521,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

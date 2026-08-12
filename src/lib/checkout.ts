@@ -11,6 +11,10 @@ export type CreateCheckoutSessionInput = {
   /** When set, creates a one-shot balance-payment session for the
    * already-deposit-paid booking instead of the full initial flow. */
   paymentType?: "balance";
+  /** Same-origin path Stripe should return the guest to
+   * (e.g. "/stay/<slug>" for pop-up weekends). Defaults to the
+   * wedding /book path when omitted. */
+  returnPath?: string;
 };
 
 /**

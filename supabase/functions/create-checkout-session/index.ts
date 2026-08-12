@@ -154,8 +154,16 @@ serve(async (req) => {
       sectionSlug,
       cotRequested = false,
       paymentType = null,
+      returnPath = null,
     } = data;
     parsedBookingId = bookingId;
+
+    // Optional same-origin return path (e.g. /stay/<slug> for pop-up
+    // weekends). Wedding flow sends nothing and keeps the /book default.
+    const safeReturnPath =
+      typeof returnPath === "string" && /^\/[a-zA-Z0-9\-_/]{1,120}$/.test(returnPath)
+        ? returnPath
+        : `/book/${eventSlug}/${sectionSlug}`;
 
     // ── BALANCE PAYMENT FLOW (early-pay / pay-now from reservation card) ──
     if (paymentType === "balance") {
@@ -240,7 +248,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           already_paid: true,
-          redirect_url: `${baseUrl}/book/${eventSlug}/${sectionSlug}?success=true`,
+          redirect_url: `${baseUrl}${safeReturnPath}?success=true`,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
@@ -361,8 +369,8 @@ serve(async (req) => {
     }
 
     const baseUrl = getAppBaseUrl(req);
-    const successUrl = `${baseUrl}/book/${eventSlug}/${sectionSlug}?success=true&session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${baseUrl}/book/${eventSlug}/${sectionSlug}?cancelled=true&session_id={CHECKOUT_SESSION_ID}`;
+    const successUrl = `${baseUrl}${safeReturnPath}?success=true&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${baseUrl}${safeReturnPath}?cancelled=true&session_id={CHECKOUT_SESSION_ID}`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",

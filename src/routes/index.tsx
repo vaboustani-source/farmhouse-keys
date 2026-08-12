@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { supabase, type LbEvent, type LbRoomSection } from "@/integrations/supabase/client";
 import { AdminShell, FillBar, StatusBadge, formatDate } from "@/components/lb/AdminShell";
 import { useAuth } from "@/lib/useAuth";
+import { useServerFn } from "@tanstack/react-start";
+import { listPopupEvents } from "@/lib/popup-admin.functions";
 
 export const Route = createFileRoute("/")({
   component: EventListPage,
@@ -17,11 +19,7 @@ function GuestOccupancy({ confirmed }: { confirmed: number }) {
   const capped = Math.min(confirmed, GUEST_CAPACITY);
   const pct = (capped / GUEST_CAPACITY) * 100;
   const isFull = confirmed >= GUEST_CAPACITY;
-  const barColor = isFull
-    ? "bg-primary"
-    : confirmed >= 20
-      ? "bg-accent"
-      : "bg-muted-foreground/40";
+  const barColor = isFull ? "bg-primary" : confirmed >= 20 ? "bg-accent" : "bg-muted-foreground/40";
   return (
     <div className="min-w-[140px] max-w-[180px]">
       <div className="flex items-center justify-between gap-2">
@@ -66,7 +64,9 @@ async function fetchEvents(): Promise<EventWithBlock[]> {
   // 1. Pull every planning-hub event.
   const { data: planningEvents, error: peErr } = await supabase
     .from("events")
-    .select("id, title, partner1_name, partner2_name, wedding_date, arrival_date, departure_date, status")
+    .select(
+      "id, title, partner1_name, partner2_name, wedding_date, arrival_date, departure_date, status",
+    )
     .order("wedding_date", { ascending: true, nullsFirst: false });
   if (peErr) throw peErr;
   if (!planningEvents?.length) return [];
@@ -170,13 +170,15 @@ function EventListPage() {
             setSort((prev) =>
               prev?.key === sortKey
                 ? { key: sortKey, dir: prev.dir === "asc" ? "desc" : "asc" }
-                : { key: sortKey, dir: "asc" }
+                : { key: sortKey, dir: "asc" },
             )
           }
           className="inline-flex items-center gap-1 uppercase tracking-[0.16em] hover:text-foreground transition-colors"
         >
           {label}
-          <ArrowUpDown className={`h-3 w-3 ${active ? "text-foreground" : "text-muted-foreground/40"}`} />
+          <ArrowUpDown
+            className={`h-3 w-3 ${active ? "text-foreground" : "text-muted-foreground/40"}`}
+          />
         </button>
       </th>
     );
@@ -223,7 +225,8 @@ function EventListPage() {
             <tbody>
               {sorted.map((e) => {
                 const activeSections = e.sections.filter((s) => s.is_active);
-                const couple = [e.partner1_name, e.partner2_name].filter(Boolean).join(" & ") || e.title;
+                const couple =
+                  [e.partner1_name, e.partner2_name].filter(Boolean).join(" & ") || e.title;
                 const isPending = ensureBlock.isPending && ensureBlock.variables === e.id;
                 return (
                   <tr key={e.id} className="border-b border-border last:border-0 hover:bg-muted/20">
@@ -271,11 +274,16 @@ function EventListPage() {
                     <td className="px-5 py-5 text-right">
                       {e.block ? (
                         <div className="flex items-center justify-end gap-2">
-                          {(e.block as LbEvent & { couple_access_token?: string }).couple_access_token && (
+                          {(e.block as LbEvent & { couple_access_token?: string })
+                            .couple_access_token && (
                             <button
                               onClick={() => {
-                                const token = (e.block as LbEvent & { couple_access_token?: string }).couple_access_token!;
-                                navigator.clipboard.writeText(`${window.location.origin}/tracker/${token}`);
+                                const token = (
+                                  e.block as LbEvent & { couple_access_token?: string }
+                                ).couple_access_token!;
+                                navigator.clipboard.writeText(
+                                  `${window.location.origin}/tracker/${token}`,
+                                );
                                 toast.success("Tracker link copied");
                               }}
                               title="Copy couple tracker link"
@@ -315,6 +323,138 @@ function EventListPage() {
           </table>
         </div>
       )}
+
+      {authReady && <PopupWeekendsPanel />}
     </AdminShell>
+  );
+}
+
+/* ── Pop-Up Weekends: public tier-based weekends, separate from wedding blocks ── */
+
+function PopupWeekendsPanel() {
+  const fetchPopups = useServerFn(listPopupEvents);
+  const { data, isLoading } = useQuery({
+    queryKey: ["popup_events_panel"],
+    queryFn: () => fetchPopups(),
+  });
+  const popups = data?.popups ?? [];
+
+  return (
+    <div className="mt-14">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h2 className="font-serif text-2xl sm:text-3xl font-medium text-foreground">
+            Pop-Up Weekends
+          </h2>
+          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+            Public tier-based weekends the whole world can book.
+          </p>
+        </div>
+        <Link
+          to="/popups/new"
+          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-[11px] uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
+        >
+          + New Pop-Up Weekend
+        </Link>
+      </div>
+
+      {isLoading ? (
+        <div className="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+          One moment…
+        </div>
+      ) : popups.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-card/60 p-10 text-center">
+          <p className="text-sm text-muted-foreground">
+            No pop-up weekends yet. Create one and the public booking page comes with it.
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+              <tr>
+                <th className="px-5 py-4 font-medium">Weekend</th>
+                <th className="px-5 py-4 font-medium">Dates</th>
+                <th className="px-5 py-4 font-medium">Tier Fill</th>
+                <th className="px-5 py-4 font-medium">Status</th>
+                <th className="px-5 py-4" />
+              </tr>
+            </thead>
+            <tbody>
+              {popups.map(
+                (p: {
+                  id: string;
+                  slug: string | null;
+                  wedding_name: string;
+                  status: string;
+                  check_in_date: string | null;
+                  check_out_date: string | null;
+                  sections: Array<{
+                    id: string;
+                    section_name: string;
+                    total_rooms: number;
+                    is_active: boolean;
+                    booked: number;
+                  }>;
+                }) => (
+                  <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                    <td className="px-5 py-5">
+                      <div className="font-serif text-lg text-foreground">{p.wedding_name}</div>
+                    </td>
+                    <td className="px-5 py-5 text-foreground/80">
+                      {formatDate(p.check_in_date)} → {formatDate(p.check_out_date)}
+                    </td>
+                    <td className="px-5 py-5">
+                      <div className="flex max-w-xs flex-col gap-1.5">
+                        {p.sections
+                          .filter((s) => s.is_active)
+                          .map((s) => (
+                            <div key={s.id} className="flex items-center gap-3">
+                              <span className="w-32 truncate text-xs text-muted-foreground">
+                                {s.section_name}
+                              </span>
+                              <FillBar filled={s.booked} total={s.total_rooms} className="flex-1" />
+                              <span className="w-10 text-right text-[11px] tabular-nums text-muted-foreground">
+                                {s.booked}/{s.total_rooms}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    </td>
+                    <td className="px-5 py-5">
+                      <StatusBadge status={p.status} />
+                    </td>
+                    <td className="px-5 py-5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {p.slug && (
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(
+                                `${window.location.origin}/stay/${p.slug}`,
+                              );
+                              toast.success("Public link copied — ready to share");
+                            }}
+                            className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
+                          >
+                            <Copy className="h-3 w-3" /> Link
+                          </button>
+                        )}
+                        <Link
+                          to="/events/$eventId"
+                          params={{ eventId: p.id }}
+                          className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-[11px] uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
+                        >
+                          Open <ArrowUpRight className="h-3 w-3" />
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                ),
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }

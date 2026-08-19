@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { fetchSessionConfirmation } from "@/lib/booking.functions";
 
 export const Route = createFileRoute("/book/$eventSlug/$sectionSlug/confirmation")({
@@ -21,7 +20,7 @@ const fmtDate = (d: string | null | undefined) =>
 type Bookings = Awaited<ReturnType<typeof fetchSessionConfirmation>>["bookings"];
 
 function ConfirmationPage() {
-  const fetcher = useServerFn(fetchSessionConfirmation);
+  const fetcher = fetchSessionConfirmation;
   const [bookings, setBookings] = useState<Bookings>([]);
   const [loading, setLoading] = useState(true);
   const [timedOut, setTimedOut] = useState(false);

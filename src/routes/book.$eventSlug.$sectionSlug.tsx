@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import {
   lookupBooking,
   lookupSecondaryGuest,
@@ -369,7 +368,7 @@ function ReviewStep({
   sectionSlug: string;
   onBack: () => void;
 }) {
-  const fetchAddons = useServerFn(getSectionAddons);
+  const fetchAddons = getSectionAddons;
 
   const [addons, setAddons] = useState<Addon[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -1128,7 +1127,7 @@ function ReservationCard({
     token: string | null;
     payer: string | null;
   }>({ token: r.paymentUpdateToken, payer: r.payerName });
-  const fetchExtras = useServerFn(getReservationExtras);
+  const fetchExtras = getReservationExtras;
 
   useEffect(() => {
     if (

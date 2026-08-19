@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import {
   getPopupEvent,
   createPopupBookingFn,
@@ -72,7 +71,7 @@ type Step =
 
 function PopupWeekendPage() {
   const { eventSlug } = Route.useParams();
-  const fetchEvent = useServerFn(getPopupEvent);
+  const fetchEvent = getPopupEvent;
 
   const [payload, setPayload] = useState<PopupEventPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -413,7 +412,7 @@ function DetailsStep({
   onSoldOut: () => void;
   onReserved: (bookingId: string, guestName: string, guestEmail: string) => void;
 }) {
-  const createBooking = useServerFn(createPopupBookingFn);
+  const createBooking = createPopupBookingFn;
   const ev = payload.event!;
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -563,7 +562,7 @@ function PopupReviewStep({
   guestName: string;
   onBack: () => void;
 }) {
-  const fetchAddons = useServerFn(getSectionAddons);
+  const fetchAddons = getSectionAddons;
   const ev = payload.event!;
 
   const [addons, setAddons] = useState<Addon[]>([]);
@@ -783,7 +782,7 @@ function PopupConfirmation({
   eventSlug: string;
   payload: PopupEventPayload | null;
 }) {
-  const fetchConfirmation = useServerFn(fetchSessionConfirmation);
+  const fetchConfirmation = fetchSessionConfirmation;
   const [loading, setLoading] = useState(true);
   const [timedOut, setTimedOut] = useState(false);
   const [booking, setBooking] = useState<

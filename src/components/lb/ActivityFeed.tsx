@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import {
   AlertCircle,
   CreditCard,
@@ -76,8 +75,8 @@ export function ActivityFeed({
   eventId?: string;
   showEventTag?: boolean;
 }) {
-  const fetchActivity = useServerFn(listActivity);
-  const fetchEvents = useServerFn(listEventsForFilter);
+  const fetchActivity = listActivity;
+  const fetchEvents = listEventsForFilter;
   const qc = useQueryClient();
 
   const [category, setCategory] = useState<Category>("all");

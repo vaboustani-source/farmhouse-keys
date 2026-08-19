@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { AdminShell } from "@/components/lb/AdminShell";
 import { createPopupEvent } from "@/lib/popup-admin.functions";
 import { toast } from "sonner";
@@ -11,7 +10,7 @@ export const Route = createFileRoute("/popups/new")({
 
 function NewPopupPage() {
   const navigate = useNavigate();
-  const create = useServerFn(createPopupEvent);
+  const create = createPopupEvent;
   const [title, setTitle] = useState("");
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");

@@ -1,19 +1,26 @@
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { logActivity } from "@/lib/activity-log.server";
+import { supabase } from "@/integrations/supabase/client";
+import { logActivity } from "@/lib/activity-log-client";
 
+/* Admin pop-up management runs in the browser under the signed-in admin's
+   session — the same RLS-backed pattern as the rest of the wedding admin.
+   The previous createServerFn + supabaseAdmin path hung forever on Lovable's
+   published hosting, which never provides the service-role key. Pop-up
+   columns/tables are newer than the generated Database types — use an
+   untyped handle for those queries until types are regenerated. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const admin = supabaseAdmin as any;
+const sb = supabase as any;
 
-async function assertAdmin(userId: string) {
-  const { data: u } = await supabaseAdmin
+async function assertAdmin(): Promise<string> {
+  const { data: auth } = await supabase.auth.getUser();
+  const userId = auth.user?.id;
+  if (!userId) throw new Error("Forbidden");
+  const { data: u } = await supabase
     .from("users")
     .select("role")
     .eq("id", userId)
     .maybeSingle();
   if (u?.role !== "admin") throw new Error("Forbidden");
+  return userId;
 }
 
 function slugify(s: string) {
@@ -97,327 +104,314 @@ const DEFAULT_ITINERARY = [
 
 const DEFAULT_ADDONS = ["Late Checkout", "Welcome Amenity Package", "Private Fireside Setup"];
 
-export const createPopupEvent = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator(
-    z.object({
-      title: z.string().min(1).max(140),
-      checkInDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      checkOutDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      heroIntro: z.string().max(2000).optional(),
-    }).parse,
-  )
-  .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+export async function createPopupEvent({
+  data,
+}: {
+  data: {
+    title: string;
+    checkInDate: string;
+    checkOutDate: string;
+    heroIntro?: string;
+  };
+}) {
+  await assertAdmin();
 
-    const nights = Math.max(
-      1,
-      Math.round(
-        (new Date(data.checkOutDate + "T00:00:00").getTime() -
-          new Date(data.checkInDate + "T00:00:00").getTime()) /
-          86400000,
-      ),
-    );
+  const nights = Math.max(
+    1,
+    Math.round(
+      (new Date(data.checkOutDate + "T00:00:00").getTime() -
+        new Date(data.checkInDate + "T00:00:00").getTime()) /
+        86400000,
+    ),
+  );
 
-    // Unique slug
-    const base = slugify(data.title) || "popup-weekend";
-    let slug = base;
-    for (let i = 2; i <= 20; i++) {
-      const { data: clash } = await admin
-        .from("lb_events")
-        .select("id")
-        .eq("slug", slug)
-        .maybeSingle();
-      if (!clash) break;
-      slug = `${base}-${i}`;
-    }
-
-    const { data: ev, error: evErr } = await admin
+  // Unique slug
+  const base = slugify(data.title) || "popup-weekend";
+  let slug = base;
+  for (let i = 2; i <= 20; i++) {
+    const { data: clash } = await sb
       .from("lb_events")
-      .insert({
-        event_type: "popup",
-        wedding_name: data.title,
-        couple_names: data.title,
-        hero_intro: data.heroIntro ?? null,
-        slug,
-        status: "draft",
-        check_in_date: data.checkInDate,
-        check_out_date: data.checkOutDate,
-        nights,
-      })
-      .select("id, slug")
-      .single();
-    if (evErr || !ev) {
-      console.error("createPopupEvent insert failed", evErr);
-      throw new Error("Could not create the pop-up weekend");
-    }
+      .select("id")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (!clash) break;
+    slug = `${base}-${i}`;
+  }
 
-    const idHash = String(ev.id).replace(/-/g, "");
-    for (let i = 0; i < DEFAULT_TIERS.length; i++) {
-      const t = DEFAULT_TIERS[i];
-      const selling = t.promo_package_price ?? t.regular_package_price;
-      const nightly = Math.round((selling / nights) * 100) / 100;
-      const { data: section, error: sErr } = await admin
-        .from("lb_room_sections")
-        .insert({
-          event_id: ev.id,
-          section_name: t.section_name,
-          tagline: t.tagline,
-          regular_package_price: t.regular_package_price,
-          promo_package_price: t.promo_package_price,
-          promo_active: true,
-          total_rooms: t.total_rooms,
-          sort_order: i,
-          nights,
-          is_active: true,
-          payment_schedule: "full",
-          guest_nightly_rate: nightly,
-          price_per_night: nightly,
-          internal_nightly_rate: nightly,
-          couple_contribution: 0,
-          resort_fee_percent: 0,
-          processing_fee_percent: 0,
-          tax_percent: 8,
-          booking_link_slug: `${slugify(t.section_name)}-${idHash}`,
-        })
-        .select("id")
-        .single();
-      if (sErr || !section) {
-        console.error("popup tier insert failed", sErr);
-        throw new Error("Could not create tiers");
-      }
-      for (const addon of DEFAULT_ADDONS) {
-        await admin.from("lb_section_addons").insert({
-          event_id: ev.id,
-          section_id: section.id,
-          addon_name: addon,
-          addon_price: 0,
-          addon_type: "per_stay",
-          is_active: false,
-        });
-      }
-    }
+  const { data: ev, error: evErr } = await sb
+    .from("lb_events")
+    .insert({
+      event_type: "popup",
+      wedding_name: data.title,
+      couple_names: data.title,
+      hero_intro: data.heroIntro ?? null,
+      slug,
+      status: "draft",
+      check_in_date: data.checkInDate,
+      check_out_date: data.checkOutDate,
+      nights,
+    })
+    .select("id, slug")
+    .single();
+  if (evErr || !ev) {
+    console.error("createPopupEvent insert failed", evErr);
+    throw new Error("Could not create the pop-up weekend");
+  }
 
-    const rows = DEFAULT_ITINERARY.map((it, idx) => ({
-      event_id: ev.id,
-      sort_order: idx,
-      note: null,
-      ...it,
-    }));
-    const { error: itErr } = await admin.from("lb_itinerary_items").insert(rows);
-    if (itErr) console.error("itinerary seed failed", itErr);
-
-    await logActivity({
-      eventId: ev.id,
-      actor: "admin",
-      action: "event.popup_created",
-      label: `Pop-up weekend created — ${data.title}`,
-      metadata: { slug: ev.slug },
-    });
-
-    return { eventId: ev.id as string, slug: ev.slug as string };
-  });
-
-export const updatePopupTier = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator(
-    z.object({
-      sectionId: z.string().uuid(),
-      sectionName: z.string().min(1).max(120).optional(),
-      tagline: z.string().max(300).nullable().optional(),
-      regularPackagePrice: z.number().min(0).optional(),
-      promoPackagePrice: z.number().min(0).nullable().optional(),
-      promoActive: z.boolean().optional(),
-      totalRooms: z.number().int().min(0).max(40).optional(),
-      isActive: z.boolean().optional(),
-    }).parse,
-  )
-  .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
-
-    const { data: current } = await admin
-      .from("lb_room_sections")
-      .select(
-        "id, event_id, nights, regular_package_price, promo_package_price, promo_active, section_name",
-      )
-      .eq("id", data.sectionId)
-      .single();
-    if (!current) throw new Error("Tier not found");
-
-    const patch: Record<string, unknown> = {};
-    if (data.sectionName !== undefined) patch.section_name = data.sectionName;
-    if (data.tagline !== undefined) patch.tagline = data.tagline;
-    if (data.regularPackagePrice !== undefined)
-      patch.regular_package_price = data.regularPackagePrice;
-    if (data.promoPackagePrice !== undefined) patch.promo_package_price = data.promoPackagePrice;
-    if (data.promoActive !== undefined) patch.promo_active = data.promoActive;
-    if (data.totalRooms !== undefined) patch.total_rooms = data.totalRooms;
-    if (data.isActive !== undefined) patch.is_active = data.isActive;
-
-    // Keep the charged price in lockstep with the displayed package price.
-    const regular = data.regularPackagePrice ?? Number(current.regular_package_price ?? 0);
-    const promo =
-      data.promoPackagePrice !== undefined
-        ? data.promoPackagePrice
-        : current.promo_package_price == null
-          ? null
-          : Number(current.promo_package_price);
-    const promoActive = data.promoActive ?? !!current.promo_active;
-    const selling = promoActive && promo != null ? promo : regular;
-    const nights = Number(current.nights) || 2;
+  const idHash = String(ev.id).replace(/-/g, "");
+  for (let i = 0; i < DEFAULT_TIERS.length; i++) {
+    const t = DEFAULT_TIERS[i];
+    const selling = t.promo_package_price ?? t.regular_package_price;
     const nightly = Math.round((selling / nights) * 100) / 100;
-    patch.guest_nightly_rate = nightly;
-    patch.price_per_night = nightly;
-
-    const { error } = await admin.from("lb_room_sections").update(patch).eq("id", data.sectionId);
-    if (error) {
-      console.error("updatePopupTier failed", error);
-      throw new Error("Could not save tier");
+    const { data: section, error: sErr } = await sb
+      .from("lb_room_sections")
+      .insert({
+        event_id: ev.id,
+        section_name: t.section_name,
+        tagline: t.tagline,
+        regular_package_price: t.regular_package_price,
+        promo_package_price: t.promo_package_price,
+        promo_active: true,
+        total_rooms: t.total_rooms,
+        sort_order: i,
+        nights,
+        is_active: true,
+        payment_schedule: "full",
+        guest_nightly_rate: nightly,
+        price_per_night: nightly,
+        internal_nightly_rate: nightly,
+        couple_contribution: 0,
+        resort_fee_percent: 0,
+        processing_fee_percent: 0,
+        tax_percent: 8,
+        booking_link_slug: `${slugify(t.section_name)}-${idHash}`,
+      })
+      .select("id")
+      .single();
+    if (sErr || !section) {
+      console.error("popup tier insert failed", sErr);
+      throw new Error("Could not create tiers");
     }
+    for (const addon of DEFAULT_ADDONS) {
+      await sb.from("lb_section_addons").insert({
+        event_id: ev.id,
+        section_id: section.id,
+        addon_name: addon,
+        addon_price: 0,
+        addon_type: "per_stay",
+        is_active: false,
+      });
+    }
+  }
 
-    await logActivity({
-      eventId: current.event_id,
-      actor: "admin",
-      action: "pricing.popup_tier_updated",
-      label: `Tier updated — ${data.sectionName ?? current.section_name}`,
-      metadata: { selling_price: selling, promo_active: promoActive },
-    });
+  const rows = DEFAULT_ITINERARY.map((it, idx) => ({
+    event_id: ev.id,
+    sort_order: idx,
+    note: null,
+    ...it,
+  }));
+  const { error: itErr } = await sb.from("lb_itinerary_items").insert(rows);
+  if (itErr) console.error("itinerary seed failed", itErr);
 
-    return { ok: true, sellingPrice: selling };
+  await logActivity({
+    eventId: ev.id,
+    actor: "admin",
+    action: "event.popup_created",
+    label: `Pop-up weekend created — ${data.title}`,
+    metadata: { slug: ev.slug },
   });
 
-const ItineraryRow = z.object({
-  dayNumber: z.number().int().min(1).max(7),
-  timeLabel: z.string().max(60).nullable(),
-  activity: z.string().min(1).max(240),
-  note: z.string().max(400).nullable(),
-  tier1: z.boolean(),
-  tier2: z.boolean(),
-  tier3: z.boolean(),
-});
+  return { eventId: ev.id as string, slug: ev.slug as string };
+}
 
-export const savePopupItinerary = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator(
-    z.object({
-      eventId: z.string().uuid(),
-      items: z.array(ItineraryRow).max(100),
-    }).parse,
-  )
-  .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+export async function updatePopupTier({
+  data,
+}: {
+  data: {
+    sectionId: string;
+    sectionName?: string;
+    tagline?: string | null;
+    regularPackagePrice?: number;
+    promoPackagePrice?: number | null;
+    promoActive?: boolean;
+    totalRooms?: number;
+    isActive?: boolean;
+  };
+}) {
+  await assertAdmin();
 
-    const { error: delErr } = await admin
-      .from("lb_itinerary_items")
-      .delete()
-      .eq("event_id", data.eventId);
-    if (delErr) {
-      console.error("itinerary delete failed", delErr);
+  const { data: current } = await sb
+    .from("lb_room_sections")
+    .select(
+      "id, event_id, nights, regular_package_price, promo_package_price, promo_active, section_name",
+    )
+    .eq("id", data.sectionId)
+    .single();
+  if (!current) throw new Error("Tier not found");
+
+  const patch: Record<string, unknown> = {};
+  if (data.sectionName !== undefined) patch.section_name = data.sectionName;
+  if (data.tagline !== undefined) patch.tagline = data.tagline;
+  if (data.regularPackagePrice !== undefined)
+    patch.regular_package_price = data.regularPackagePrice;
+  if (data.promoPackagePrice !== undefined) patch.promo_package_price = data.promoPackagePrice;
+  if (data.promoActive !== undefined) patch.promo_active = data.promoActive;
+  if (data.totalRooms !== undefined) patch.total_rooms = data.totalRooms;
+  if (data.isActive !== undefined) patch.is_active = data.isActive;
+
+  // Keep the charged price in lockstep with the displayed package price.
+  const regular = data.regularPackagePrice ?? Number(current.regular_package_price ?? 0);
+  const promo =
+    data.promoPackagePrice !== undefined
+      ? data.promoPackagePrice
+      : current.promo_package_price == null
+        ? null
+        : Number(current.promo_package_price);
+  const promoActive = data.promoActive ?? !!current.promo_active;
+  const selling = promoActive && promo != null ? promo : regular;
+  const nights = Number(current.nights) || 2;
+  const nightly = Math.round((selling / nights) * 100) / 100;
+  patch.guest_nightly_rate = nightly;
+  patch.price_per_night = nightly;
+
+  const { error } = await sb.from("lb_room_sections").update(patch).eq("id", data.sectionId);
+  if (error) {
+    console.error("updatePopupTier failed", error);
+    throw new Error("Could not save tier");
+  }
+
+  await logActivity({
+    eventId: current.event_id,
+    actor: "admin",
+    action: "pricing.popup_tier_updated",
+    label: `Tier updated — ${data.sectionName ?? current.section_name}`,
+    metadata: { selling_price: selling, promo_active: promoActive },
+  });
+
+  return { ok: true, sellingPrice: selling };
+}
+
+export type PopupItineraryInput = {
+  dayNumber: number;
+  timeLabel: string | null;
+  activity: string;
+  note: string | null;
+  tier1: boolean;
+  tier2: boolean;
+  tier3: boolean;
+};
+
+export async function savePopupItinerary({
+  data,
+}: {
+  data: { eventId: string; items: PopupItineraryInput[] };
+}) {
+  await assertAdmin();
+
+  const { error: delErr } = await sb
+    .from("lb_itinerary_items")
+    .delete()
+    .eq("event_id", data.eventId);
+  if (delErr) {
+    console.error("itinerary delete failed", delErr);
+    throw new Error("Could not save itinerary");
+  }
+  if (data.items.length > 0) {
+    const rows = data.items.map((it, idx) => ({
+      event_id: data.eventId,
+      day_number: it.dayNumber,
+      time_label: it.timeLabel,
+      activity: it.activity,
+      note: it.note,
+      tier1_included: it.tier1,
+      tier2_included: it.tier2,
+      tier3_included: it.tier3,
+      sort_order: idx,
+    }));
+    const { error: insErr } = await sb.from("lb_itinerary_items").insert(rows);
+    if (insErr) {
+      console.error("itinerary insert failed", insErr);
       throw new Error("Could not save itinerary");
     }
-    if (data.items.length > 0) {
-      const rows = data.items.map((it, idx) => ({
-        event_id: data.eventId,
-        day_number: it.dayNumber,
-        time_label: it.timeLabel,
-        activity: it.activity,
-        note: it.note,
-        tier1_included: it.tier1,
-        tier2_included: it.tier2,
-        tier3_included: it.tier3,
-        sort_order: idx,
-      }));
-      const { error: insErr } = await admin.from("lb_itinerary_items").insert(rows);
-      if (insErr) {
-        console.error("itinerary insert failed", insErr);
-        throw new Error("Could not save itinerary");
-      }
-    }
+  }
 
-    await logActivity({
-      eventId: data.eventId,
-      actor: "admin",
-      action: "event.popup_itinerary_updated",
-      label: `Itinerary updated (${data.items.length} items)`,
-    });
-
-    return { ok: true };
+  await logActivity({
+    eventId: data.eventId,
+    actor: "admin",
+    action: "event.popup_itinerary_updated",
+    label: `Itinerary updated (${data.items.length} items)`,
   });
 
-export const updatePopupEventDetails = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator(
-    z.object({
-      eventId: z.string().uuid(),
-      title: z.string().min(1).max(140).optional(),
-      heroIntro: z.string().max(2000).nullable().optional(),
-    }).parse,
-  )
-  .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
-    const patch: Record<string, unknown> = {};
-    if (data.title !== undefined) {
-      patch.wedding_name = data.title;
-      patch.couple_names = data.title;
-    }
-    if (data.heroIntro !== undefined) patch.hero_intro = data.heroIntro;
-    if (Object.keys(patch).length === 0) return { ok: true };
-    const { error } = await admin.from("lb_events").update(patch).eq("id", data.eventId);
-    if (error) {
-      console.error("updatePopupEventDetails failed", error);
-      throw new Error("Could not save");
-    }
-    return { ok: true };
-  });
+  return { ok: true };
+}
+
+export async function updatePopupEventDetails({
+  data,
+}: {
+  data: { eventId: string; title?: string; heroIntro?: string | null };
+}) {
+  await assertAdmin();
+  const patch: Record<string, unknown> = {};
+  if (data.title !== undefined) {
+    patch.wedding_name = data.title;
+    patch.couple_names = data.title;
+  }
+  if (data.heroIntro !== undefined) patch.hero_intro = data.heroIntro;
+  if (Object.keys(patch).length === 0) return { ok: true };
+  const { error } = await sb.from("lb_events").update(patch).eq("id", data.eventId);
+  if (error) {
+    console.error("updatePopupEventDetails failed", error);
+    throw new Error("Could not save");
+  }
+  return { ok: true };
+}
 
 /** Admin homepage panel: all popup events with fill counts. */
-export const listPopupEvents = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertAdmin(context.userId);
-    const { data: events } = await admin
-      .from("lb_events")
-      .select("id, slug, wedding_name, status, check_in_date, check_out_date, nights")
-      .eq("event_type", "popup")
-      .order("check_in_date", { ascending: true });
-    if (!events?.length) return { popups: [] };
+export async function listPopupEvents() {
+  await assertAdmin();
+  const { data: events } = await sb
+    .from("lb_events")
+    .select("id, slug, wedding_name, status, check_in_date, check_out_date, nights")
+    .eq("event_type", "popup")
+    .order("check_in_date", { ascending: true });
+  if (!events?.length) return { popups: [] };
 
-    const ids = events.map((e: { id: string }) => e.id);
-    const [{ data: sections }, { data: bookings }] = await Promise.all([
-      admin
-        .from("lb_room_sections")
-        .select("id, event_id, section_name, total_rooms, is_active, sort_order")
-        .in("event_id", ids)
-        .order("sort_order"),
-      admin
-        .from("lb_bookings")
-        .select("event_id, section_id, payment_status, hold_expires_at, removed")
-        .in("event_id", ids),
-    ]);
+  const ids = events.map((e: { id: string }) => e.id);
+  const [{ data: sections }, { data: bookings }] = await Promise.all([
+    sb
+      .from("lb_room_sections")
+      .select("id, event_id, section_name, total_rooms, is_active, sort_order")
+      .in("event_id", ids)
+      .order("sort_order"),
+    sb
+      .from("lb_bookings")
+      .select("event_id, section_id, payment_status, hold_expires_at, removed")
+      .in("event_id", ids),
+  ]);
 
-    const now = Date.now();
-    const bySection: Record<string, number> = {};
-    for (const b of bookings ?? []) {
-      if (b.removed === true) continue;
-      const held =
-        b.payment_status === "paid" ||
-        b.payment_status === "deposit_paid" ||
-        b.payment_status === "covered" ||
-        (b.payment_status === "pending" &&
-          b.hold_expires_at &&
-          new Date(b.hold_expires_at).getTime() > now);
-      if (held) bySection[b.section_id] = (bySection[b.section_id] ?? 0) + 1;
-    }
+  const now = Date.now();
+  const bySection: Record<string, number> = {};
+  for (const b of bookings ?? []) {
+    if (b.removed === true) continue;
+    const held =
+      b.payment_status === "paid" ||
+      b.payment_status === "deposit_paid" ||
+      b.payment_status === "covered" ||
+      (b.payment_status === "pending" &&
+        b.hold_expires_at &&
+        new Date(b.hold_expires_at).getTime() > now);
+    if (held) bySection[b.section_id] = (bySection[b.section_id] ?? 0) + 1;
+  }
 
-    return {
-      popups: events.map((e: Record<string, unknown>) => ({
-        ...e,
-        sections: (sections ?? [])
-          .filter((s: { event_id: string }) => s.event_id === e.id)
-          .map((s: Record<string, unknown>) => ({
-            ...s,
-            booked: bySection[s.id as string] ?? 0,
-          })),
-      })),
-    };
-  });
+  return {
+    popups: events.map((e: Record<string, unknown>) => ({
+      ...e,
+      sections: (sections ?? [])
+        .filter((s: { event_id: string }) => s.event_id === e.id)
+        .map((s: Record<string, unknown>) => ({
+          ...s,
+          booked: bySection[s.id as string] ?? 0,
+        })),
+    })),
+  };
+}

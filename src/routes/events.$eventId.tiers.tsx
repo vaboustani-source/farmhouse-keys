@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { AdminShell } from "@/components/lb/AdminShell";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -208,7 +207,7 @@ function HeroIntroEditor({
   initial: string;
   onSaved: () => void;
 }) {
-  const save = useServerFn(updatePopupEventDetails);
+  const save = updatePopupEventDetails;
   const [value, setValue] = useState(initial);
   const [saving, setSaving] = useState(false);
   useEffect(() => setValue(initial), [initial]);
@@ -248,7 +247,7 @@ function HeroIntroEditor({
 }
 
 function TierEditor({ tier, onSaved }: { tier: TierRow; onSaved: () => void }) {
-  const save = useServerFn(updatePopupTier);
+  const save = updatePopupTier;
   const [name, setName] = useState(tier.section_name);
   const [tagline, setTagline] = useState(tier.tagline ?? "");
   const [regular, setRegular] = useState(String(tier.regular_package_price ?? ""));
@@ -395,7 +394,7 @@ function ItineraryEditor({
   initial: (ItineraryRowT & { id: string })[];
   onSaved: () => void;
 }) {
-  const save = useServerFn(savePopupItinerary);
+  const save = savePopupItinerary;
   const [rows, setRows] = useState<ItineraryRowT[]>(initial);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);

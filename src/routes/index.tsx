@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { supabase, type LbEvent, type LbRoomSection } from "@/integrations/supabase/client";
 import { AdminShell, FillBar, StatusBadge, formatDate } from "@/components/lb/AdminShell";
 import { useAuth } from "@/lib/useAuth";
-import { useServerFn } from "@tanstack/react-start";
 import { listPopupEvents } from "@/lib/popup-admin.functions";
 
 export const Route = createFileRoute("/")({
@@ -332,7 +331,7 @@ function EventListPage() {
 /* ── Pop-Up Weekends: public tier-based weekends, separate from wedding blocks ── */
 
 function PopupWeekendsPanel() {
-  const fetchPopups = useServerFn(listPopupEvents);
+  const fetchPopups = listPopupEvents;
   const { data, isLoading } = useQuery({
     queryKey: ["popup_events_panel"],
     queryFn: () => fetchPopups(),

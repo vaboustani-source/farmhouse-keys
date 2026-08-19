@@ -177,7 +177,8 @@ export async function createPopupEvent({
         nights,
         is_active: true,
         payment_schedule: "full",
-        guest_nightly_rate: nightly,
+        // guest_nightly_rate is a generated column:
+        // GREATEST(internal_nightly_rate - couple_contribution, 0)
         price_per_night: nightly,
         internal_nightly_rate: nightly,
         couple_contribution: 0,
@@ -271,7 +272,8 @@ export async function updatePopupTier({
   const selling = promoActive && promo != null ? promo : regular;
   const nights = Number(current.nights) || 2;
   const nightly = Math.round((selling / nights) * 100) / 100;
-  patch.guest_nightly_rate = nightly;
+  // guest_nightly_rate is generated from internal_nightly_rate — never set directly.
+  patch.internal_nightly_rate = nightly;
   patch.price_per_night = nightly;
 
   const { error } = await sb.from("lb_room_sections").update(patch).eq("id", data.sectionId);

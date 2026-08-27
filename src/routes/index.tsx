@@ -1,3 +1,4 @@
+import { publicUrl } from "@/lib/public-url";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -280,9 +281,7 @@ function EventListPage() {
                                 const token = (
                                   e.block as LbEvent & { couple_access_token?: string }
                                 ).couple_access_token!;
-                                navigator.clipboard.writeText(
-                                  `${window.location.origin}/tracker/${token}`,
-                                );
+                                navigator.clipboard.writeText(publicUrl(`/tracker/${token}`));
                                 toast.success("Tracker link copied");
                               }}
                               title="Copy couple tracker link"
@@ -428,9 +427,7 @@ function PopupWeekendsPanel() {
                         {p.slug && (
                           <button
                             onClick={() => {
-                              navigator.clipboard.writeText(
-                                `${window.location.origin}/stay/${p.slug}`,
-                              );
+                              navigator.clipboard.writeText(publicUrl(`/stay/${p.slug}`));
                               toast.success("Public link copied — ready to share");
                             }}
                             className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] uppercase tracking-wider text-muted-foreground hover:text-foreground"

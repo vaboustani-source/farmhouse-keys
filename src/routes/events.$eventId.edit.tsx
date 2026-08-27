@@ -1,3 +1,4 @@
+import { publicUrl } from "@/lib/public-url";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -299,7 +300,7 @@ function SectionCard({
 
   const bookingUrl =
     local.booking_link_slug && event.slug
-      ? `${typeof window !== "undefined" ? window.location.origin : ""}/book/${event.slug}/${local.booking_link_slug}`
+      ? publicUrl(`/book/${event.slug}/${local.booking_link_slug}`)
       : null;
 
   const copyLink = async () => {

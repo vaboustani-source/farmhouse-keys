@@ -1,3 +1,4 @@
+import { publicUrl } from "@/lib/public-url";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Download, Pencil, Receipt, RefreshCw, Users, X } from "lucide-react";
@@ -68,7 +69,7 @@ function EventDetailPage() {
 
   const copyLink = (slug: string | null) => {
     if (!slug || !event?.slug) return;
-    const url = `${window.location.origin}/book/${event.slug}/${slug}`;
+    const url = publicUrl(`/book/${event.slug}/${slug}`);
     navigator.clipboard.writeText(url);
     toast.success("Link copied — ready to send");
   };
@@ -89,7 +90,7 @@ function EventDetailPage() {
 
   const trackerUrl =
     typeof window !== "undefined" && (event as LbEvent & { couple_access_token?: string }).couple_access_token
-      ? `${window.location.origin}/tracker/${(event as LbEvent & { couple_access_token?: string }).couple_access_token}`
+      ? publicUrl(`/tracker/${(event as LbEvent & { couple_access_token?: string }).couple_access_token}`)
       : null;
 
   const copyTracker = () => {
@@ -146,7 +147,7 @@ function EventDetailPage() {
               {event.slug && (
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}/stay/${event.slug}`);
+                    navigator.clipboard.writeText(publicUrl(`/stay/${event.slug}`));
                     toast.success("Public link copied — ready to share");
                   }}
                   className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
@@ -231,7 +232,7 @@ function EventDetailPage() {
           const filled = bookings.filter((b) => b.section_id === s.id && isConfirmed(b)).length;
           const url =
             s.booking_link_slug && event.slug
-              ? `${window.location.origin}/book/${event.slug}/${s.booking_link_slug}`
+              ? publicUrl(`/book/${event.slug}/${s.booking_link_slug}`)
               : null;
           return (
             <div key={s.id} className="rounded-lg border border-border bg-card p-6">

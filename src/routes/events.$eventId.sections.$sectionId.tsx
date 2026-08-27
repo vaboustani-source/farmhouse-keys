@@ -1,3 +1,4 @@
+import { publicUrl } from "@/lib/public-url";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useState, type ReactNode } from "react";
@@ -435,7 +436,7 @@ function SectionBookingsPage() {
                           <button
                             type="button"
                             onClick={async () => {
-                              const url = `${window.location.origin}/update-payment/${b.payment_update_token}`;
+                              const url = publicUrl(`/update-payment/${b.payment_update_token}`);
                               try {
                                 await navigator.clipboard.writeText(url);
                                 toast.success("Payment update link copied");

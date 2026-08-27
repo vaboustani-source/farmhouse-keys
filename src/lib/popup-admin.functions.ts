@@ -228,6 +228,7 @@ export async function updatePopupTier({
     promoPackagePrice?: number | null;
     promoActive?: boolean;
     totalRooms?: number;
+    displayStockStart?: number | null;
     isActive?: boolean;
   };
 }) {
@@ -250,6 +251,7 @@ export async function updatePopupTier({
   if (data.promoPackagePrice !== undefined) patch.promo_package_price = data.promoPackagePrice;
   if (data.promoActive !== undefined) patch.promo_active = data.promoActive;
   if (data.totalRooms !== undefined) patch.total_rooms = data.totalRooms;
+  if (data.displayStockStart !== undefined) patch.display_stock_start = data.displayStockStart;
   if (data.isActive !== undefined) patch.is_active = data.isActive;
 
   // Keep the charged price in lockstep with the displayed package price.

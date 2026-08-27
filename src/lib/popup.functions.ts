@@ -18,6 +18,7 @@ export type PopupTier = {
   selling_price: number;
   total_rooms: number;
   remaining: number;
+  show_scarcity: boolean;
   nights: number;
   booking_link_slug: string | null;
   sort_order: number;
@@ -108,6 +109,10 @@ export async function createPopupBookingFn({
     guest2Name?: string;
     guestEmail: string;
     guestPhone: string;
+    addressLine1: string;
+    addressCity: string;
+    addressState: string;
+    addressZip: string;
   };
 }): Promise<PopupBookingResult> {
   const { data: result, error } = await sb.rpc("create_popup_booking", {
@@ -117,6 +122,11 @@ export async function createPopupBookingFn({
     p_guest_email: data.guestEmail,
     p_guest_phone: data.guestPhone,
     p_guest2_name: data.guest2Name ?? null,
+    p_address_line1: data.addressLine1,
+    p_address_line2: null,
+    p_address_city: data.addressCity,
+    p_address_state: data.addressState,
+    p_address_zip: data.addressZip,
   });
   if (error) {
     const msg = String(error.message ?? "");

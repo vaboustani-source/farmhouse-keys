@@ -315,6 +315,7 @@ export interface DepositConfirmedEmailProps {
   addonsSelected?: { name: string; price: number }[];
   coveredGuestName?: string;
   coveredGuestSection?: string;
+  cancellationPolicy?: string;
 }
 
 export function depositConfirmedEmail(p: DepositConfirmedEmailProps): { subject: string; html: string } {
@@ -358,7 +359,7 @@ export function depositConfirmedEmail(p: DepositConfirmedEmailProps): { subject:
     ${goldRule()}
 
     <p style="margin:0 0 8px;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#9A9188;">CANCELLATION POLICY</p>
-    <p style="margin:0 0 20px;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.7;color:#9A9188;font-weight:300;">Cancellation is possible up to 45 days prior to the first check-in date of your stay. After that time, the reservation is fully non-refundable.</p>
+    <p style="margin:0 0 20px;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.7;color:#9A9188;font-weight:300;">${p.cancellationPolicy ?? "Cancellation is possible up to 45 days prior to the first check-in date of your stay. After that time, the reservation is fully non-refundable."}</p>
 
     ${body('Your planning team will be in touch with arrival details as the weekend approaches.')}
   `);
@@ -384,6 +385,7 @@ export interface PaidConfirmedEmailProps {
   addonsSelected?: { name: string; price: number }[];
   coveredGuestName?: string;
   coveredGuestSection?: string;
+  cancellationPolicy?: string;
 }
 
 export function paidConfirmedEmail(p: PaidConfirmedEmailProps): { subject: string; html: string } {
@@ -425,7 +427,7 @@ export function paidConfirmedEmail(p: PaidConfirmedEmailProps): { subject: strin
     ${goldRule()}
 
     <p style="margin:0 0 8px;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#9A9188;">CANCELLATION POLICY</p>
-    <p style="margin:0 0 20px;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.7;color:#9A9188;font-weight:300;">Cancellation is possible up to 45 days prior to the first check-in date of your stay. After that time, the reservation is fully non-refundable.</p>
+    <p style="margin:0 0 20px;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.7;color:#9A9188;font-weight:300;">${p.cancellationPolicy ?? "Cancellation is possible up to 45 days prior to the first check-in date of your stay. After that time, the reservation is fully non-refundable."}</p>
 
     ${body('Your planning team will be in touch with arrival details as the weekend approaches.')}
   `);

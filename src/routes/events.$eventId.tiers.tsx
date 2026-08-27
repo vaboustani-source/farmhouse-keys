@@ -30,6 +30,7 @@ type TierRow = {
   promo_package_price: number | null;
   promo_active: boolean;
   total_rooms: number;
+  display_stock_start: number | null;
   nights: number;
   is_active: boolean;
   sort_order: number;
@@ -69,7 +70,7 @@ async function fetchTiersData(eventId: string) {
   // Second pass for popup columns on sections + hero intro (untyped select).
   const { data: rawSections } = await (supabase as unknown as UntypedClient)
     .from("lb_room_sections")
-    .select("id, tagline, regular_package_price, promo_package_price, promo_active")
+    .select("id, tagline, regular_package_price, promo_package_price, promo_active, display_stock_start")
     .eq("event_id", eventId);
   const { data: rawEvent } = await (supabase as unknown as UntypedClient)
     .from("lb_events")
@@ -87,6 +88,8 @@ async function fetchTiersData(eventId: string) {
       promo_package_price:
         extra.promo_package_price == null ? null : Number(extra.promo_package_price),
       promo_active: !!extra.promo_active,
+      display_stock_start:
+        extra.display_stock_start == null ? null : Number(extra.display_stock_start),
     } as TierRow;
   });
 
@@ -254,6 +257,9 @@ function TierEditor({ tier, onSaved }: { tier: TierRow; onSaved: () => void }) {
   const [promo, setPromo] = useState(String(tier.promo_package_price ?? ""));
   const [promoActive, setPromoActive] = useState(tier.promo_active);
   const [rooms, setRooms] = useState(String(tier.total_rooms));
+  const [displayStock, setDisplayStock] = useState(
+    tier.display_stock_start == null ? "" : String(tier.display_stock_start),
+  );
   const [active, setActive] = useState(tier.is_active);
   const [saving, setSaving] = useState(false);
 
@@ -271,6 +277,7 @@ function TierEditor({ tier, onSaved }: { tier: TierRow; onSaved: () => void }) {
           promoPackagePrice: promo === "" ? null : Number(promo),
           promoActive,
           totalRooms: Number(rooms || 0),
+          displayStockStart: displayStock === "" ? null : Number(displayStock),
           isActive: active,
         },
       });
@@ -316,13 +323,28 @@ function TierEditor({ tier, onSaved }: { tier: TierRow; onSaved: () => void }) {
       </label>
 
       <div className="mt-3 flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Rooms</span>
+        <span className="text-muted-foreground">Rooms (real cap)</span>
         <input
           type="number"
           min={0}
-          max={40}
+          max={999}
           value={rooms}
           onChange={(e) => setRooms(e.target.value)}
+          className="w-20 rounded border border-border bg-background px-2 py-1 text-right text-foreground focus:border-primary focus:outline-none"
+        />
+      </div>
+
+      <div className="mt-3 flex items-center justify-between text-sm">
+        <span className="text-muted-foreground" title="What guests see as remaining stock. Bookings count down from this number; leave empty to show the real cap.">
+          Displayed stock
+        </span>
+        <input
+          type="number"
+          min={0}
+          max={999}
+          value={displayStock}
+          onChange={(e) => setDisplayStock(e.target.value)}
+          placeholder="—"
           className="w-20 rounded border border-border bg-background px-2 py-1 text-right text-foreground focus:border-primary focus:outline-none"
         />
       </div>

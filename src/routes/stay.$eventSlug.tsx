@@ -349,9 +349,9 @@ function TierCard({
   // email still gets the lower rate, verified at checkout.
   const headline =
     phase === "public" ? (regular ?? tier.selling_price) : (promo ?? tier.selling_price);
-  // Uncapped tiers use a sentinel-high total_rooms; only show scarcity for
-  // genuinely limited tiers.
-  const capped = tier.total_rooms <= 20;
+  // Remaining counts against the displayed stock (display_stock_start),
+  // while the real total_rooms cap prevents overbooking server-side.
+  const showScarcity = tier.show_scarcity;
 
   return (
     <div
@@ -398,13 +398,13 @@ function TierCard({
             Waitlist members: {fmtMoney(promo!)} — honored at checkout.
           </div>
         )}
-        {capped && (
+        {showScarcity && (
           <div className="mt-2 text-xs text-[#6B6B6B]">
             {soldOut
               ? "Sold out"
               : tier.remaining <= 3
-                ? `${tier.remaining} ${tier.remaining === 1 ? "room remains" : "rooms remain"}`
-                : `Only ${tier.total_rooms} couples — ${tier.remaining} rooms left`}
+                ? `Only ${tier.remaining} ${tier.remaining === 1 ? "room" : "rooms"} left`
+                : `${tier.remaining} rooms left`}
           </div>
         )}
         <button
@@ -452,6 +452,10 @@ function DetailsStep({
   const [name2, setName2] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [addr1, setAddr1] = useState("");
+  const [addrCity, setAddrCity] = useState("");
+  const [addrState, setAddrState] = useState("");
+  const [addrZip, setAddrZip] = useState("");
   const [onWaitlist, setOnWaitlist] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -467,11 +471,19 @@ function DetailsStep({
           name2?: string;
           email?: string;
           phone?: string;
+          addr1?: string;
+          addrCity?: string;
+          addrState?: string;
+          addrZip?: string;
         };
         if (g.name) setName(g.name);
         if (g.name2) setName2(g.name2);
         if (g.email) setEmail(g.email);
         if (g.phone) setPhone(g.phone);
+        if (g.addr1) setAddr1(g.addr1);
+        if (g.addrCity) setAddrCity(g.addrCity);
+        if (g.addrState) setAddrState(g.addrState);
+        if (g.addrZip) setAddrZip(g.addrZip);
       }
     } catch {
       /* sessionStorage unavailable — non-fatal */
@@ -514,7 +526,7 @@ function DetailsStep({
       try {
         sessionStorage.setItem(
           `gfh_popup_guest_${eventSlug}`,
-          JSON.stringify({ name, name2, email, phone }),
+          JSON.stringify({ name, name2, email, phone, addr1, addrCity, addrState, addrZip }),
         );
       } catch {
         /* sessionStorage unavailable — non-fatal */
@@ -527,6 +539,10 @@ function DetailsStep({
           guest2Name: name2.trim() || undefined,
           guestEmail: email.trim(),
           guestPhone: phone.trim(),
+          addressLine1: addr1.trim(),
+          addressCity: addrCity.trim(),
+          addressState: addrState.trim(),
+          addressZip: addrZip.trim(),
         },
       });
       if (!res.ok) {
@@ -585,7 +601,7 @@ function DetailsStep({
         onClick={onBack}
         className="mb-6 inline-flex min-h-[44px] items-center -ml-1 px-2 py-2 text-xs uppercase tracking-[0.16em] text-[#6B6B6B] hover:text-[#1A1A1A]"
       >
-        ← All tiers
+        ← Compare all packages
       </button>
 
       <div className="rounded-[4px] border border-[#E8E2D9] bg-white p-6">
@@ -644,9 +660,59 @@ function DetailsStep({
           placeholder="Phone"
           className={inputCls}
         />
+        <input
+          type="text"
+          required
+          autoComplete="street-address"
+          value={addr1}
+          onChange={(e) => setAddr1(e.target.value)}
+          placeholder="Street address (apt / unit welcome)"
+          className={inputCls}
+        />
+        <div className="grid grid-cols-[1fr_72px_96px] gap-3">
+          <input
+            type="text"
+            required
+            autoComplete="address-level2"
+            value={addrCity}
+            onChange={(e) => setAddrCity(e.target.value)}
+            placeholder="City"
+            className={inputCls}
+          />
+          <input
+            type="text"
+            required
+            autoComplete="address-level1"
+            maxLength={2}
+            value={addrState}
+            onChange={(e) => setAddrState(e.target.value.toUpperCase())}
+            placeholder="ST"
+            className={inputCls}
+          />
+          <input
+            type="text"
+            required
+            autoComplete="postal-code"
+            inputMode="numeric"
+            value={addrZip}
+            onChange={(e) => setAddrZip(e.target.value)}
+            placeholder="ZIP"
+            className={inputCls}
+          />
+        </div>
         <button
           type="submit"
-          disabled={submitting || !name || !name2 || !email || !phone}
+          disabled={
+            submitting ||
+            !name ||
+            !name2 ||
+            !email ||
+            !phone ||
+            !addr1 ||
+            !addrCity ||
+            !addrState ||
+            !addrZip
+          }
           className="w-full rounded bg-[#2C3E2D] px-4 py-3 min-h-[44px] text-sm uppercase tracking-[0.16em] text-white transition-colors hover:bg-[#2C3E2D]/90 disabled:opacity-50"
         >
           {submitting ? "Holding your room…" : "Continue"}

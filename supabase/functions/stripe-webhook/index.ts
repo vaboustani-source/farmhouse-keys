@@ -59,8 +59,18 @@ async function sendDepositConfirmation(opts: {
   amountPaid: number;
   remaining: number;
   coveredGuestName?: string | null;
+  breakdown?: {
+    baseAmount: number;
+    addonAmount: number;
+    resortFee: number;
+    taxAmount: number;
+    totalAmount: number;
+    addonsSelected: { name: string; price: number }[];
+  };
+  finalChargeDate?: string;
+  cancellationPolicy?: string;
 }) {
-  const total = opts.amountPaid + opts.remaining;
+  const total = opts.breakdown?.totalAmount ?? opts.amountPaid + opts.remaining;
   await sendMail(
     opts.to,
     depositConfirmedEmail({
@@ -69,17 +79,18 @@ async function sendDepositConfirmation(opts: {
       sectionName: opts.sectionName,
       checkInDate: fmtDate(opts.checkIn),
       checkOutDate: fmtDate(opts.checkOut),
-      baseAmount: total,
-      addonAmount: 0,
-      resortFee: 0,
-      taxAmount: 0,
+      baseAmount: opts.breakdown?.baseAmount ?? total,
+      addonAmount: opts.breakdown?.addonAmount ?? 0,
+      resortFee: opts.breakdown?.resortFee ?? 0,
+      taxAmount: opts.breakdown?.taxAmount ?? 0,
       totalAmount: total,
       depositAmount: opts.amountPaid,
       finalAmount: opts.remaining,
-      finalChargeDate: "closer to your stay",
-      addonsSelected: [],
+      finalChargeDate: opts.finalChargeDate ?? "closer to your stay",
+      addonsSelected: opts.breakdown?.addonsSelected ?? [],
       coveredGuestName: opts.coveredGuestName ?? undefined,
       coveredGuestSection: opts.coveredGuestName ? opts.sectionName : undefined,
+      cancellationPolicy: opts.cancellationPolicy,
     }),
   );
 }
@@ -93,6 +104,14 @@ async function sendPaidInFullConfirmation(opts: {
   checkOut: string;
   amountPaid: number;
   coveredGuestName?: string | null;
+  breakdown?: {
+    baseAmount: number;
+    addonAmount: number;
+    resortFee: number;
+    taxAmount: number;
+    addonsSelected: { name: string; price: number }[];
+  };
+  cancellationPolicy?: string;
 }) {
   await sendMail(
     opts.to,
@@ -102,16 +121,36 @@ async function sendPaidInFullConfirmation(opts: {
       sectionName: opts.sectionName,
       checkInDate: fmtDate(opts.checkIn),
       checkOutDate: fmtDate(opts.checkOut),
-      baseAmount: opts.amountPaid,
-      addonAmount: 0,
-      resortFee: 0,
-      taxAmount: 0,
+      baseAmount: opts.breakdown?.baseAmount ?? opts.amountPaid,
+      addonAmount: opts.breakdown?.addonAmount ?? 0,
+      resortFee: opts.breakdown?.resortFee ?? 0,
+      taxAmount: opts.breakdown?.taxAmount ?? 0,
       totalAmount: opts.amountPaid,
-      addonsSelected: [],
+      addonsSelected: opts.breakdown?.addonsSelected ?? [],
       coveredGuestName: opts.coveredGuestName ?? undefined,
       coveredGuestSection: opts.coveredGuestName ? opts.sectionName : undefined,
+      cancellationPolicy: opts.cancellationPolicy,
     }),
   );
+}
+
+/** "Free cancellation until <date>" when the event sets a cutoff; otherwise
+ * the template's default 45-day wedding policy applies. */
+function cancellationPolicyFor(ev: {
+  check_in_date?: string | null;
+  cancel_cutoff_days?: number | null;
+}): string | undefined {
+  if (!ev?.check_in_date || !ev?.cancel_cutoff_days) return undefined;
+  const cancelBy = new Date(
+    new Date(ev.check_in_date + "T00:00:00").getTime() -
+      ev.cancel_cutoff_days * 86400000,
+  );
+  const label = cancelBy.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+  return `Free cancellation until ${label}. After that, the reservation is fully non-refundable.`;
 }
 
 async function sendCoveredGuestEmail(opts: {
@@ -411,7 +450,7 @@ serve(async (req) => {
       const { data: bookings } = await supabaseAdmin
         .from("lb_bookings")
         .select(
-          "id, guest_name, guest_email, total_amount, event_id, section_id, cot_requested, cot_fee",
+          "id, guest_name, guest_email, total_amount, base_amount, addon_amount, resort_fee, addons_selected, event_id, section_id, cot_requested, cot_fee",
         )
         .in("id", [primaryId, ...(secondaryId ? [secondaryId] : [])]);
 
@@ -428,12 +467,42 @@ serve(async (req) => {
           .single();
         const { data: ev } = await supabaseAdmin
           .from("lb_events")
-          .select("wedding_name, check_in_date, check_out_date")
+          .select(
+            "wedding_name, check_in_date, check_out_date, balance_due_on, cancel_cutoff_days",
+          )
           .eq("id", primary.event_id)
           .single();
 
         const totalCharged = (session.amount_total ?? 0) / 100;
         const fullPrimaryTotal = Number(primary.total_amount || 0);
+
+        // Real line items for the confirmation email. Tax = what Stripe
+        // actually charged beyond the pre-tax total (per-charge for splits).
+        const addonLines: { name: string; price: number }[] = Array.isArray(
+          primary.addons_selected,
+        )
+          ? (primary.addons_selected as { name?: string; price?: number }[])
+              .filter((a) => a?.name)
+              .map((a) => ({ name: String(a.name), price: Number(a.price) || 0 }))
+          : [];
+        if (primary.cot_requested && Number(primary.cot_fee) > 0) {
+          addonLines.push({
+            name: "3rd guest / cot setup",
+            price: Number(primary.cot_fee),
+          });
+        }
+        const preTaxCharged = isSplit ? fullPrimaryTotal * 0.5 : fullPrimaryTotal;
+        const taxCharged = Math.max(0, totalCharged - preTaxCharged);
+        const fullTaxEstimate = isSplit ? taxCharged * 2 : taxCharged;
+        const breakdown = {
+          baseAmount: Number(primary.base_amount) || 0,
+          addonAmount: Number(primary.addon_amount) || 0,
+          resortFee: Number(primary.resort_fee) || 0,
+          taxAmount: fullTaxEstimate,
+          totalAmount: fullPrimaryTotal + fullTaxEstimate,
+          addonsSelected: addonLines,
+        };
+        const cancelPolicy = cancellationPolicyFor(ev ?? {});
 
         await logActivity({
           eventId: primary.event_id,
@@ -471,8 +540,14 @@ serve(async (req) => {
             checkIn: ev?.check_in_date ?? "",
             checkOut: ev?.check_out_date ?? "",
             amountPaid: totalCharged,
-            remaining: fullPrimaryTotal - fullPrimaryTotal * 0.5,
+            // Both halves are equal (50% of pre-tax total + tax on each half).
+            remaining: totalCharged,
             coveredGuestName: secondary?.guest_name ?? null,
+            breakdown,
+            finalChargeDate: ev?.balance_due_on
+              ? fmtDate(ev.balance_due_on)
+              : undefined,
+            cancellationPolicy: cancelPolicy,
           });
         } else {
           await sendPaidInFullConfirmation({
@@ -484,6 +559,8 @@ serve(async (req) => {
             checkOut: ev?.check_out_date ?? "",
             amountPaid: totalCharged,
             coveredGuestName: secondary?.guest_name ?? null,
+            breakdown,
+            cancellationPolicy: cancelPolicy,
           });
         }
 
@@ -603,7 +680,7 @@ serve(async (req) => {
 
         const { data: ev } = await supabaseAdmin
           .from("lb_events")
-          .select("wedding_name, check_in_date")
+          .select("wedding_name, check_in_date, balance_due_on")
           .eq("id", b.event_id)
           .single();
         const { data: section } = await supabaseAdmin
@@ -613,16 +690,20 @@ serve(async (req) => {
           .single();
 
         const balance = Number(b.total_amount || 0) / 2;
-        const chargeDate = ev?.check_in_date
-          ? new Date(
-              new Date(ev.check_in_date + "T00:00:00").getTime() -
-                30 * 86400000,
-            ).toLocaleDateString("en-US", {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })
-          : "30 days before check-in";
+        // Events with an explicit balance date (pop-up weekends) charge on
+        // that date; weddings charge 30 days before check-in.
+        const chargeDate = ev?.balance_due_on
+          ? fmtDate(ev.balance_due_on)
+          : ev?.check_in_date
+            ? new Date(
+                new Date(ev.check_in_date + "T00:00:00").getTime() -
+                  30 * 86400000,
+              ).toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })
+            : "30 days before check-in";
 
         try {
           await sendPaymentMethodUpdated({

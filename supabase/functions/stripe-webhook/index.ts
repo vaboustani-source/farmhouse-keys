@@ -61,6 +61,8 @@ async function sendDepositConfirmation(opts: {
   coveredGuestName?: string | null;
   breakdown?: {
     baseAmount: number;
+    regularAmount?: number;
+    discountAmount?: number;
     addonAmount: number;
     resortFee: number;
     taxAmount: number;
@@ -80,6 +82,8 @@ async function sendDepositConfirmation(opts: {
       checkInDate: fmtDate(opts.checkIn),
       checkOutDate: fmtDate(opts.checkOut),
       baseAmount: opts.breakdown?.baseAmount ?? total,
+      regularAmount: opts.breakdown?.regularAmount,
+      discountAmount: opts.breakdown?.discountAmount,
       addonAmount: opts.breakdown?.addonAmount ?? 0,
       resortFee: opts.breakdown?.resortFee ?? 0,
       taxAmount: opts.breakdown?.taxAmount ?? 0,
@@ -106,6 +110,8 @@ async function sendPaidInFullConfirmation(opts: {
   coveredGuestName?: string | null;
   breakdown?: {
     baseAmount: number;
+    regularAmount?: number;
+    discountAmount?: number;
     addonAmount: number;
     resortFee: number;
     taxAmount: number;
@@ -122,6 +128,8 @@ async function sendPaidInFullConfirmation(opts: {
       checkInDate: fmtDate(opts.checkIn),
       checkOutDate: fmtDate(opts.checkOut),
       baseAmount: opts.breakdown?.baseAmount ?? opts.amountPaid,
+      regularAmount: opts.breakdown?.regularAmount,
+      discountAmount: opts.breakdown?.discountAmount,
       addonAmount: opts.breakdown?.addonAmount ?? 0,
       resortFee: opts.breakdown?.resortFee ?? 0,
       taxAmount: opts.breakdown?.taxAmount ?? 0,
@@ -450,7 +458,7 @@ serve(async (req) => {
       const { data: bookings } = await supabaseAdmin
         .from("lb_bookings")
         .select(
-          "id, guest_name, guest_email, total_amount, base_amount, addon_amount, resort_fee, addons_selected, event_id, section_id, cot_requested, cot_fee",
+          "id, guest_name, guest_email, total_amount, base_amount, addon_amount, resort_fee, addons_selected, rate_type, event_id, section_id, cot_requested, cot_fee",
         )
         .in("id", [primaryId, ...(secondaryId ? [secondaryId] : [])]);
 
@@ -462,7 +470,7 @@ serve(async (req) => {
       if (primary) {
         const { data: section } = await supabaseAdmin
           .from("lb_room_sections")
-          .select("section_name")
+          .select("section_name, regular_package_price")
           .eq("id", primary.section_id)
           .single();
         const { data: ev } = await supabaseAdmin
@@ -494,8 +502,18 @@ serve(async (req) => {
         const preTaxCharged = isSplit ? fullPrimaryTotal * 0.5 : fullPrimaryTotal;
         const taxCharged = Math.max(0, totalCharged - preTaxCharged);
         const fullTaxEstimate = isSplit ? taxCharged * 2 : taxCharged;
+        // Waitlist guests see the regular price and their discount spelled out.
+        const regularPrice = Number(section?.regular_package_price) || 0;
+        const paidBase = Number(primary.base_amount) || 0;
+        const waitlistDiscount =
+          (primary as { rate_type?: string }).rate_type === "waitlist" &&
+          regularPrice > paidBase
+            ? regularPrice - paidBase
+            : 0;
         const breakdown = {
-          baseAmount: Number(primary.base_amount) || 0,
+          baseAmount: paidBase,
+          regularAmount: waitlistDiscount > 0 ? regularPrice : undefined,
+          discountAmount: waitlistDiscount > 0 ? waitlistDiscount : undefined,
           addonAmount: Number(primary.addon_amount) || 0,
           resortFee: Number(primary.resort_fee) || 0,
           taxAmount: fullTaxEstimate,

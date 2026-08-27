@@ -305,6 +305,8 @@ export interface DepositConfirmedEmailProps {
   checkInDate: string;
   checkOutDate: string;
   baseAmount: number;
+  regularAmount?: number;
+  discountAmount?: number;
   addonAmount: number;
   resortFee: number;
   taxAmount: number;
@@ -345,7 +347,12 @@ export function depositConfirmedEmail(p: DepositConfirmedEmailProps): { subject:
 
     <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%"
       style="margin:0 0 28px;">
-      ${lineItemRow('Lodging', fmt(p.baseAmount))}
+      ${
+        p.discountAmount && p.regularAmount
+          ? lineItemRow('Lodging (regular rate)', fmt(p.regularAmount)) +
+            lineItemRow('Waitlist discount', `−${fmt(p.discountAmount)}`, true)
+          : lineItemRow('Lodging', fmt(p.baseAmount))
+      }
       ${addonRows}
       ${lineItemRow('Resort Fee', fmt(p.resortFee), true)}
       ${lineItemRow('NY Sales Tax (8%)', fmt(p.taxAmount), true)}
@@ -378,6 +385,8 @@ export interface PaidConfirmedEmailProps {
   checkInDate: string;
   checkOutDate: string;
   baseAmount: number;
+  regularAmount?: number;
+  discountAmount?: number;
   addonAmount: number;
   resortFee: number;
   taxAmount: number;
@@ -415,7 +424,12 @@ export function paidConfirmedEmail(p: PaidConfirmedEmailProps): { subject: strin
 
     <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%"
       style="margin:0 0 28px;">
-      ${lineItemRow('Lodging', fmt(p.baseAmount))}
+      ${
+        p.discountAmount && p.regularAmount
+          ? lineItemRow('Lodging (regular rate)', fmt(p.regularAmount)) +
+            lineItemRow('Waitlist discount', `−${fmt(p.discountAmount)}`, true)
+          : lineItemRow('Lodging', fmt(p.baseAmount))
+      }
       ${addonRows}
       ${lineItemRow('Resort Fee', fmt(p.resortFee), true)}
       ${lineItemRow('NY Sales Tax (8%)', fmt(p.taxAmount), true)}

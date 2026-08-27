@@ -807,6 +807,12 @@ function PopupReviewStep({
 
   const isSplit = schedule === "deposit_50_balance_50";
   const dueToday = isSplit ? calc.total / 2 : calc.total;
+  const regularPrice =
+    tier.regular_package_price != null ? Number(tier.regular_package_price) : null;
+  const waitlistDiscount =
+    rateType === "waitlist" && regularPrice != null && regularPrice > calc.base
+      ? regularPrice - calc.base
+      : 0;
 
   const reserve = async () => {
     setSubmitting(true);
@@ -999,7 +1005,14 @@ function PopupReviewStep({
       <div className="mt-4 rounded-[4px] border border-[#D5D0C8] bg-white p-6">
         <SectionLabel>Your total</SectionLabel>
         <div className="mt-3 space-y-2 text-sm">
-          <Row label={`${tier.section_name} · ${calc.nights} nights`} value={calc.base} />
+          {waitlistDiscount > 0 && regularPrice != null ? (
+            <>
+              <Row label={`${tier.section_name} · ${calc.nights} nights`} value={regularPrice} />
+              <Row label="Waitlist discount" value={-waitlistDiscount} />
+            </>
+          ) : (
+            <Row label={`${tier.section_name} · ${calc.nights} nights`} value={calc.base} />
+          )}
           {calc.addonAmt > 0 && <Row label="Enhancements" value={calc.addonAmt} />}
           {calc.cotFee > 0 && <Row label="3rd guest / cot setup" value={calc.cotFee} />}
           {calc.resortFee > 0 && (
@@ -1166,7 +1179,22 @@ function PopupConfirmation({
               </div>
 
               <div className="mt-6 border-t border-[#D5D0C8] pt-5 text-sm">
-                <Row label="Package" value={Number(booking.base_amount) || 0} />
+                {booking.rate_type === "waitlist" &&
+                Number(booking.section?.regular_package_price) >
+                  (Number(booking.base_amount) || 0) ? (
+                  <>
+                    <Row label="Package" value={Number(booking.section?.regular_package_price)} />
+                    <Row
+                      label="Waitlist discount"
+                      value={
+                        (Number(booking.base_amount) || 0) -
+                        Number(booking.section?.regular_package_price)
+                      }
+                    />
+                  </>
+                ) : (
+                  <Row label="Package" value={Number(booking.base_amount) || 0} />
+                )}
                 {Number(booking.addon_amount) > 0 && (
                   <Row label="Enhancements" value={Number(booking.addon_amount)} />
                 )}

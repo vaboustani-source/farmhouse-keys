@@ -47,10 +47,10 @@ const fmtDateTime = (iso: string | null | undefined) =>
 function Wordmark() {
   return (
     <div className="text-center">
-      <div className="font-serif text-2xl tracking-wide text-[#2C3E2D]">
+      <div className="font-serif text-2xl tracking-wide text-[#2C3A2E]">
         Gilbertsville Farmhouse
       </div>
-      <div className="mt-1 text-[10px] uppercase tracking-[0.24em] text-[#6B6B6B]">
+      <div className="mt-1 text-[10px] uppercase tracking-[0.24em] text-[#696056]">
         A private estate
       </div>
     </div>
@@ -58,7 +58,7 @@ function Wordmark() {
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] uppercase tracking-[0.24em] text-[#C9A84C]">{children}</div>;
+  return <div className="text-[10px] uppercase tracking-[0.24em] text-[#B8956A]">{children}</div>;
 }
 
 function cancellationPolicy(ev: NonNullable<PopupEventPayload["event"]>): string {
@@ -154,24 +154,24 @@ function PopupWeekendPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-[#FAF8F4] font-sans text-[#1A1A1A]">
+    <div className="min-h-dvh bg-[#F6F1E8] font-sans text-[#2C2721]">
       <div className="mx-auto max-w-3xl px-4 py-10 md:py-16">
         <Wordmark />
 
         {banner && step.kind === "landing" && (
-          <div className="mx-auto mt-6 max-w-xl rounded-md border border-[#C9A84C]/40 bg-[#FBF6E7] p-4 text-center text-sm text-[#7a6420]">
+          <div className="mx-auto mt-6 max-w-xl rounded-md border border-[#F09B9C]/50 bg-[#F9EDED] p-4 text-center text-sm text-[#2C3A2E]">
             {banner}
           </div>
         )}
 
-        {loading && <p className="mt-20 text-center text-sm text-[#6B6B6B]">Setting the table…</p>}
+        {loading && <p className="mt-20 text-center text-sm text-[#696056]">Setting the table…</p>}
 
         {!loading && (!payload?.event || payload.event.status !== "active") && (
           <div className="mt-20 text-center">
             <h1 className="font-serif text-3xl font-medium md:text-4xl">
               This weekend isn't open for reservations.
             </h1>
-            <p className="mt-3 text-sm text-[#6B6B6B]">{CONTACT_LINE}</p>
+            <p className="mt-3 text-sm text-[#696056]">{CONTACT_LINE}</p>
           </div>
         )}
 
@@ -255,25 +255,25 @@ function Landing({
       <div className="mt-12 text-center">
         <SectionLabel>A weekend for two</SectionLabel>
         <h1 className="mt-3 font-serif text-4xl font-medium md:text-5xl">{ev.title}</h1>
-        <p className="mt-4 text-sm text-[#3A3A3A]">
+        <p className="mt-4 text-sm text-[#443E36]">
           {fmtDate(ev.check_in_date)} → {fmtDate(ev.check_out_date)} · {ev.nights}{" "}
           {ev.nights === 1 ? "night" : "nights"} at the estate
         </p>
         {ev.hero_intro && (
-          <p className="mx-auto mt-6 max-w-xl font-serif text-lg italic leading-relaxed text-[#6B6B6B]">
+          <p className="mx-auto mt-6 max-w-xl font-serif text-lg italic leading-relaxed text-[#696056]">
             {ev.hero_intro}
           </p>
         )}
         <div className="mt-8 flex flex-col items-center gap-3">
           <a
             href="#tiers"
-            className="inline-block rounded border border-[#C9A84C] px-6 py-3 text-xs uppercase tracking-[0.16em] text-[#7a6420] transition-colors hover:bg-[#C9A84C]/10"
+            className="inline-block rounded border border-[#B8956A] px-6 py-3 text-xs uppercase tracking-[0.16em] text-[#2C3A2E] transition-colors hover:bg-[#B8956A]/10"
           >
             Choose your weekend
           </a>
           <a
             href={FULL_STORY_URL}
-            className="text-xs text-[#6B6B6B] underline underline-offset-2 hover:text-[#1A1A1A]"
+            className="text-xs text-[#696056] underline underline-offset-2 hover:text-[#2C2721]"
           >
             Read the full weekend, hour by hour →
           </a>
@@ -282,13 +282,13 @@ function Landing({
 
       {/* Booking-window notice */}
       {phase === "preopen" && ev.waitlist_opens_at && (
-        <div className="mx-auto mt-10 max-w-xl rounded-md border border-[#C9A84C]/40 bg-[#FBF6E7] p-4 text-center text-sm text-[#7a6420]">
+        <div className="mx-auto mt-10 max-w-xl rounded-md border border-[#F09B9C]/50 bg-[#F9EDED] p-4 text-center text-sm text-[#2C3A2E]">
           Booking opens {fmtDateTime(ev.waitlist_opens_at)} for waitlist members
           {ev.public_opens_at ? ` — and to everyone ${fmtDateTime(ev.public_opens_at)}` : ""}.
         </div>
       )}
       {phase === "waitlist_only" && (
-        <div className="mx-auto mt-10 max-w-xl rounded-md border border-[#C9A84C]/40 bg-[#FBF6E7] p-4 text-center text-sm text-[#7a6420]">
+        <div className="mx-auto mt-10 max-w-xl rounded-md border border-[#F09B9C]/50 bg-[#F9EDED] p-4 text-center text-sm text-[#2C3A2E]">
           Waitlist first access — book today with the email you joined with.
           {ev.public_opens_at ? ` Public booking opens ${fmtDateTime(ev.public_opens_at)}.` : ""}
         </div>
@@ -297,7 +297,7 @@ function Landing({
       {/* Tier cards */}
       <div id="tiers" className="mt-14 scroll-mt-8">
         <h2 className="text-center font-serif text-3xl">Choose your weekend</h2>
-        <p className="mt-2 text-center text-sm text-[#6B6B6B]">
+        <p className="mt-2 text-center text-sm text-[#696056]">
           Every tier includes your lodging for the full weekend. Your exact room is assigned by the
           estate before arrival.
         </p>
@@ -308,7 +308,7 @@ function Landing({
               tier={tier}
               itinerary={payload.itinerary}
               tierIndex={i}
-              featured={i === payload.tiers.length - 1}
+              featured={tier.is_featured}
               phase={phase}
               onReserve={() => onReserve(tier)}
             />
@@ -316,7 +316,7 @@ function Landing({
         </div>
       </div>
 
-      <p className="mt-12 text-center text-xs text-[#6B6B6B]">{CONTACT_LINE}</p>
+      <p className="mt-12 text-center text-xs text-[#696056]">{CONTACT_LINE}</p>
     </div>
   );
 }
@@ -340,6 +340,19 @@ function TierCard({
     const flags = [it.tier1_included, it.tier2_included, it.tier3_included];
     return flags[tierIndex];
   });
+  // day_number doubles as the comparison-table category on pop-up events.
+  const CATEGORY_LABELS: Record<number, string> = {
+    1: "The stay",
+    2: "The dining",
+    3: "The experience",
+  };
+  const groups = [...new Set(included.map((it) => it.day_number))]
+    .sort((a, b) => a - b)
+    .map((d) => ({
+      label: CATEGORY_LABELS[d] ?? "",
+      items: included.filter((it) => it.day_number === d),
+    }))
+    .filter((g) => g.items.length > 0);
   const soldOut = tier.remaining <= 0;
   const regular = tier.regular_package_price != null ? Number(tier.regular_package_price) : null;
   const promo = tier.promo_package_price != null ? Number(tier.promo_package_price) : null;
@@ -356,50 +369,59 @@ function TierCard({
   return (
     <div
       className={`relative flex flex-col rounded-[4px] border bg-white p-6 ${
-        featured ? "border-[#C9A84C]" : "border-[#E8E2D9]"
+        featured ? "border-[#F09B9C]" : "border-[#D5D0C8]"
       } ${soldOut ? "opacity-70" : ""}`}
     >
       {featured && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#C9A84C] px-3 py-0.5 text-[10px] uppercase tracking-wider text-white">
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#F09B9C] px-3 py-0.5 text-[10px] uppercase tracking-wider text-[#2C3A2E]">
           Most popular
         </div>
       )}
       <h3 className="font-serif text-2xl leading-snug">{tier.section_name}</h3>
-      {tier.tagline && <p className="mt-1 text-xs italic text-[#6B6B6B]">{tier.tagline}</p>}
+      {tier.tagline && <p className="mt-1 text-xs italic text-[#696056]">{tier.tagline}</p>}
 
-      <ul className="mt-4 flex-1 space-y-1.5">
-        {included.map((it) => (
-          <li key={it.id} className="flex gap-2 text-xs text-[#3A3A3A]">
-            <span className="text-[#C9A84C]">✓</span>
-            <span>
-              {it.activity}
-              {it.note ? <span className="italic text-[#6B6B6B]"> — {it.note}</span> : null}
-            </span>
-          </li>
+      <div className="mt-4 flex-1 space-y-4">
+        {groups.map((g) => (
+          <div key={g.label}>
+            {g.label && (
+              <div className="mb-1.5 font-serif text-sm italic text-[#2C3A2E]">{g.label}</div>
+            )}
+            <ul className="space-y-1.5">
+              {g.items.map((it) => (
+                <li key={it.id} className="flex gap-2 text-xs text-[#443E36]">
+                  <span className="text-[#F09B9C]">✓</span>
+                  <span>
+                    {it.activity}
+                    {it.note ? <span className="italic text-[#696056]"> — {it.note}</span> : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         ))}
-      </ul>
+      </div>
 
-      <div className="mt-5 border-t border-[#E8E2D9] pt-4">
+      <div className="mt-5 border-t border-[#D5D0C8] pt-4">
         {phase !== "public" && hasWaitlistRate && (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-[#6B6B6B] line-through">{fmtMoney(regular!)}</span>
-            <span className="rounded-full bg-[#C9A84C]/15 px-2 py-0.5 text-[10px] uppercase tracking-wider text-[#7a6420]">
+            <span className="text-sm text-[#696056] line-through">{fmtMoney(regular!)}</span>
+            <span className="rounded-full bg-[#F9EDED] px-2 py-0.5 text-[10px] uppercase tracking-wider text-[#2C3A2E]">
               Waitlist rate
             </span>
           </div>
         )}
-        <div className="font-serif text-3xl text-[#2C3E2D]">{fmtMoney(headline)}</div>
-        <div className="text-xs text-[#6B6B6B]">
+        <div className="font-serif text-3xl text-[#2C3A2E]">{fmtMoney(headline)}</div>
+        <div className="text-xs text-[#696056]">
           per couple · {tier.nights} {tier.nights === 1 ? "night" : "nights"} · before fees &amp;
           tax
         </div>
         {phase === "public" && hasWaitlistRate && (
-          <div className="mt-1 text-xs text-[#7a6420]">
+          <div className="mt-1 text-xs text-[#B8956A]">
             Waitlist members: {fmtMoney(promo!)} — honored at checkout.
           </div>
         )}
         {showScarcity && (
-          <div className="mt-2 text-xs text-[#6B6B6B]">
+          <div className="mt-2 text-xs text-[#696056]">
             {soldOut
               ? "Sold out"
               : tier.remaining <= 3
@@ -410,7 +432,7 @@ function TierCard({
         <button
           onClick={onReserve}
           disabled={soldOut || phase === "preopen"}
-          className="mt-4 w-full rounded bg-[#2C3E2D] px-4 py-3 text-xs uppercase tracking-[0.16em] text-white transition-colors hover:bg-[#2C3E2D]/90 disabled:cursor-not-allowed disabled:opacity-40"
+          className="mt-4 w-full rounded bg-[#2C3A2E] px-4 py-3 text-xs uppercase tracking-[0.16em] text-white transition-colors hover:bg-[#2C3A2E]/90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {soldOut
             ? "Sold out"
@@ -593,29 +615,29 @@ function DetailsStep({
   };
 
   const inputCls =
-    "w-full rounded border border-[#E8E2D9] bg-white px-4 py-3 text-base focus:border-[#2C3E2D] focus:outline-none";
+    "w-full rounded border border-[#D5D0C8] bg-white px-4 py-3 text-base focus:border-[#2C3A2E] focus:outline-none";
 
   return (
     <div className="mx-auto mt-10 max-w-md">
       <button
         onClick={onBack}
-        className="mb-6 inline-flex min-h-[44px] items-center -ml-1 px-2 py-2 text-xs uppercase tracking-[0.16em] text-[#6B6B6B] hover:text-[#1A1A1A]"
+        className="mb-6 inline-flex min-h-[44px] items-center -ml-1 px-2 py-2 text-xs uppercase tracking-[0.16em] text-[#696056] hover:text-[#2C2721]"
       >
         ← Compare all packages
       </button>
 
-      <div className="rounded-[4px] border border-[#E8E2D9] bg-white p-6">
+      <div className="rounded-[4px] border border-[#D5D0C8] bg-white p-6">
         <SectionLabel>Your weekend</SectionLabel>
         <div className="mt-1 font-serif text-2xl">{tier.section_name}</div>
-        <div className="mt-1 text-sm text-[#6B6B6B]">
+        <div className="mt-1 text-sm text-[#696056]">
           {fmtDate(ev.check_in_date)} → {fmtDate(ev.check_out_date)} · {fmtMoney(displayPrice)} per
           couple
           {onWaitlist && regular != null && promo != null && promo < regular && (
-            <span className="ml-2 text-[#6B6B6B] line-through">{fmtMoney(regular)}</span>
+            <span className="ml-2 text-[#696056] line-through">{fmtMoney(regular)}</span>
           )}
         </div>
         {onWaitlist && (
-          <div className="mt-2 text-xs text-[#7a6420]">
+          <div className="mt-2 text-xs text-[#B8956A]">
             ✓ You're on the waitlist — your waitlist rate is locked in.
           </div>
         )}
@@ -713,12 +735,12 @@ function DetailsStep({
             !addrState ||
             !addrZip
           }
-          className="w-full rounded bg-[#2C3E2D] px-4 py-3 min-h-[44px] text-sm uppercase tracking-[0.16em] text-white transition-colors hover:bg-[#2C3E2D]/90 disabled:opacity-50"
+          className="w-full rounded bg-[#2C3A2E] px-4 py-3 min-h-[44px] text-sm uppercase tracking-[0.16em] text-white transition-colors hover:bg-[#2C3A2E]/90 disabled:opacity-50"
         >
           {submitting ? "Holding your room…" : "Continue"}
         </button>
-        {error && <p className="pt-2 text-sm text-[#6B6B6B]">{error}</p>}
-        <p className="pt-1 text-center text-xs text-[#6B6B6B]">
+        {error && <p className="pt-2 text-sm text-[#696056]">{error}</p>}
+        <p className="pt-1 text-center text-xs text-[#696056]">
           Nothing is charged yet — your room is held while you review.
         </p>
       </form>
@@ -829,31 +851,31 @@ function PopupReviewStep({
     <div className="mx-auto mt-10 max-w-md">
       <button
         onClick={onBack}
-        className="mb-6 inline-flex min-h-[44px] items-center -ml-1 px-2 py-2 text-xs uppercase tracking-[0.16em] text-[#6B6B6B] hover:text-[#1A1A1A]"
+        className="mb-6 inline-flex min-h-[44px] items-center -ml-1 px-2 py-2 text-xs uppercase tracking-[0.16em] text-[#696056] hover:text-[#2C2721]"
       >
         ← Back
       </button>
 
       <div className="mb-6">
         <div className="font-serif text-2xl">{guestName},</div>
-        <div className="mt-1 text-sm italic text-[#C9A84C]">Your room is held for you.</div>
+        <div className="mt-1 text-sm italic text-[#F09B9C]">Your room is held for you.</div>
       </div>
 
-      <div className="rounded-[4px] border border-[#E8E2D9] bg-white p-6">
+      <div className="rounded-[4px] border border-[#D5D0C8] bg-white p-6">
         <div className="font-serif text-2xl">{tier.section_name}</div>
-        <div className="mt-2 text-sm text-[#6B6B6B]">
+        <div className="mt-2 text-sm text-[#696056]">
           {fmtDate(ev.check_in_date)} → {fmtDate(ev.check_out_date)} · {calc.nights}{" "}
           {calc.nights === 1 ? "night" : "nights"}
         </div>
         {rateType === "waitlist" && (
-          <div className="mt-2 text-xs text-[#7a6420]">
+          <div className="mt-2 text-xs text-[#B8956A]">
             ✓ Waitlist rate applied — {fmtMoney(calc.base)} per couple.
           </div>
         )}
       </div>
 
       {addons.length > 0 && (
-        <div className="mt-4 rounded-[4px] border border-[#E8E2D9] bg-white p-6">
+        <div className="mt-4 rounded-[4px] border border-[#D5D0C8] bg-white p-6">
           <h2 className="font-serif text-xl">Enhance your stay</h2>
           <div className="mt-4 space-y-2">
             {addons.map((a) => {
@@ -863,19 +885,19 @@ function PopupReviewStep({
                 <label
                   key={a.id}
                   className={`flex cursor-pointer items-start justify-between gap-4 rounded border p-4 transition-colors ${
-                    checked ? "border-[#2C3E2D] bg-[#FAF8F4]" : "border-[#E8E2D9]"
+                    checked ? "border-[#2C3A2E] bg-[#F6F1E8]" : "border-[#D5D0C8]"
                   } ${disabled ? "cursor-default opacity-90" : ""}`}
                 >
                   <div className="flex-1">
                     <div className="text-sm font-medium">
                       {a.addon_name}
                       {a.is_required && (
-                        <span className="ml-2 rounded-full bg-[#C9A84C]/20 px-2 py-0.5 text-[10px] uppercase tracking-wider text-[#7a6420]">
+                        <span className="ml-2 rounded-full bg-[#F9EDED] px-2 py-0.5 text-[10px] uppercase tracking-wider text-[#2C3A2E]">
                           Included
                         </span>
                       )}
                     </div>
-                    <div className="mt-1 text-xs text-[#6B6B6B]">
+                    <div className="mt-1 text-xs text-[#696056]">
                       {fmtMoney(Number(a.addon_price))}
                       {a.addon_type === "per_night"
                         ? " per night"
@@ -894,7 +916,7 @@ function PopupReviewStep({
                         e.target.checked ? [...prev, a.id] : prev.filter((x) => x !== a.id),
                       );
                     }}
-                    className="mt-1 h-5 w-5 accent-[#2C3E2D]"
+                    className="mt-1 h-5 w-5 accent-[#2C3A2E]"
                   />
                 </label>
               );
@@ -903,11 +925,11 @@ function PopupReviewStep({
         </div>
       )}
 
-      <div className="mt-4 rounded-[4px] border border-[#E8E2D9] bg-white p-6">
+      <div className="mt-4 rounded-[4px] border border-[#D5D0C8] bg-white p-6">
         <label className="flex cursor-pointer items-start justify-between gap-4">
           <div className="flex-1">
             <div className="font-serif text-xl">Add a 3rd guest</div>
-            <div className="mt-1 text-sm text-[#6B6B6B]">
+            <div className="mt-1 text-sm text-[#696056]">
               Cot setup in your room —{" "}
               {fmtMoney(calc.nights <= 1 ? tier.cot_1night_rate : tier.cot_2night_rate)} for the
               stay.
@@ -917,19 +939,19 @@ function PopupReviewStep({
             type="checkbox"
             checked={cotRequested}
             onChange={(e) => setCotRequested(e.target.checked)}
-            className="mt-1 h-5 w-5 accent-[#2C3E2D]"
+            className="mt-1 h-5 w-5 accent-[#2C3A2E]"
           />
         </label>
       </div>
 
       {/* Payment options */}
       {ev.split_available && ev.balance_due_on && (
-        <div className="mt-4 rounded-[4px] border border-[#E8E2D9] bg-white p-6">
+        <div className="mt-4 rounded-[4px] border border-[#D5D0C8] bg-white p-6">
           <h2 className="font-serif text-xl">How would you like to pay?</h2>
           <div className="mt-4 space-y-2">
             <label
               className={`flex cursor-pointer items-start gap-3 rounded border p-4 transition-colors ${
-                !isSplit ? "border-[#2C3E2D] bg-[#FAF8F4]" : "border-[#E8E2D9]"
+                !isSplit ? "border-[#2C3A2E] bg-[#F6F1E8]" : "border-[#D5D0C8]"
               }`}
             >
               <input
@@ -937,18 +959,18 @@ function PopupReviewStep({
                 name="paymentSchedule"
                 checked={!isSplit}
                 onChange={() => setSchedule("full")}
-                className="mt-1 h-4 w-4 accent-[#2C3E2D]"
+                className="mt-1 h-4 w-4 accent-[#2C3A2E]"
               />
               <div>
                 <div className="text-sm font-medium">Pay in full today</div>
-                <div className="mt-0.5 text-xs text-[#6B6B6B]">
+                <div className="mt-0.5 text-xs text-[#696056]">
                   {fmtMoney(calc.total)} — done and dusted.
                 </div>
               </div>
             </label>
             <label
               className={`flex cursor-pointer items-start gap-3 rounded border p-4 transition-colors ${
-                isSplit ? "border-[#2C3E2D] bg-[#FAF8F4]" : "border-[#E8E2D9]"
+                isSplit ? "border-[#2C3A2E] bg-[#F6F1E8]" : "border-[#D5D0C8]"
               }`}
             >
               <input
@@ -956,13 +978,13 @@ function PopupReviewStep({
                 name="paymentSchedule"
                 checked={isSplit}
                 onChange={() => setSchedule("deposit_50_balance_50")}
-                className="mt-1 h-4 w-4 accent-[#2C3E2D]"
+                className="mt-1 h-4 w-4 accent-[#2C3A2E]"
               />
               <div>
                 <div className="text-sm font-medium">
                   50% today, 50% on {fmtDate(ev.balance_due_on)}
                 </div>
-                <div className="mt-0.5 text-xs text-[#6B6B6B]">
+                <div className="mt-0.5 text-xs text-[#696056]">
                   {fmtMoney(calc.total / 2)} today. The remaining {fmtMoney(calc.total / 2)} is
                   automatically charged to the same card on {fmtDate(ev.balance_due_on)} — we'll
                   email you a reminder the week before.
@@ -974,7 +996,7 @@ function PopupReviewStep({
       )}
 
       {/* Totals */}
-      <div className="mt-4 rounded-[4px] border border-[#E8E2D9] bg-white p-6">
+      <div className="mt-4 rounded-[4px] border border-[#D5D0C8] bg-white p-6">
         <SectionLabel>Your total</SectionLabel>
         <div className="mt-3 space-y-2 text-sm">
           <Row label={`${tier.section_name} · ${calc.nights} nights`} value={calc.base} />
@@ -986,23 +1008,23 @@ function PopupReviewStep({
           <Row label="NY sales tax (est.)" value={calc.tax} muted />
           {isSplit && <Row label="Weekend total (incl. tax)" value={calc.total} muted />}
         </div>
-        <div className="mt-4 flex items-baseline justify-between border-t border-[#E8E2D9] pt-4">
-          <span className="text-xs uppercase tracking-[0.16em] text-[#6B6B6B]">Due today</span>
-          <span className="font-serif text-2xl text-[#2C3E2D]">{fmtMoney(dueToday)}</span>
+        <div className="mt-4 flex items-baseline justify-between border-t border-[#D5D0C8] pt-4">
+          <span className="text-xs uppercase tracking-[0.16em] text-[#696056]">Due today</span>
+          <span className="font-serif text-2xl text-[#2C3A2E]">{fmtMoney(dueToday)}</span>
         </div>
         {isSplit && ev.balance_due_on && (
-          <p className="mt-2 text-xs text-[#6B6B6B]">
+          <p className="mt-2 text-xs text-[#696056]">
             Remaining {fmtMoney(calc.total / 2)} auto-charged {fmtDate(ev.balance_due_on)}.
           </p>
         )}
       </div>
 
-      <label className="mt-4 flex cursor-pointer items-start gap-3 px-1 text-xs text-[#6B6B6B]">
+      <label className="mt-4 flex cursor-pointer items-start gap-3 px-1 text-xs text-[#696056]">
         <input
           type="checkbox"
           checked={agreed}
           onChange={(e) => setAgreed(e.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-[#2C3E2D]"
+          className="mt-0.5 h-4 w-4 accent-[#2C3A2E]"
         />
         <span>
           I understand the cancellation policy: {cancellationPolicy(ev)} We highly recommend travel
@@ -1014,12 +1036,12 @@ function PopupReviewStep({
       <button
         onClick={reserve}
         disabled={submitting || !agreed}
-        className="mt-4 w-full rounded bg-[#2C3E2D] px-4 py-3 min-h-[44px] text-sm uppercase tracking-[0.16em] text-white transition-colors hover:bg-[#2C3E2D]/90 disabled:opacity-50"
+        className="mt-4 w-full rounded bg-[#2C3A2E] px-4 py-3 min-h-[44px] text-sm uppercase tracking-[0.16em] text-white transition-colors hover:bg-[#2C3A2E]/90 disabled:opacity-50"
       >
         {submitting ? "Opening secure checkout…" : "Reserve & pay"}
       </button>
-      {error && <p className="mt-3 text-center text-sm text-[#6B6B6B]">{error}</p>}
-      <p className="mt-3 text-center text-xs text-[#6B6B6B]">
+      {error && <p className="mt-3 text-center text-sm text-[#696056]">{error}</p>}
+      <p className="mt-3 text-center text-xs text-[#696056]">
         Payment is handled securely by Stripe.
       </p>
     </div>
@@ -1029,8 +1051,8 @@ function PopupReviewStep({
 function Row({ label, value, muted }: { label: string; value: number; muted?: boolean }) {
   return (
     <div className="flex items-baseline justify-between">
-      <span className={muted ? "text-[#6B6B6B]" : "text-[#3A3A3A]"}>{label}</span>
-      <span className={muted ? "text-[#6B6B6B]" : "text-[#1A1A1A]"}>{fmtMoney(value)}</span>
+      <span className={muted ? "text-[#696056]" : "text-[#443E36]"}>{label}</span>
+      <span className={muted ? "text-[#696056]" : "text-[#2C2721]"}>{fmtMoney(value)}</span>
     </div>
   );
 }
@@ -1104,29 +1126,29 @@ function PopupConfirmation({
       : [];
 
   return (
-    <div className="min-h-dvh bg-[#FAF8F4] font-sans text-[#1A1A1A]">
+    <div className="min-h-dvh bg-[#F6F1E8] font-sans text-[#2C2721]">
       <div className="mx-auto max-w-2xl px-4 py-10 md:py-16">
         <Wordmark />
         {loading && (
-          <p className="mt-20 text-center text-sm text-[#6B6B6B]">Confirming your reservation…</p>
+          <p className="mt-20 text-center text-sm text-[#696056]">Confirming your reservation…</p>
         )}
         {!loading && (timedOut || !booking) && (
           <div className="mt-16 text-center">
             <h1 className="font-serif text-3xl font-medium md:text-4xl">
               Your payment was received.
             </h1>
-            <p className="mt-3 text-sm text-[#6B6B6B]">
+            <p className="mt-3 text-sm text-[#696056]">
               Your confirmation is on its way — check your email shortly.
             </p>
           </div>
         )}
         {!loading && booking && (
           <div className="mx-auto mt-10 max-w-[600px]">
-            <div className="rounded-[4px] border border-[#E8E2D9] bg-white p-6 sm:p-8 md:p-10">
+            <div className="rounded-[4px] border border-[#D5D0C8] bg-white p-6 sm:p-8 md:p-10">
               <SectionLabel>Confirmed</SectionLabel>
               <h1 className="mt-2 font-serif text-3xl">{booking.guest_name}, you're confirmed.</h1>
               {booking.event?.wedding_name && (
-                <p className="mt-1 font-serif text-lg italic text-[#6B6B6B]">
+                <p className="mt-1 font-serif text-lg italic text-[#696056]">
                   {booking.event.wedding_name}
                 </p>
               )}
@@ -1134,16 +1156,16 @@ function PopupConfirmation({
               <div className="mt-6">
                 <SectionLabel>Your stay</SectionLabel>
                 <div className="mt-2 font-serif text-xl">{booking.section?.section_name}</div>
-                <div className="mt-1 text-sm text-[#3A3A3A]">
+                <div className="mt-1 text-sm text-[#443E36]">
                   {fmtDate(booking.event?.check_in_date)} → {fmtDate(booking.event?.check_out_date)}
                 </div>
-                <div className="mt-1 text-xs text-[#6B6B6B]">
+                <div className="mt-1 text-xs text-[#696056]">
                   Your room is assigned by the estate — arrival details land in your inbox before
                   the weekend.
                 </div>
               </div>
 
-              <div className="mt-6 border-t border-[#E8E2D9] pt-5 text-sm">
+              <div className="mt-6 border-t border-[#D5D0C8] pt-5 text-sm">
                 <Row label="Package" value={Number(booking.base_amount) || 0} />
                 {Number(booking.addon_amount) > 0 && (
                   <Row label="Enhancements" value={Number(booking.addon_amount)} />
@@ -1151,13 +1173,13 @@ function PopupConfirmation({
                 {Number(booking.resort_fee) > 0 && (
                   <Row label="Resort fee" value={Number(booking.resort_fee)} />
                 )}
-                <div className="mt-3 flex items-baseline justify-between border-t border-[#E8E2D9] pt-3">
-                  <span className="text-xs uppercase tracking-[0.16em] text-[#6B6B6B]">
+                <div className="mt-3 flex items-baseline justify-between border-t border-[#D5D0C8] pt-3">
+                  <span className="text-xs uppercase tracking-[0.16em] text-[#696056]">
                     {booking.payment_status === "deposit_paid"
                       ? "Weekend total (incl. tax)"
                       : "Paid (incl. tax)"}
                   </span>
-                  <span className="font-serif text-xl text-[#2C3E2D]">
+                  <span className="font-serif text-xl text-[#2C3A2E]">
                     {fmtMoney(
                       (Number(booking.base_amount) || 0) +
                         (Number(booking.addon_amount) || 0) +
@@ -1169,7 +1191,7 @@ function PopupConfirmation({
                   </span>
                 </div>
                 {booking.payment_status === "deposit_paid" && (
-                  <p className="mt-2 text-xs text-[#6B6B6B]">
+                  <p className="mt-2 text-xs text-[#696056]">
                     You paid 50% today. The remaining balance is automatically charged to the same
                     card
                     {payload?.event?.balance_due_on
@@ -1181,12 +1203,12 @@ function PopupConfirmation({
               </div>
 
               {includedItems.length > 0 && (
-                <div className="mt-6 border-t border-[#E8E2D9] pt-5">
+                <div className="mt-6 border-t border-[#D5D0C8] pt-5">
                   <SectionLabel>Your weekend includes</SectionLabel>
                   <ul className="mt-2 space-y-1">
                     {includedItems.map((it) => (
-                      <li key={it.id} className="flex gap-2 text-xs text-[#3A3A3A]">
-                        <span className="text-[#C9A84C]">✓</span>
+                      <li key={it.id} className="flex gap-2 text-xs text-[#443E36]">
+                        <span className="text-[#F09B9C]">✓</span>
                         <span>
                           {it.time_label ? `${it.time_label} — ` : ""}
                           {it.activity}
@@ -1197,7 +1219,7 @@ function PopupConfirmation({
                 </div>
               )}
 
-              <p className="mt-6 text-xs text-[#6B6B6B]">{CONTACT_LINE}</p>
+              <p className="mt-6 text-xs text-[#696056]">{CONTACT_LINE}</p>
             </div>
           </div>
         )}

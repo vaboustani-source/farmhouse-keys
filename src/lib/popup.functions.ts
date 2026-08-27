@@ -19,6 +19,7 @@ export type PopupTier = {
   total_rooms: number;
   remaining: number;
   show_scarcity: boolean;
+  is_featured: boolean;
   nights: number;
   booking_link_slug: string | null;
   sort_order: number;

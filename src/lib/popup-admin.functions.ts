@@ -14,11 +14,7 @@ async function assertAdmin(): Promise<string> {
   const { data: auth } = await supabase.auth.getUser();
   const userId = auth.user?.id;
   if (!userId) throw new Error("Forbidden");
-  const { data: u } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", userId)
-    .maybeSingle();
+  const { data: u } = await supabase.from("users").select("role").eq("id", userId).maybeSingle();
   if (u?.role !== "admin") throw new Error("Forbidden");
   return userId;
 }
@@ -129,11 +125,7 @@ export async function createPopupEvent({
   const base = slugify(data.title) || "popup-weekend";
   let slug = base;
   for (let i = 2; i <= 20; i++) {
-    const { data: clash } = await sb
-      .from("lb_events")
-      .select("id")
-      .eq("slug", slug)
-      .maybeSingle();
+    const { data: clash } = await sb.from("lb_events").select("id").eq("slug", slug).maybeSingle();
     if (!clash) break;
     slug = `${base}-${i}`;
   }

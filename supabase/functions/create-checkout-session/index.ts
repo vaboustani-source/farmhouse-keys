@@ -43,10 +43,19 @@ async function lineItemsForBooking(
 ) {
   const { data: booking, error: bErr } = await supabaseAdmin
     .from("lb_bookings")
-    .select("id, event_id, section_id, guest_name, guest_email, payment_schedule")
+    .select(
+      "id, event_id, section_id, guest_name, guest_email, payment_schedule, rate_type, base_amount",
+    )
     .eq("id", bookingId)
     .single();
   if (bErr || !booking) throw new Error("Booking not found");
+
+  const { data: eventRow } = await supabaseAdmin
+    .from("lb_events")
+    .select("event_type, balance_due_on")
+    .eq("id", booking.event_id)
+    .single();
+  const isPopup = eventRow?.event_type === "popup";
 
   const { data: section, error: sErr } = await supabaseAdmin
     .from("lb_room_sections")
@@ -67,10 +76,14 @@ async function lineItemsForBooking(
 
   const nights = Number(section.nights) || 2;
   const nightly = Number(section.guest_nightly_rate) || 0;
-  const baseAmount = nightly * nights;
+  // Pop-up bookings carry the price create_popup_booking stamped on them
+  // (waitlist vs regular rate, decided server-side against the waitlist table).
+  const stampedBase = Number(booking.base_amount) || 0;
+  const baseAmount = isPopup && stampedBase > 0 ? stampedBase : nightly * nights;
 
   const lineItems: CheckoutLineItem[] = [];
   const prefix = labelPrefix ? `${labelPrefix} — ` : "";
+  const rateSuffix = isPopup && booking.rate_type === "waitlist" ? " (waitlist rate)" : "";
 
   lineItems.push({
     quantity: 1,
@@ -79,7 +92,7 @@ async function lineItemsForBooking(
       unit_amount: Math.round(baseAmount * 100),
       tax_behavior: "exclusive",
       product_data: {
-        name: `${prefix}${section.section_name} lodging · ${nights} night${nights === 1 ? "" : "s"}`,
+        name: `${prefix}${section.section_name} lodging · ${nights} night${nights === 1 ? "" : "s"}${rateSuffix}`,
         tax_code: "txcd_20030000",
       },
     },
@@ -131,6 +144,8 @@ async function lineItemsForBooking(
     addonAmount,
     resortFee,
     lineItems,
+    isPopup,
+    balanceDueOn: (eventRow?.balance_due_on as string | null) ?? null,
   };
 }
 
@@ -346,12 +361,20 @@ serve(async (req) => {
       .select("payment_schedule")
       .eq("id", primary.booking.section_id)
       .single();
-    const effectiveSchedule =
-      scheduleRow?.payment_schedule ?? primary.booking.payment_schedule;
+    // Pop-up weekends: the guest chooses full vs 50/50 per booking (stored by
+    // set_popup_payment_choice); the section default is for wedding blocks.
+    const effectiveSchedule = primary.isPopup
+      ? primary.booking.payment_schedule
+      : scheduleRow?.payment_schedule ?? primary.booking.payment_schedule;
     let appliedAmounts = allLineItems;
-    const isSplit =
+    let isSplit =
       effectiveSchedule === "split_50_50" ||
       effectiveSchedule === "deposit_50_balance_50";
+    // Split closes once the balance due date has passed — server-enforced.
+    if (isSplit && primary.isPopup) {
+      const today = new Date().toISOString().slice(0, 10);
+      if (!primary.balanceDueOn || today > primary.balanceDueOn) isSplit = false;
+    }
     if (isSplit) {
       const halfFor = (items: CheckoutLineItem[]): CheckoutLineItem[] =>
         items.map((li) => ({

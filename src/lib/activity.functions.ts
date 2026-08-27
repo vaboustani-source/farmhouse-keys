@@ -22,11 +22,16 @@ export type ListActivityInput = {
 
 function categoryActionPrefixes(cat: string): string[] {
   switch (cat) {
-    case "bookings": return ["booking."];
-    case "payments": return ["payment.", "refund.", "charge."];
-    case "admin": return ["pricing.", "guest.", "event."];
-    case "system": return ["email.", "system."];
-    default: return [];
+    case "bookings":
+      return ["booking."];
+    case "payments":
+      return ["payment.", "refund.", "charge."];
+    case "admin":
+      return ["pricing.", "guest.", "event."];
+    case "system":
+      return ["email.", "system."];
+    default:
+      return [];
   }
 }
 

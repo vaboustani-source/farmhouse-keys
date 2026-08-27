@@ -38,6 +38,8 @@ export type PopupItineraryItem = {
   sort_order: number;
 };
 
+export type PopupBookingPhase = "preopen" | "waitlist_only" | "public";
+
 export type PopupEventPayload = {
   event: {
     id: string;
@@ -50,6 +52,12 @@ export type PopupEventPayload = {
     check_in_time: string;
     check_out_time: string;
     nights: number;
+    phase: PopupBookingPhase;
+    waitlist_opens_at: string | null;
+    public_opens_at: string | null;
+    balance_due_on: string | null;
+    split_available: boolean;
+    cancel_by_date: string | null;
   } | null;
   tiers: PopupTier[];
   itinerary: PopupItineraryItem[];
@@ -75,9 +83,20 @@ export type PopupBookingResult =
         guest_name: string;
         guest_email: string;
         section_id: string;
+        base_amount: number;
+        rate_type: "waitlist" | "regular";
       };
     }
-  | { ok: false; reason: "sold_out" | "already_booked" | "not_available" | "invalid" };
+  | {
+      ok: false;
+      reason:
+        | "sold_out"
+        | "already_booked"
+        | "not_available"
+        | "not_open"
+        | "waitlist_only"
+        | "invalid";
+    };
 
 export async function createPopupBookingFn({
   data,
@@ -86,35 +105,83 @@ export async function createPopupBookingFn({
     eventSlug: string;
     sectionId: string;
     guestName: string;
+    guest2Name?: string;
     guestEmail: string;
-    guestPhone?: string;
+    guestPhone: string;
   };
 }): Promise<PopupBookingResult> {
-  const { data: bookingId, error } = await sb.rpc("create_popup_booking", {
+  const { data: result, error } = await sb.rpc("create_popup_booking", {
     p_event_slug: data.eventSlug,
     p_section_id: data.sectionId,
     p_guest_name: data.guestName,
     p_guest_email: data.guestEmail,
-    p_guest_phone: data.guestPhone ?? null,
+    p_guest_phone: data.guestPhone,
+    p_guest2_name: data.guest2Name ?? null,
   });
   if (error) {
     const msg = String(error.message ?? "");
     if (msg.includes("sold_out")) return { ok: false, reason: "sold_out" };
     if (msg.includes("already_booked")) return { ok: false, reason: "already_booked" };
+    if (msg.includes("waitlist_only")) return { ok: false, reason: "waitlist_only" };
+    if (msg.includes("not_open")) return { ok: false, reason: "not_open" };
     if (msg.includes("not_available")) return { ok: false, reason: "not_available" };
     console.error("create_popup_booking failed", error);
     return { ok: false, reason: "invalid" };
   }
 
-  // The RPC logs the reservation to lb_activity_log itself (guests cannot
-  // insert there directly) and returns only the booking id.
+  // The RPC stamps the applicable rate on the booking (waitlist vs regular,
+  // decided server-side) and logs to lb_activity_log itself.
+  const r = result as {
+    booking_id: string;
+    base_amount: number;
+    rate_type: "waitlist" | "regular";
+  };
+  const displayName = data.guest2Name?.trim()
+    ? `${data.guestName.trim()} & ${data.guest2Name.trim()}`
+    : data.guestName.trim();
   return {
     ok: true,
     booking: {
-      id: String(bookingId),
-      guest_name: data.guestName,
+      id: r.booking_id,
+      guest_name: displayName,
       guest_email: data.guestEmail,
       section_id: data.sectionId,
+      base_amount: Number(r.base_amount),
+      rate_type: r.rate_type,
     },
   };
+}
+
+/** True when this email is on the event's waitlist (waitlist rate applies). */
+export async function checkPopupWaitlist({
+  data,
+}: {
+  data: { eventSlug: string; email: string };
+}): Promise<{ onWaitlist: boolean }> {
+  const { data: result, error } = await sb.rpc("check_popup_waitlist", {
+    p_event_slug: data.eventSlug,
+    p_email: data.email,
+  });
+  if (error) {
+    console.error("check_popup_waitlist failed", error);
+    return { onWaitlist: false };
+  }
+  return { onWaitlist: !!(result as { on_waitlist?: boolean } | null)?.on_waitlist };
+}
+
+/** Records the guest's payment choice (full vs 50/50) before checkout opens. */
+export async function setPopupPaymentChoice({
+  data,
+}: {
+  data: { bookingId: string; schedule: "full" | "deposit_50_balance_50" };
+}): Promise<{ ok: boolean }> {
+  const { error } = await sb.rpc("set_popup_payment_choice", {
+    p_booking_id: data.bookingId,
+    p_schedule: data.schedule,
+  });
+  if (error) {
+    console.error("set_popup_payment_choice failed", error);
+    return { ok: false };
+  }
+  return { ok: true };
 }

@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import {
   getPopupEvent,
   createPopupBookingFn,
+  checkPopupWaitlist,
+  setPopupPaymentChoice,
   type PopupEventPayload,
   type PopupTier,
   type PopupItineraryItem,
@@ -31,6 +33,16 @@ const fmtDate = (d: string | null | undefined) =>
         day: "numeric",
       })
     : "";
+/** Timestamps (booking windows) rendered as their Eastern-time day. */
+const fmtDateTime = (iso: string | null | undefined) =>
+  iso
+    ? new Date(iso).toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        timeZone: "America/New_York",
+      })
+    : "";
 
 function Wordmark() {
   return (
@@ -49,8 +61,14 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return <div className="text-[10px] uppercase tracking-[0.24em] text-[#C9A84C]">{children}</div>;
 }
 
-const CANCELLATION_POLICY =
-  "Cancellation is possible up to 45 days prior to check-in. After that time, the reservation is fully non-refundable.";
+function cancellationPolicy(ev: NonNullable<PopupEventPayload["event"]>): string {
+  if (ev.cancel_by_date) {
+    return `Free cancellation until ${fmtDate(ev.cancel_by_date)}. After that, the reservation is fully non-refundable.`;
+  }
+  return "Cancellation is possible up to 45 days prior to check-in. After that time, the reservation is fully non-refundable.";
+}
+
+const FULL_STORY_URL = "https://gilbertsvillefarmhouse.com/couples-weekend";
 
 const CONTACT_LINE = (
   <>
@@ -67,7 +85,15 @@ const CONTACT_LINE = (
 type Step =
   | { kind: "landing" }
   | { kind: "details"; tier: PopupTier }
-  | { kind: "review"; tier: PopupTier; bookingId: string; guestName: string; guestEmail: string };
+  | {
+      kind: "review";
+      tier: PopupTier;
+      bookingId: string;
+      guestName: string;
+      guestEmail: string;
+      baseAmount: number;
+      rateType: "waitlist" | "regular";
+    };
 
 function PopupWeekendPage() {
   const { eventSlug } = Route.useParams();
@@ -172,8 +198,16 @@ function PopupWeekendPage() {
                   setBanner("That tier just sold out — here's what's still available.");
                   setStep({ kind: "landing" });
                 }}
-                onReserved={(bookingId, guestName, guestEmail) =>
-                  setStep({ kind: "review", tier: step.tier, bookingId, guestName, guestEmail })
+                onReserved={(bookingId, guestName, guestEmail, baseAmount, rateType) =>
+                  setStep({
+                    kind: "review",
+                    tier: step.tier,
+                    bookingId,
+                    guestName,
+                    guestEmail,
+                    baseAmount,
+                    rateType,
+                  })
                 }
               />
             )}
@@ -190,6 +224,8 @@ function PopupWeekendPage() {
                   tier={step.tier}
                   bookingId={step.bookingId}
                   guestName={step.guestName}
+                  baseAmount={step.baseAmount}
+                  rateType={step.rateType}
                   onBack={() => setStep({ kind: "details", tier: step.tier })}
                 />
               </ReviewErrorBoundary>
@@ -211,23 +247,13 @@ function Landing({
   onReserve: (tier: PopupTier) => void;
 }) {
   const ev = payload.event!;
-  const days = useMemo(() => {
-    const map = new Map<number, PopupItineraryItem[]>();
-    for (const it of payload.itinerary) {
-      const list = map.get(it.day_number) ?? [];
-      list.push(it);
-      map.set(it.day_number, list);
-    }
-    return [...map.entries()].sort((a, b) => a[0] - b[0]);
-  }, [payload.itinerary]);
-
-  const tierShortNames = payload.tiers.map((t) => t.section_name);
+  const phase = ev.phase;
 
   return (
     <div>
-      {/* Hero */}
+      {/* Hero — the full story lives on /couples-weekend; this page books it. */}
       <div className="mt-12 text-center">
-        <SectionLabel>A pop-up hotel weekend</SectionLabel>
+        <SectionLabel>A weekend for two</SectionLabel>
         <h1 className="mt-3 font-serif text-4xl font-medium md:text-5xl">{ev.title}</h1>
         <p className="mt-4 text-sm text-[#3A3A3A]">
           {fmtDate(ev.check_in_date)} → {fmtDate(ev.check_out_date)} · {ev.nights}{" "}
@@ -238,33 +264,38 @@ function Landing({
             {ev.hero_intro}
           </p>
         )}
-        <a
-          href="#tiers"
-          className="mt-8 inline-block rounded border border-[#C9A84C] px-6 py-3 text-xs uppercase tracking-[0.16em] text-[#7a6420] transition-colors hover:bg-[#C9A84C]/10"
-        >
-          See the weekend
-        </a>
+        <div className="mt-8 flex flex-col items-center gap-3">
+          <a
+            href="#tiers"
+            className="inline-block rounded border border-[#C9A84C] px-6 py-3 text-xs uppercase tracking-[0.16em] text-[#7a6420] transition-colors hover:bg-[#C9A84C]/10"
+          >
+            Choose your weekend
+          </a>
+          <a
+            href={FULL_STORY_URL}
+            className="text-xs text-[#6B6B6B] underline underline-offset-2 hover:text-[#1A1A1A]"
+          >
+            Read the full weekend, hour by hour →
+          </a>
+        </div>
       </div>
 
-      {/* Itinerary */}
-      {days.length > 0 && (
-        <div className="mx-auto mt-16 max-w-xl">
-          <h2 className="text-center font-serif text-3xl">The weekend, hour by hour</h2>
-          {days.map(([day, items]) => (
-            <div key={day} className="mt-8">
-              <div className="font-serif text-xl text-[#2C3E2D]">Day {day}</div>
-              <div className="mt-3 space-y-0 border-l border-[#E8E2D9]">
-                {items.map((it) => (
-                  <ItineraryRow key={it.id} item={it} tierNames={tierShortNames} />
-                ))}
-              </div>
-            </div>
-          ))}
+      {/* Booking-window notice */}
+      {phase === "preopen" && ev.waitlist_opens_at && (
+        <div className="mx-auto mt-10 max-w-xl rounded-md border border-[#C9A84C]/40 bg-[#FBF6E7] p-4 text-center text-sm text-[#7a6420]">
+          Booking opens {fmtDateTime(ev.waitlist_opens_at)} for waitlist members
+          {ev.public_opens_at ? ` — and to everyone ${fmtDateTime(ev.public_opens_at)}` : ""}.
+        </div>
+      )}
+      {phase === "waitlist_only" && (
+        <div className="mx-auto mt-10 max-w-xl rounded-md border border-[#C9A84C]/40 bg-[#FBF6E7] p-4 text-center text-sm text-[#7a6420]">
+          Waitlist first access — book today with the email you joined with.
+          {ev.public_opens_at ? ` Public booking opens ${fmtDateTime(ev.public_opens_at)}.` : ""}
         </div>
       )}
 
       {/* Tier cards */}
-      <div id="tiers" className="mt-16 scroll-mt-8">
+      <div id="tiers" className="mt-14 scroll-mt-8">
         <h2 className="text-center font-serif text-3xl">Choose your weekend</h2>
         <p className="mt-2 text-center text-sm text-[#6B6B6B]">
           Every tier includes your lodging for the full weekend. Your exact room is assigned by the
@@ -278,6 +309,7 @@ function Landing({
               itinerary={payload.itinerary}
               tierIndex={i}
               featured={i === payload.tiers.length - 1}
+              phase={phase}
               onReserve={() => onReserve(tier)}
             />
           ))}
@@ -289,43 +321,19 @@ function Landing({
   );
 }
 
-function ItineraryRow({ item, tierNames }: { item: PopupItineraryItem; tierNames: string[] }) {
-  const flags = [item.tier1_included, item.tier2_included, item.tier3_included];
-  const includedCount = flags.filter(Boolean).length;
-  const chips =
-    includedCount > 0 && includedCount < Math.min(3, tierNames.length || 3)
-      ? tierNames.filter((_, i) => flags[i])
-      : [];
-  return (
-    <div className="flex items-baseline gap-4 py-2 pl-5">
-      <div className="w-32 shrink-0 text-xs text-[#6B6B6B]">{item.time_label ?? ""}</div>
-      <div className="flex-1">
-        <span className="text-sm text-[#1A1A1A]">{item.activity}</span>
-        {chips.map((c) => (
-          <span
-            key={c}
-            className="ml-2 inline-block rounded-full bg-[#C9A84C]/15 px-2 py-0.5 text-[10px] uppercase tracking-wider text-[#7a6420]"
-          >
-            {c}
-          </span>
-        ))}
-        {item.note && <div className="mt-0.5 text-xs italic text-[#6B6B6B]">{item.note}</div>}
-      </div>
-    </div>
-  );
-}
-
 function TierCard({
   tier,
   itinerary,
   tierIndex,
   featured,
+  phase,
   onReserve,
 }: {
   tier: PopupTier;
   itinerary: PopupItineraryItem[];
   tierIndex: number;
   featured: boolean;
+  phase: "preopen" | "waitlist_only" | "public";
   onReserve: () => void;
 }) {
   const included = itinerary.filter((it) => {
@@ -333,18 +341,29 @@ function TierCard({
     return flags[tierIndex];
   });
   const soldOut = tier.remaining <= 0;
-  const showPromo =
-    tier.promo_active &&
-    tier.promo_package_price != null &&
-    tier.regular_package_price != null &&
-    Number(tier.promo_package_price) < Number(tier.regular_package_price);
+  const regular = tier.regular_package_price != null ? Number(tier.regular_package_price) : null;
+  const promo = tier.promo_package_price != null ? Number(tier.promo_package_price) : null;
+  const hasWaitlistRate = promo != null && regular != null && promo < regular;
+  // Before public opening, only waitlist members can book — show their rate.
+  // Once public, the headline price is the regular rate; a matched waitlist
+  // email still gets the lower rate, verified at checkout.
+  const headline =
+    phase === "public" ? (regular ?? tier.selling_price) : (promo ?? tier.selling_price);
+  // Uncapped tiers use a sentinel-high total_rooms; only show scarcity for
+  // genuinely limited tiers.
+  const capped = tier.total_rooms <= 20;
 
   return (
     <div
-      className={`flex flex-col rounded-[4px] border bg-white p-6 ${
+      className={`relative flex flex-col rounded-[4px] border bg-white p-6 ${
         featured ? "border-[#C9A84C]" : "border-[#E8E2D9]"
       } ${soldOut ? "opacity-70" : ""}`}
     >
+      {featured && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#C9A84C] px-3 py-0.5 text-[10px] uppercase tracking-wider text-white">
+          Most popular
+        </div>
+      )}
       <h3 className="font-serif text-2xl leading-snug">{tier.section_name}</h3>
       {tier.tagline && <p className="mt-1 text-xs italic text-[#6B6B6B]">{tier.tagline}</p>}
 
@@ -361,34 +380,43 @@ function TierCard({
       </ul>
 
       <div className="mt-5 border-t border-[#E8E2D9] pt-4">
-        {showPromo && (
+        {phase !== "public" && hasWaitlistRate && (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-[#6B6B6B] line-through">
-              {fmtMoney(Number(tier.regular_package_price))}
-            </span>
+            <span className="text-sm text-[#6B6B6B] line-through">{fmtMoney(regular!)}</span>
             <span className="rounded-full bg-[#C9A84C]/15 px-2 py-0.5 text-[10px] uppercase tracking-wider text-[#7a6420]">
-              Introductory rate
+              Waitlist rate
             </span>
           </div>
         )}
-        <div className="font-serif text-3xl text-[#2C3E2D]">{fmtMoney(tier.selling_price)}</div>
+        <div className="font-serif text-3xl text-[#2C3E2D]">{fmtMoney(headline)}</div>
         <div className="text-xs text-[#6B6B6B]">
           per couple · {tier.nights} {tier.nights === 1 ? "night" : "nights"} · before fees &amp;
           tax
         </div>
-        <div className="mt-2 text-xs text-[#6B6B6B]">
-          {soldOut
-            ? "Sold out"
-            : tier.remaining <= 3
-              ? `${tier.remaining} ${tier.remaining === 1 ? "room remains" : "rooms remain"}`
-              : "Rooms available"}
-        </div>
+        {phase === "public" && hasWaitlistRate && (
+          <div className="mt-1 text-xs text-[#7a6420]">
+            Waitlist members: {fmtMoney(promo!)} — honored at checkout.
+          </div>
+        )}
+        {capped && (
+          <div className="mt-2 text-xs text-[#6B6B6B]">
+            {soldOut
+              ? "Sold out"
+              : tier.remaining <= 3
+                ? `${tier.remaining} ${tier.remaining === 1 ? "room remains" : "rooms remain"}`
+                : `Only ${tier.total_rooms} couples — ${tier.remaining} rooms left`}
+          </div>
+        )}
         <button
           onClick={onReserve}
-          disabled={soldOut}
+          disabled={soldOut || phase === "preopen"}
           className="mt-4 w-full rounded bg-[#2C3E2D] px-4 py-3 text-xs uppercase tracking-[0.16em] text-white transition-colors hover:bg-[#2C3E2D]/90 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {soldOut ? "Sold out" : "Reserve this weekend"}
+          {soldOut
+            ? "Sold out"
+            : phase === "preopen"
+              ? "Booking opens soon"
+              : "Reserve this weekend"}
         </button>
       </div>
     </div>
@@ -410,13 +438,21 @@ function DetailsStep({
   tier: PopupTier;
   onBack: () => void;
   onSoldOut: () => void;
-  onReserved: (bookingId: string, guestName: string, guestEmail: string) => void;
+  onReserved: (
+    bookingId: string,
+    guestName: string,
+    guestEmail: string,
+    baseAmount: number,
+    rateType: "waitlist" | "regular",
+  ) => void;
 }) {
   const createBooking = createPopupBookingFn;
   const ev = payload.event!;
   const [name, setName] = useState("");
+  const [name2, setName2] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [onWaitlist, setOnWaitlist] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -426,8 +462,14 @@ function DetailsStep({
     try {
       const saved = sessionStorage.getItem(`gfh_popup_guest_${eventSlug}`);
       if (saved) {
-        const g = JSON.parse(saved) as { name?: string; email?: string; phone?: string };
+        const g = JSON.parse(saved) as {
+          name?: string;
+          name2?: string;
+          email?: string;
+          phone?: string;
+        };
         if (g.name) setName(g.name);
+        if (g.name2) setName2(g.name2);
         if (g.email) setEmail(g.email);
         if (g.phone) setPhone(g.phone);
       }
@@ -435,6 +477,34 @@ function DetailsStep({
       /* sessionStorage unavailable — non-fatal */
     }
   }, [eventSlug]);
+
+  // Live waitlist check: a matched email locks in the waitlist rate (the
+  // server re-verifies at booking and checkout — this is display only).
+  useEffect(() => {
+    const candidate = email.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(candidate)) {
+      setOnWaitlist(false);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(() => {
+      checkPopupWaitlist({ data: { eventSlug, email: candidate } }).then(({ onWaitlist }) => {
+        if (!cancelled) setOnWaitlist(onWaitlist);
+      });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [email, eventSlug]);
+
+  const regular = tier.regular_package_price != null ? Number(tier.regular_package_price) : null;
+  const promo = tier.promo_package_price != null ? Number(tier.promo_package_price) : null;
+  const displayPrice = onWaitlist
+    ? (promo ?? tier.selling_price)
+    : ev.phase === "public"
+      ? (regular ?? tier.selling_price)
+      : (promo ?? tier.selling_price);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -444,7 +514,7 @@ function DetailsStep({
       try {
         sessionStorage.setItem(
           `gfh_popup_guest_${eventSlug}`,
-          JSON.stringify({ name, email, phone }),
+          JSON.stringify({ name, name2, email, phone }),
         );
       } catch {
         /* sessionStorage unavailable — non-fatal */
@@ -454,8 +524,9 @@ function DetailsStep({
           eventSlug,
           sectionId: tier.id,
           guestName: name.trim(),
+          guest2Name: name2.trim() || undefined,
           guestEmail: email.trim(),
-          guestPhone: phone.trim() || undefined,
+          guestPhone: phone.trim(),
         },
       });
       if (!res.ok) {
@@ -469,10 +540,34 @@ function DetailsStep({
           );
           return;
         }
+        if (res.reason === "waitlist_only") {
+          setError(
+            `Right now booking is reserved for our waitlist — use the email you joined the waitlist with${
+              ev.public_opens_at
+                ? `, or come back ${fmtDateTime(ev.public_opens_at)} when booking opens to everyone`
+                : ""
+            }.`,
+          );
+          return;
+        }
+        if (res.reason === "not_open") {
+          setError(
+            ev.waitlist_opens_at
+              ? `Booking hasn't opened yet — waitlist members can book starting ${fmtDateTime(ev.waitlist_opens_at)}.`
+              : "Booking hasn't opened yet.",
+          );
+          return;
+        }
         setError("Something went wrong — please try again.");
         return;
       }
-      onReserved(res.booking.id, res.booking.guest_name, res.booking.guest_email);
+      onReserved(
+        res.booking.id,
+        res.booking.guest_name,
+        res.booking.guest_email,
+        res.booking.base_amount,
+        res.booking.rate_type,
+      );
     } catch (err) {
       console.error("createPopupBooking failed", err);
       setError("Something went wrong — please try again.");
@@ -480,6 +575,9 @@ function DetailsStep({
       setSubmitting(false);
     }
   };
+
+  const inputCls =
+    "w-full rounded border border-[#E8E2D9] bg-white px-4 py-3 text-base focus:border-[#2C3E2D] focus:outline-none";
 
   return (
     <div className="mx-auto mt-10 max-w-md">
@@ -494,9 +592,17 @@ function DetailsStep({
         <SectionLabel>Your weekend</SectionLabel>
         <div className="mt-1 font-serif text-2xl">{tier.section_name}</div>
         <div className="mt-1 text-sm text-[#6B6B6B]">
-          {fmtDate(ev.check_in_date)} → {fmtDate(ev.check_out_date)} ·{" "}
-          {fmtMoney(tier.selling_price)} per couple
+          {fmtDate(ev.check_in_date)} → {fmtDate(ev.check_out_date)} · {fmtMoney(displayPrice)} per
+          couple
+          {onWaitlist && regular != null && promo != null && promo < regular && (
+            <span className="ml-2 text-[#6B6B6B] line-through">{fmtMoney(regular)}</span>
+          )}
         </div>
+        {onWaitlist && (
+          <div className="mt-2 text-xs text-[#7a6420]">
+            ✓ You're on the waitlist — your waitlist rate is locked in.
+          </div>
+        )}
       </div>
 
       <form onSubmit={submit} className="mt-6 space-y-3">
@@ -507,8 +613,16 @@ function DetailsStep({
           autoComplete="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Who's coming? (both names welcome)"
-          className="w-full rounded border border-[#E8E2D9] bg-white px-4 py-3 text-base focus:border-[#2C3E2D] focus:outline-none"
+          placeholder="Guest 1 — full name"
+          className={inputCls}
+        />
+        <input
+          type="text"
+          required
+          value={name2}
+          onChange={(e) => setName2(e.target.value)}
+          placeholder="Guest 2 — full name"
+          className={inputCls}
         />
         <input
           type="email"
@@ -518,20 +632,21 @@ function DetailsStep({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
-          className="w-full rounded border border-[#E8E2D9] bg-white px-4 py-3 text-base focus:border-[#2C3E2D] focus:outline-none"
+          className={inputCls}
         />
         <input
           type="tel"
+          required
           autoComplete="tel"
           inputMode="tel"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          placeholder="Phone (optional)"
-          className="w-full rounded border border-[#E8E2D9] bg-white px-4 py-3 text-base focus:border-[#2C3E2D] focus:outline-none"
+          placeholder="Phone"
+          className={inputCls}
         />
         <button
           type="submit"
-          disabled={submitting || !name || !email}
+          disabled={submitting || !name || !name2 || !email || !phone}
           className="w-full rounded bg-[#2C3E2D] px-4 py-3 min-h-[44px] text-sm uppercase tracking-[0.16em] text-white transition-colors hover:bg-[#2C3E2D]/90 disabled:opacity-50"
         >
           {submitting ? "Holding your room…" : "Continue"}
@@ -553,6 +668,8 @@ function PopupReviewStep({
   tier,
   bookingId,
   guestName,
+  baseAmount,
+  rateType,
   onBack,
 }: {
   eventSlug: string;
@@ -560,6 +677,8 @@ function PopupReviewStep({
   tier: PopupTier;
   bookingId: string;
   guestName: string;
+  baseAmount: number;
+  rateType: "waitlist" | "regular";
   onBack: () => void;
 }) {
   const fetchAddons = getSectionAddons;
@@ -568,6 +687,7 @@ function PopupReviewStep({
   const [addons, setAddons] = useState<Addon[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [cotRequested, setCotRequested] = useState(false);
+  const [schedule, setSchedule] = useState<"full" | "deposit_50_balance_50">("full");
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -582,7 +702,7 @@ function PopupReviewStep({
 
   const calc = useMemo(() => {
     const nights = tier.nights || 2;
-    const base = tier.selling_price;
+    const base = baseAmount;
     const addonAmt = addons
       .filter((a) => selectedIds.includes(a.id))
       .reduce(
@@ -595,12 +715,22 @@ function PopupReviewStep({
     const tax = (subtotal + resortFee + cotFee) * 0.08;
     const total = subtotal + resortFee + cotFee + tax;
     return { nights, base, addonAmt, cotFee, resortFee, tax, total };
-  }, [tier, addons, selectedIds, cotRequested]);
+  }, [tier, addons, selectedIds, cotRequested, baseAmount]);
+
+  const isSplit = schedule === "deposit_50_balance_50";
+  const dueToday = isSplit ? calc.total / 2 : calc.total;
 
   const reserve = async () => {
     setSubmitting(true);
     setError(null);
     try {
+      // Record the payment choice before checkout so the session is built
+      // as full or 50/50 (server re-validates the split cutoff date).
+      const choice = await setPopupPaymentChoice({ data: { bookingId, schedule } });
+      if (!choice.ok) {
+        setError("We couldn't save your payment choice — please try again.");
+        return;
+      }
       const { url, alreadyPaid, redirectUrl, locked, lockedMessage } = await createCheckoutSession({
         bookingId,
         addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
@@ -649,6 +779,11 @@ function PopupReviewStep({
           {fmtDate(ev.check_in_date)} → {fmtDate(ev.check_out_date)} · {calc.nights}{" "}
           {calc.nights === 1 ? "night" : "nights"}
         </div>
+        {rateType === "waitlist" && (
+          <div className="mt-2 text-xs text-[#7a6420]">
+            ✓ Waitlist rate applied — {fmtMoney(calc.base)} per couple.
+          </div>
+        )}
       </div>
 
       {addons.length > 0 && (
@@ -721,6 +856,57 @@ function PopupReviewStep({
         </label>
       </div>
 
+      {/* Payment options */}
+      {ev.split_available && ev.balance_due_on && (
+        <div className="mt-4 rounded-[4px] border border-[#E8E2D9] bg-white p-6">
+          <h2 className="font-serif text-xl">How would you like to pay?</h2>
+          <div className="mt-4 space-y-2">
+            <label
+              className={`flex cursor-pointer items-start gap-3 rounded border p-4 transition-colors ${
+                !isSplit ? "border-[#2C3E2D] bg-[#FAF8F4]" : "border-[#E8E2D9]"
+              }`}
+            >
+              <input
+                type="radio"
+                name="paymentSchedule"
+                checked={!isSplit}
+                onChange={() => setSchedule("full")}
+                className="mt-1 h-4 w-4 accent-[#2C3E2D]"
+              />
+              <div>
+                <div className="text-sm font-medium">Pay in full today</div>
+                <div className="mt-0.5 text-xs text-[#6B6B6B]">
+                  {fmtMoney(calc.total)} — done and dusted.
+                </div>
+              </div>
+            </label>
+            <label
+              className={`flex cursor-pointer items-start gap-3 rounded border p-4 transition-colors ${
+                isSplit ? "border-[#2C3E2D] bg-[#FAF8F4]" : "border-[#E8E2D9]"
+              }`}
+            >
+              <input
+                type="radio"
+                name="paymentSchedule"
+                checked={isSplit}
+                onChange={() => setSchedule("deposit_50_balance_50")}
+                className="mt-1 h-4 w-4 accent-[#2C3E2D]"
+              />
+              <div>
+                <div className="text-sm font-medium">
+                  50% today, 50% on {fmtDate(ev.balance_due_on)}
+                </div>
+                <div className="mt-0.5 text-xs text-[#6B6B6B]">
+                  {fmtMoney(calc.total / 2)} today. The remaining {fmtMoney(calc.total / 2)} is
+                  automatically charged to the same card on {fmtDate(ev.balance_due_on)} — we'll
+                  email you a reminder the week before.
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+      )}
+
       {/* Totals */}
       <div className="mt-4 rounded-[4px] border border-[#E8E2D9] bg-white p-6">
         <SectionLabel>Your total</SectionLabel>
@@ -732,11 +918,17 @@ function PopupReviewStep({
             <Row label={`Resort fee (${tier.resort_fee_percent}%)`} value={calc.resortFee} />
           )}
           <Row label="NY sales tax (est.)" value={calc.tax} muted />
+          {isSplit && <Row label="Weekend total (incl. tax)" value={calc.total} muted />}
         </div>
         <div className="mt-4 flex items-baseline justify-between border-t border-[#E8E2D9] pt-4">
           <span className="text-xs uppercase tracking-[0.16em] text-[#6B6B6B]">Due today</span>
-          <span className="font-serif text-2xl text-[#2C3E2D]">{fmtMoney(calc.total)}</span>
+          <span className="font-serif text-2xl text-[#2C3E2D]">{fmtMoney(dueToday)}</span>
         </div>
+        {isSplit && ev.balance_due_on && (
+          <p className="mt-2 text-xs text-[#6B6B6B]">
+            Remaining {fmtMoney(calc.total / 2)} auto-charged {fmtDate(ev.balance_due_on)}.
+          </p>
+        )}
       </div>
 
       <label className="mt-4 flex cursor-pointer items-start gap-3 px-1 text-xs text-[#6B6B6B]">
@@ -746,7 +938,11 @@ function PopupReviewStep({
           onChange={(e) => setAgreed(e.target.checked)}
           className="mt-0.5 h-4 w-4 accent-[#2C3E2D]"
         />
-        <span>I understand the cancellation policy: {CANCELLATION_POLICY}</span>
+        <span>
+          I understand the cancellation policy: {cancellationPolicy(ev)} We highly recommend travel
+          insurance — typically 5–8% of your trip, about {fmtMoney(Math.round(calc.total * 0.05))}–
+          {fmtMoney(Math.round(calc.total * 0.08))} for this reservation.
+        </span>
       </label>
 
       <button
@@ -891,7 +1087,9 @@ function PopupConfirmation({
                 )}
                 <div className="mt-3 flex items-baseline justify-between border-t border-[#E8E2D9] pt-3">
                   <span className="text-xs uppercase tracking-[0.16em] text-[#6B6B6B]">
-                    Paid (incl. tax)
+                    {booking.payment_status === "deposit_paid"
+                      ? "Weekend total (incl. tax)"
+                      : "Paid (incl. tax)"}
                   </span>
                   <span className="font-serif text-xl text-[#2C3E2D]">
                     {fmtMoney(
@@ -904,6 +1102,16 @@ function PopupConfirmation({
                     )}
                   </span>
                 </div>
+                {booking.payment_status === "deposit_paid" && (
+                  <p className="mt-2 text-xs text-[#6B6B6B]">
+                    You paid 50% today. The remaining balance is automatically charged to the same
+                    card
+                    {payload?.event?.balance_due_on
+                      ? ` on ${fmtDate(payload.event.balance_due_on)}`
+                      : " before the weekend"}{" "}
+                    — we'll email you a reminder first.
+                  </p>
+                )}
               </div>
 
               {includedItems.length > 0 && (

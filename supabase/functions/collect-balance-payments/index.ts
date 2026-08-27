@@ -110,17 +110,27 @@ Deno.serve(async (req) => {
     console.error("cleanup_stale_session_locks failed", err);
   }
 
-  // --- Reminders: check_in_date 37 days out ---
+  // --- Reminders: check_in_date 37 days out (default schedule), or an
+  //     explicit balance_due_on 7 days out (e.g. pop-up weekends) ---
   {
-    const { data: events } = await supabase
+    const { data: defaultEvents } = await supabase
       .from("lb_events")
       .select("id")
-      .eq("check_in_date", reminderOn);
-    const eventIds = (events ?? []).map((e) => e.id);
+      .eq("check_in_date", reminderOn)
+      .is("balance_due_on", null);
+    const { data: dueDateEvents } = await supabase
+      .from("lb_events")
+      .select("id")
+      .eq("balance_due_on", addDays(7));
+    const eventIds = [
+      ...(defaultEvents ?? []).map((e) => e.id),
+      ...(dueDateEvents ?? []).map((e) => e.id),
+    ];
+    const dueDateIds = new Set((dueDateEvents ?? []).map((e) => e.id));
     if (eventIds.length > 0) {
       const { data: rows } = await supabase
         .from("lb_bookings")
-        .select("id, guest_email, guest_name, total_amount, reminder_count")
+        .select("id, event_id, guest_email, guest_name, total_amount, reminder_count")
         .in("event_id", eventIds)
         .eq("payment_status", "deposit_paid")
         .eq("payment_schedule", "deposit_50_balance_50")
@@ -133,7 +143,7 @@ Deno.serve(async (req) => {
             to: b.guest_email,
             guestName: b.guest_name,
             amount: balance,
-            chargeDate: chargeOn,
+            chargeDate: dueDateIds.has(b.event_id) ? addDays(7) : chargeOn,
           });
           await supabase
             .from("lb_bookings")
@@ -150,13 +160,20 @@ Deno.serve(async (req) => {
     }
   }
 
-  // --- Charges: check_in_date 30 days out ---
+  // --- Charges: check_in_date 30 days out (default), or an explicit
+  //     balance_due_on today (e.g. pop-up weekends) ---
   {
-    const { data: events } = await supabase
+    const { data: defaultEvents } = await supabase
       .from("lb_events")
       .select("id, wedding_name")
-      .eq("check_in_date", chargeOn);
-    const eventIds = (events ?? []).map((e) => e.id);
+      .eq("check_in_date", chargeOn)
+      .is("balance_due_on", null);
+    const { data: dueDateEvents } = await supabase
+      .from("lb_events")
+      .select("id, wedding_name")
+      .eq("balance_due_on", addDays(0));
+    const events = [...(defaultEvents ?? []), ...(dueDateEvents ?? [])];
+    const eventIds = events.map((e) => e.id);
     if (eventIds.length === 0) {
       return new Response(JSON.stringify(summary), {
         status: 200,

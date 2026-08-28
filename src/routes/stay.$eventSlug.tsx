@@ -776,7 +776,6 @@ function PopupReviewStep({
 
   const [addons, setAddons] = useState<Addon[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [cotRequested, setCotRequested] = useState(false);
   const [schedule, setSchedule] = useState<"full" | "deposit_50_balance_50">("full");
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -799,13 +798,12 @@ function PopupReviewStep({
         (sum, a) => sum + Number(a.addon_price) * (a.addon_type === "per_night" ? nights : 1),
         0,
       );
-    const cotFee = cotRequested ? (nights <= 1 ? tier.cot_1night_rate : tier.cot_2night_rate) : 0;
     const subtotal = base + addonAmt;
     const resortFee = (subtotal * Number(tier.resort_fee_percent || 0)) / 100;
-    const tax = (subtotal + resortFee + cotFee) * 0.08;
-    const total = subtotal + resortFee + cotFee + tax;
-    return { nights, base, addonAmt, cotFee, resortFee, tax, total };
-  }, [tier, addons, selectedIds, cotRequested, baseAmount]);
+    const tax = (subtotal + resortFee) * 0.08;
+    const total = subtotal + resortFee + tax;
+    return { nights, base, addonAmt, resortFee, tax, total };
+  }, [tier, addons, selectedIds, baseAmount]);
 
   const isSplit = schedule === "deposit_50_balance_50";
   const dueToday = isSplit ? calc.total / 2 : calc.total;
@@ -832,7 +830,7 @@ function PopupReviewStep({
         addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
         eventSlug,
         sectionSlug: tier.booking_link_slug ?? tier.id,
-        cotRequested,
+        cotRequested: false,
         returnPath: `/stay/${eventSlug}`,
       });
       if (locked) {
@@ -933,25 +931,6 @@ function PopupReviewStep({
         </div>
       )}
 
-      <div className="mt-4 rounded-[4px] border border-[#4A3737] bg-[#2A1C1C] p-6">
-        <label className="flex cursor-pointer items-start justify-between gap-4">
-          <div className="flex-1">
-            <div className="font-serif text-xl">Add a 3rd guest</div>
-            <div className="mt-1 text-sm text-[#B8AFA6]">
-              Cot setup in your room —{" "}
-              {fmtMoney(calc.nights <= 1 ? tier.cot_1night_rate : tier.cot_2night_rate)} for the
-              stay.
-            </div>
-          </div>
-          <input
-            type="checkbox"
-            checked={cotRequested}
-            onChange={(e) => setCotRequested(e.target.checked)}
-            className="mt-1 h-5 w-5 accent-[#F09B9C]"
-          />
-        </label>
-      </div>
-
       {/* Payment options */}
       {ev.split_available && ev.balance_due_on && (
         <div className="mt-4 rounded-[4px] border border-[#4A3737] bg-[#2A1C1C] p-6">
@@ -1016,7 +995,6 @@ function PopupReviewStep({
             <Row label={`${tier.section_name} · ${calc.nights} nights`} value={calc.base} />
           )}
           {calc.addonAmt > 0 && <Row label="Enhancements" value={calc.addonAmt} />}
-          {calc.cotFee > 0 && <Row label="3rd guest / cot setup" value={calc.cotFee} />}
           {calc.resortFee > 0 && (
             <Row label={`Resort fee (${tier.resort_fee_percent}%)`} value={calc.resortFee} />
           )}

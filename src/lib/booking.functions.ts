@@ -71,7 +71,7 @@ export type ConfirmationBooking = {
   guest_email: string;
   payment_status: string;
   payment_schedule: string | null;
-  rate_type: "waitlist" | "regular" | null;
+  rate_type: "waitlist" | "sale" | "regular" | null;
   total_amount: number | null;
   base_amount: number | null;
   addon_amount: number | null;

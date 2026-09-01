@@ -63,6 +63,7 @@ async function sendDepositConfirmation(opts: {
     baseAmount: number;
     regularAmount?: number;
     discountAmount?: number;
+    discountLabel?: string;
     addonAmount: number;
     resortFee: number;
     taxAmount: number;
@@ -84,6 +85,7 @@ async function sendDepositConfirmation(opts: {
       baseAmount: opts.breakdown?.baseAmount ?? total,
       regularAmount: opts.breakdown?.regularAmount,
       discountAmount: opts.breakdown?.discountAmount,
+      discountLabel: opts.breakdown?.discountLabel,
       addonAmount: opts.breakdown?.addonAmount ?? 0,
       resortFee: opts.breakdown?.resortFee ?? 0,
       taxAmount: opts.breakdown?.taxAmount ?? 0,
@@ -112,6 +114,7 @@ async function sendPaidInFullConfirmation(opts: {
     baseAmount: number;
     regularAmount?: number;
     discountAmount?: number;
+    discountLabel?: string;
     addonAmount: number;
     resortFee: number;
     taxAmount: number;
@@ -130,6 +133,7 @@ async function sendPaidInFullConfirmation(opts: {
       baseAmount: opts.breakdown?.baseAmount ?? opts.amountPaid,
       regularAmount: opts.breakdown?.regularAmount,
       discountAmount: opts.breakdown?.discountAmount,
+      discountLabel: opts.breakdown?.discountLabel,
       addonAmount: opts.breakdown?.addonAmount ?? 0,
       resortFee: opts.breakdown?.resortFee ?? 0,
       taxAmount: opts.breakdown?.taxAmount ?? 0,
@@ -502,18 +506,22 @@ serve(async (req) => {
         const preTaxCharged = isSplit ? fullPrimaryTotal * 0.5 : fullPrimaryTotal;
         const taxCharged = Math.max(0, totalCharged - preTaxCharged);
         const fullTaxEstimate = isSplit ? taxCharged * 2 : taxCharged;
-        // Waitlist guests see the regular price and their discount spelled out.
+        // Discounted guests (waitlist/past-couples or public sale) see the
+        // regular price and their discount spelled out.
         const regularPrice = Number(section?.regular_package_price) || 0;
         const paidBase = Number(primary.base_amount) || 0;
-        const waitlistDiscount =
-          (primary as { rate_type?: string }).rate_type === "waitlist" &&
+        const rateType = (primary as { rate_type?: string }).rate_type;
+        const rateDiscount =
+          (rateType === "waitlist" || rateType === "sale") &&
           regularPrice > paidBase
             ? regularPrice - paidBase
             : 0;
         const breakdown = {
           baseAmount: paidBase,
-          regularAmount: waitlistDiscount > 0 ? regularPrice : undefined,
-          discountAmount: waitlistDiscount > 0 ? waitlistDiscount : undefined,
+          regularAmount: rateDiscount > 0 ? regularPrice : undefined,
+          discountAmount: rateDiscount > 0 ? rateDiscount : undefined,
+          discountLabel:
+            rateType === "sale" ? "Sale discount" : "Waitlist discount",
           addonAmount: Number(primary.addon_amount) || 0,
           resortFee: Number(primary.resort_fee) || 0,
           taxAmount: fullTaxEstimate,

@@ -94,7 +94,7 @@ type Step =
       guestName: string;
       guestEmail: string;
       baseAmount: number;
-      rateType: "waitlist" | "regular";
+      rateType: "waitlist" | "sale" | "regular";
     };
 
 function PopupWeekendPage() {
@@ -282,6 +282,19 @@ function Landing({
         </div>
       </div>
 
+      {/* Sale banner — copy flips automatically once the original end date passes */}
+      {phase === "public" && ev.sale_active && (
+        <div className="mx-auto mt-10 max-w-xl rounded-md border border-[#F09B9C] bg-[#F09B9C] p-4 text-center text-sm text-[#1E1313]">
+          <span className="font-medium uppercase tracking-[0.12em]">
+            {ev.sale_extended ? "Sale extended" : "Labor Day Sale"}
+          </span>
+          <span className="mx-2">·</span>
+          {ev.sale_extended
+            ? "Sale pricing honored through Monday, September 14."
+            : "Every tier marked down through Tuesday, September 8."}
+        </div>
+      )}
+
       {/* Booking-window notice */}
       {phase === "preopen" && ev.waitlist_opens_at && (
         <div className="mx-auto mt-10 max-w-xl rounded-md border border-[#F09B9C]/50 bg-[#F9EDED] p-4 text-center text-sm text-[#1E1313]">
@@ -312,6 +325,7 @@ function Landing({
               tierIndex={i}
               featured={tier.is_featured}
               phase={phase}
+              saleActive={ev.sale_active}
               onReserve={() => onReserve(tier)}
             />
           ))}
@@ -329,6 +343,7 @@ function TierCard({
   tierIndex,
   featured,
   phase,
+  saleActive,
   onReserve,
 }: {
   tier: PopupTier;
@@ -336,6 +351,7 @@ function TierCard({
   tierIndex: number;
   featured: boolean;
   phase: "preopen" | "waitlist_only" | "public";
+  saleActive: boolean;
   onReserve: () => void;
 }) {
   const included = itinerary.filter((it) => {
@@ -358,12 +374,15 @@ function TierCard({
   const soldOut = tier.remaining <= 0;
   const regular = tier.regular_package_price != null ? Number(tier.regular_package_price) : null;
   const promo = tier.promo_package_price != null ? Number(tier.promo_package_price) : null;
+  const sale = tier.sale_package_price != null ? Number(tier.sale_package_price) : null;
   const hasWaitlistRate = promo != null && regular != null && promo < regular;
   // Before public opening, only waitlist members can book — show their rate.
-  // Once public, the headline price is the regular rate; a matched waitlist
-  // email still gets the lower rate, verified at checkout.
-  const headline =
-    phase === "public" ? (regular ?? tier.selling_price) : (promo ?? tier.selling_price);
+  // Once public, selling_price is server-computed (sale price during the sale
+  // window, regular after); a matched waitlist/past-couples email still gets
+  // the lower insider rate, verified at checkout.
+  const headline = phase === "public" ? tier.selling_price : (promo ?? tier.selling_price);
+  const showSaleStrike =
+    phase === "public" && saleActive && sale != null && regular != null && sale < regular;
   // Remaining counts against the displayed stock (display_stock_start),
   // while the real total_rooms cap prevents overbooking server-side.
   const showScarcity = tier.show_scarcity;
@@ -412,6 +431,14 @@ function TierCard({
             </span>
           </div>
         )}
+        {showSaleStrike && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-[#B8AFA6] line-through">{fmtMoney(regular!)}</span>
+            <span className="rounded-full bg-[#F09B9C] px-2 py-0.5 text-[10px] uppercase tracking-wider text-[#1E1313]">
+              Sale
+            </span>
+          </div>
+        )}
         <div className="font-serif text-3xl text-[#F6F1E8]">{fmtMoney(headline)}</div>
         <div className="text-xs text-[#B8AFA6]">
           per couple · {tier.nights} {tier.nights === 1 ? "night" : "nights"} · before fees &amp;
@@ -419,7 +446,7 @@ function TierCard({
         </div>
         {phase === "public" && hasWaitlistRate && (
           <div className="mt-1 text-xs text-[#B8956A]">
-            Waitlist members: {fmtMoney(promo!)} — honored at checkout.
+            Waitlist &amp; past couples: {fmtMoney(promo!)} — honored at checkout.
           </div>
         )}
         {showScarcity && (
@@ -467,7 +494,7 @@ function DetailsStep({
     guestName: string,
     guestEmail: string,
     baseAmount: number,
-    rateType: "waitlist" | "regular",
+    rateType: "waitlist" | "sale" | "regular",
   ) => void;
 }) {
   const createBooking = createPopupBookingFn;
@@ -536,10 +563,11 @@ function DetailsStep({
 
   const regular = tier.regular_package_price != null ? Number(tier.regular_package_price) : null;
   const promo = tier.promo_package_price != null ? Number(tier.promo_package_price) : null;
+  // selling_price is server-computed: sale price while the sale runs, regular after.
   const displayPrice = onWaitlist
     ? (promo ?? tier.selling_price)
     : ev.phase === "public"
-      ? (regular ?? tier.selling_price)
+      ? tier.selling_price
       : (promo ?? tier.selling_price);
 
   const submit = async (e: React.FormEvent) => {
@@ -640,7 +668,7 @@ function DetailsStep({
         </div>
         {onWaitlist && (
           <div className="mt-2 text-xs text-[#B8956A]">
-            ✓ You're on the waitlist — your waitlist rate is locked in.
+            ✓ We recognize this email — your private rate is locked in.
           </div>
         )}
       </div>
@@ -768,7 +796,7 @@ function PopupReviewStep({
   bookingId: string;
   guestName: string;
   baseAmount: number;
-  rateType: "waitlist" | "regular";
+  rateType: "waitlist" | "sale" | "regular";
   onBack: () => void;
 }) {
   const fetchAddons = getSectionAddons;
@@ -809,10 +837,13 @@ function PopupReviewStep({
   const dueToday = isSplit ? calc.total / 2 : calc.total;
   const regularPrice =
     tier.regular_package_price != null ? Number(tier.regular_package_price) : null;
-  const waitlistDiscount =
-    rateType === "waitlist" && regularPrice != null && regularPrice > calc.base
+  const rateDiscount =
+    (rateType === "waitlist" || rateType === "sale") &&
+    regularPrice != null &&
+    regularPrice > calc.base
       ? regularPrice - calc.base
       : 0;
+  const discountLabel = rateType === "sale" ? "Sale discount" : "Waitlist discount";
 
   const reserve = async () => {
     setSubmitting(true);
@@ -875,7 +906,12 @@ function PopupReviewStep({
         </div>
         {rateType === "waitlist" && (
           <div className="mt-2 text-xs text-[#B8956A]">
-            ✓ Waitlist rate applied — {fmtMoney(calc.base)} per couple.
+            ✓ Your private rate applied — {fmtMoney(calc.base)} per couple.
+          </div>
+        )}
+        {rateType === "sale" && (
+          <div className="mt-2 text-xs text-[#B8956A]">
+            ✓ Sale price applied — {fmtMoney(calc.base)} per couple.
           </div>
         )}
       </div>
@@ -986,10 +1022,10 @@ function PopupReviewStep({
       <div className="mt-4 rounded-[4px] border border-[#4A3737] bg-[#2A1C1C] p-6">
         <SectionLabel>Your total</SectionLabel>
         <div className="mt-3 space-y-2 text-sm">
-          {waitlistDiscount > 0 && regularPrice != null ? (
+          {rateDiscount > 0 && regularPrice != null ? (
             <>
               <Row label={`${tier.section_name} · ${calc.nights} nights`} value={regularPrice} />
-              <Row label="Waitlist discount" value={-waitlistDiscount} />
+              <Row label={discountLabel} value={-rateDiscount} />
             </>
           ) : (
             <Row label={`${tier.section_name} · ${calc.nights} nights`} value={calc.base} />
@@ -1159,13 +1195,15 @@ function PopupConfirmation({
               </div>
 
               <div className="mt-6 border-t border-[#4A3737] pt-5 text-sm">
-                {booking.rate_type === "waitlist" &&
+                {(booking.rate_type === "waitlist" || booking.rate_type === "sale") &&
                 Number(booking.section?.regular_package_price) >
                   (Number(booking.base_amount) || 0) ? (
                   <>
                     <Row label="Package" value={Number(booking.section?.regular_package_price)} />
                     <Row
-                      label="Waitlist discount"
+                      label={
+                        booking.rate_type === "sale" ? "Sale discount" : "Waitlist discount"
+                      }
                       value={
                         (Number(booking.base_amount) || 0) -
                         Number(booking.section?.regular_package_price)

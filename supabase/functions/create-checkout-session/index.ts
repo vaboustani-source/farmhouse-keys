@@ -83,7 +83,12 @@ async function lineItemsForBooking(
 
   const lineItems: CheckoutLineItem[] = [];
   const prefix = labelPrefix ? `${labelPrefix} — ` : "";
-  const rateSuffix = isPopup && booking.rate_type === "waitlist" ? " (waitlist rate)" : "";
+  const rateSuffix =
+    isPopup && booking.rate_type === "waitlist"
+      ? " (waitlist rate)"
+      : isPopup && booking.rate_type === "sale"
+        ? " (sale rate)"
+        : "";
 
   lineItems.push({
     quantity: 1,

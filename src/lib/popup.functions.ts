@@ -14,6 +14,7 @@ export type PopupTier = {
   tagline: string | null;
   regular_package_price: number | null;
   promo_package_price: number | null;
+  sale_package_price: number | null;
   promo_active: boolean;
   selling_price: number;
   total_rooms: number;
@@ -60,6 +61,10 @@ export type PopupEventPayload = {
     balance_due_on: string | null;
     split_available: boolean;
     cancel_by_date: string | null;
+    sale_active: boolean;
+    sale_extended: boolean;
+    sale_original_ends_at: string | null;
+    sale_ends_at: string | null;
   } | null;
   tiers: PopupTier[];
   itinerary: PopupItineraryItem[];
@@ -86,7 +91,7 @@ export type PopupBookingResult =
         guest_email: string;
         section_id: string;
         base_amount: number;
-        rate_type: "waitlist" | "regular";
+        rate_type: "waitlist" | "sale" | "regular";
       };
     }
   | {
@@ -140,12 +145,12 @@ export async function createPopupBookingFn({
     return { ok: false, reason: "invalid" };
   }
 
-  // The RPC stamps the applicable rate on the booking (waitlist vs regular,
-  // decided server-side) and logs to lb_activity_log itself.
+  // The RPC stamps the applicable rate on the booking (waitlist vs sale vs
+  // regular, decided server-side) and logs to lb_activity_log itself.
   const r = result as {
     booking_id: string;
     base_amount: number;
-    rate_type: "waitlist" | "regular";
+    rate_type: "waitlist" | "sale" | "regular";
   };
   const displayName = data.guest2Name?.trim()
     ? `${data.guestName.trim()} & ${data.guest2Name.trim()}`

@@ -307,6 +307,7 @@ export interface DepositConfirmedEmailProps {
   baseAmount: number;
   regularAmount?: number;
   discountAmount?: number;
+  discountLabel?: string;
   addonAmount: number;
   resortFee: number;
   taxAmount: number;
@@ -350,7 +351,7 @@ export function depositConfirmedEmail(p: DepositConfirmedEmailProps): { subject:
       ${
         p.discountAmount && p.regularAmount
           ? lineItemRow('Lodging (regular rate)', fmt(p.regularAmount)) +
-            lineItemRow('Waitlist discount', `−${fmt(p.discountAmount)}`, true)
+            lineItemRow(p.discountLabel ?? 'Waitlist discount', `−${fmt(p.discountAmount)}`, true)
           : lineItemRow('Lodging', fmt(p.baseAmount))
       }
       ${addonRows}
@@ -387,6 +388,7 @@ export interface PaidConfirmedEmailProps {
   baseAmount: number;
   regularAmount?: number;
   discountAmount?: number;
+  discountLabel?: string;
   addonAmount: number;
   resortFee: number;
   taxAmount: number;
@@ -427,7 +429,7 @@ export function paidConfirmedEmail(p: PaidConfirmedEmailProps): { subject: strin
       ${
         p.discountAmount && p.regularAmount
           ? lineItemRow('Lodging (regular rate)', fmt(p.regularAmount)) +
-            lineItemRow('Waitlist discount', `−${fmt(p.discountAmount)}`, true)
+            lineItemRow(p.discountLabel ?? 'Waitlist discount', `−${fmt(p.discountAmount)}`, true)
           : lineItemRow('Lodging', fmt(p.baseAmount))
       }
       ${addonRows}

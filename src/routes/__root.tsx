@@ -1,7 +1,7 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts, useLocation } from "@tanstack/react-router";
 import { Toaster } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AuthProvider } from "@/lib/useAuth";
 
 import appCss from "../styles.css?url";
@@ -45,6 +45,14 @@ export const Route = createRootRoute({
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/10009fb2-86a0-459c-9c6b-4ba1b18fd07f/id-preview-25a26953--a9cf7512-d53e-4e93-be25-666d375c693f.lovable.app-1780025729719.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/10009fb2-86a0-459c-9c6b-4ba1b18fd07f/id-preview-25a26953--a9cf7512-d53e-4e93-be25-666d375c693f.lovable.app-1780025729719.png" },
     ],
+    scripts: [
+      {
+        // Meta pixel base code, init only — PageView is fired per-route by
+        // MetaPixelPageView so staff dashboard traffic stays out of ad audiences.
+        children:
+          "!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','1641470889489359');",
+      },
+    ],
     links: [
       {
         rel: "stylesheet",
@@ -77,6 +85,25 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+declare global {
+  interface Window {
+    fbq?: (...args: unknown[]) => void;
+  }
+}
+
+// Guest-facing routes only — admin/dashboard visits must not enter Meta audiences.
+const PIXEL_TRACKED_PREFIXES = ["/stay", "/book"];
+
+function MetaPixelPageView() {
+  const pathname = useLocation({ select: (location) => location.pathname });
+  useEffect(() => {
+    if (PIXEL_TRACKED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+      window.fbq?.("track", "PageView");
+    }
+  }, [pathname]);
+  return null;
+}
+
 function RootComponent() {
   const [client] = useState(() => new QueryClient({
     defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
@@ -84,6 +111,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={client}>
       <AuthProvider>
+        <MetaPixelPageView />
         <Outlet />
         <Toaster position="top-right" richColors closeButton />
       </AuthProvider>

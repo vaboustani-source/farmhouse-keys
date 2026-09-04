@@ -16,7 +16,7 @@ export const Route = createFileRoute("/events/$eventId/sections/$sectionId")({
 });
 
 async function fetchSection(sectionId: string, eventId: string) {
-  const [s, b, ev, ac, evBk] = await Promise.all([
+  const [s, b, ev, ac, evBk, rr] = await Promise.all([
     supabase.from("lb_room_sections").select("*").eq("id", sectionId).single(),
     supabase
       .from("lb_bookings")
@@ -37,8 +37,15 @@ async function fetchSection(sectionId: string, eventId: string) {
       .from("lb_bookings")
       .select("total_amount, payment_status, refund_amount, removed")
       .eq("event_id", eventId),
+    supabase
+      .from("lb_refund_requests")
+      .select("booking_id, requested_by_email, requested_by_name, amount_cents, created_at")
+      .eq("event_id", eventId)
+      .eq("status", "pending"),
   ]);
   if (s.error) throw s.error;
+  const pendingRefunds = new Map<string, { requested_by_email: string; requested_by_name: string | null; amount_cents: number; created_at: string }>();
+  for (const r of (rr.data ?? []) as any[]) pendingRefunds.set(r.booking_id, r);
   const byBooking = new Map<string, number>();
   for (const r of (ac.data ?? []) as Array<{ booking_id: string; amount: number; status: string }>) {
     if (r.status !== "succeeded") continue;
@@ -60,6 +67,7 @@ async function fetchSection(sectionId: string, eventId: string) {
     checkInDate: (ev.data?.check_in_date ?? null) as string | null,
     additionalByBooking: byBooking,
     eventTotals,
+    pendingRefunds,
   };
 }
 
@@ -159,7 +167,7 @@ function SectionBookingsPage() {
   if (isLoading || !data) {
     return <AdminShell><EventLayout eventId={eventId} currentTab="bookings"><div className="text-sm text-muted-foreground">Loading…</div></EventLayout></AdminShell>;
   }
-  const { section, bookings, checkInDate, additionalByBooking } = data;
+  const { section, bookings, checkInDate, additionalByBooking, pendingRefunds } = data;
   const filtered = bookings.filter((b) => filter === "all" || b.payment_status === filter);
 
   const sorted = [...filtered].sort((a, b) => {
@@ -357,6 +365,14 @@ function SectionBookingsPage() {
                         −{formatMoney(Number(b.refund_amount))} refunded
                       </div>
                     )}
+                    {pendingRefunds.has(b.id) && (
+                      <div
+                        className="mt-1 inline-block rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-amber-800"
+                        title={`${formatMoney((pendingRefunds.get(b.id)?.amount_cents ?? 0) / 100)} requested by ${pendingRefunds.get(b.id)?.requested_by_name || pendingRefunds.get(b.id)?.requested_by_email}`}
+                      >
+                        Refund awaiting approval
+                      </div>
+                    )}
                     {(() => {
                       const extra = additionalByBooking.get(b.id) ?? 0;
                       if (extra === 0) return null;
@@ -478,7 +494,7 @@ function SectionBookingsPage() {
                             }}
                         className="rounded border border-red-300 px-3 py-1.5 min-h-[36px] text-[11px] font-medium uppercase tracking-wider text-red-700 hover:bg-red-50"
                           >
-                            {openRefundId === b.id ? "Close" : "Refund"}
+                            {openRefundId === b.id ? "Close" : pendingRefunds.has(b.id) ? "Refund request" : "Request refund"}
                           </button>
                         )}
                        </>)}

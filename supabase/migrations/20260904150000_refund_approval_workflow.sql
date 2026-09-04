@@ -1,0 +1,8 @@
+-- Applied 2026-09-04 via Supabase MCP (apply_migration "refund_approval_workflow").
+-- Refunds require owner approval: staff file lb_refund_requests (RLS: staff read/insert,
+-- requester may cancel own pending); approvers listed in lb_private_config
+-- 'refund_approver_emails' (sharon@gilbertsvillefarmhouse.com) get a signed one-time
+-- Approve/Decline link (sha256 token, 14-day expiry) from the process-refund function,
+-- which is now the only path that moves money and refuses anything but an approved
+-- request. RPC lb_is_refund_approver() for in-app approver UI.
+-- Full SQL: see the Supabase migration history for this project.

@@ -380,12 +380,15 @@ function ReviewStep({
   const [secondaryLookupErr, setSecondaryLookupErr] = useState<string | null>(null);
   const [lookingUpSecondary, setLookingUpSecondary] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [cotRequested, setCotRequested] = useState(false);
+  // Cot / 3rd guest is approved by the couple in their Planning Journal and
+  // arrives on the booking row. Guests cannot add one here.
+  const cotRequested = !!booking.cot_requested;
   const [reserveError, setReserveError] = useState<string | null>(null);
   const [agreedToCancellation, setAgreedToCancellation] = useState(false);
 
   const cotFee = useMemo(() => {
     if (!cotRequested) return 0;
+    if (Number(booking.cot_fee) > 0) return Number(booking.cot_fee);
     const nights = booking.nights || 2;
     return nights <= 1
       ? Number(booking.cot_1night_rate ?? 100)
@@ -479,7 +482,6 @@ function ReviewStep({
         ),
         eventSlug,
         sectionSlug,
-        cotRequested,
       });
       if (locked) {
         setReserveError(
@@ -607,28 +609,18 @@ function ReviewStep({
         </div>
       )}
 
-      {/* Cot / 3rd guest */}
-      <div className="mt-4 rounded-md border border-[#E8E2D9] bg-white p-6">
-          <label className="flex cursor-pointer items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="font-serif text-xl">Add a 3rd guest</div>
-              <div className="mt-1 text-sm text-[#6B6B6B]">
-                Cot setup in your room — additional charge applies.
-              </div>
-              <div className="mt-2 text-xs text-[#6B6B6B]">
-                {(booking.nights || 2) <= 1
-                  ? `Flat ${fmtMoney(Number(booking.cot_1night_rate ?? 100))} for 1 night`
-                  : `Flat ${fmtMoney(Number(booking.cot_2night_rate ?? 150))} for ${booking.nights} nights`}
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={cotRequested}
-              onChange={(e) => setCotRequested(e.target.checked)}
-              className="mt-1 h-5 w-5 accent-[#2C3E2D]"
-            />
-          </label>
-      </div>
+      {/* Cot / 3rd guest — arranged by the couple, not selectable here */}
+      {cotRequested && (
+        <div className="mt-4 rounded-md border border-[#E8E2D9] bg-white p-6">
+          <div className="font-serif text-xl">A 3rd guest is arranged for your room</div>
+          <div className="mt-1 text-sm text-[#6B6B6B]">
+            {booking.couple_names ?? "Your hosts"} approved a cot setup in this room. It is included below.
+          </div>
+          <div className="mt-2 text-xs text-[#6B6B6B]">
+            {`Flat ${fmtMoney(cotFee)} for ${booking.nights || 2} night${(booking.nights || 2) === 1 ? "" : "s"}`}
+          </div>
+        </div>
+      )}
 
       {/* Card 3: Secondary guest */}
       {!secondary && (

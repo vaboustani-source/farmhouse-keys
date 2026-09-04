@@ -44,7 +44,7 @@ async function lineItemsForBooking(
   const { data: booking, error: bErr } = await supabaseAdmin
     .from("lb_bookings")
     .select(
-      "id, event_id, section_id, guest_name, guest_email, payment_schedule, rate_type, base_amount",
+      "id, event_id, section_id, guest_name, guest_email, payment_schedule, rate_type, base_amount, cot_requested",
     )
     .eq("id", bookingId)
     .single();
@@ -172,7 +172,6 @@ serve(async (req) => {
       secondaryAddonIds = [],
       eventSlug,
       sectionSlug,
-      cotRequested = false,
       paymentType = null,
       returnPath = null,
     } = data;
@@ -329,6 +328,9 @@ serve(async (req) => {
       );
     }
 
+    // Cot / 3rd guest is approved by the couple in the Planning Journal and
+    // synced onto the booking row. The client cannot request it.
+    const cotRequested = !!primary.booking.cot_requested;
     let cotFee = 0;
     const cotLineItems: CheckoutLineItem[] = [];
     if (cotRequested) {

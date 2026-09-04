@@ -1,0 +1,9 @@
+-- Applied 2026-09-04 via Supabase MCP (apply_migration "cot_couple_approval").
+-- Cot / 3rd guest becomes a couple-approved decision made in the Planning Journal
+-- (lodging_assignments.cot_approved + third_guest_name). The hub->lb sync trigger
+-- stamps cot_requested/cot_fee on lb_bookings while the booking is pending, blocks
+-- and reverts cot changes once payment is on file, and the lb->hub writeback
+-- mirrors staff-added cots (Adjust panel) back to cot_approved. Writeback now
+-- guards on pg_trigger_depth() so the two triggers cannot ping-pong.
+-- New RPC lb_cot_fees_for_event(_event_id) gives the journal per-room cot fees.
+-- Full SQL: see the Supabase migration history for this project.

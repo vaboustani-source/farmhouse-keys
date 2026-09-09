@@ -875,7 +875,10 @@ function PopupReviewStep({
         window.location.href = redirectUrl;
         return;
       }
-      if (url) window.location.href = url;
+      if (url) {
+        window.fbq?.("track", "InitiateCheckout", { content_name: eventSlug });
+        window.location.href = url;
+      }
     } catch (err) {
       console.error("popup checkout failed", err);
       setError("We couldn't open checkout — please try again.");
@@ -1123,6 +1126,24 @@ function PopupConfirmation({
         const { bookings } = await fetchConfirmation({ data: { sessionId } });
         const b = bookings?.[0];
         if (b && (b.payment_status === "paid" || b.payment_status === "deposit_paid")) {
+          // Dedupe on session_id — the success URL survives refreshes and revisits.
+          try {
+            const pixelKey = `gfh_pixel_purchase_${sessionId}`;
+            if (!localStorage.getItem(pixelKey)) {
+              localStorage.setItem(pixelKey, "1");
+              window.fbq?.("track", "Purchase", {
+                value: b.total_amount ?? 0,
+                currency: "USD",
+                content_name: eventSlug,
+              });
+            }
+          } catch {
+            window.fbq?.("track", "Purchase", {
+              value: b.total_amount ?? 0,
+              currency: "USD",
+              content_name: eventSlug,
+            });
+          }
           setBooking(b);
           setLoading(false);
           return;

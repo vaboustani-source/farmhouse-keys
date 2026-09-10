@@ -990,7 +990,8 @@ function PopupReviewStep({
               <div>
                 <div className="text-sm font-medium">Pay in full today</div>
                 <div className="mt-0.5 text-xs text-[#B8AFA6]">
-                  {fmtMoney(calc.total)} — done and dusted.
+                  {fmtMoney(calc.total)} — done and dusted. Or split it into smaller
+                  payments with Klarna, Afterpay, or Affirm at checkout.
                 </div>
               </div>
             </label>

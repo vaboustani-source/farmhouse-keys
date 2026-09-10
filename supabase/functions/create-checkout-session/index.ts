@@ -13,6 +13,24 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-12-18.acacia",
 });
 
+// Retry without BNPL if a listed method isn't activated on the Stripe account —
+// checkout must never fail because a dashboard toggle is off.
+async function createSessionWithBnplFallback(
+  params: Stripe.Checkout.SessionCreateParams,
+): Promise<Stripe.Checkout.Session> {
+  try {
+    return await stripe.checkout.sessions.create(params);
+  } catch (err) {
+    const types = params.payment_method_types ?? [];
+    if (types.length > 1 && /payment[_ ]method/i.test(String((err as Error)?.message ?? ""))) {
+      console.error("BNPL session failed, retrying card-only:", (err as Error)?.message);
+      return await stripe.checkout.sessions.create({ ...params, payment_method_types: ["card"] });
+    }
+    throw err;
+  }
+}
+
+
 const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -213,9 +231,9 @@ serve(async (req) => {
       if (balanceCents <= 0) throw new Error("No balance due");
 
       const baseUrl = getAppBaseUrl(req);
-      const session = await stripe.checkout.sessions.create({
+      const session = await createSessionWithBnplFallback({
         mode: "payment",
-        payment_method_types: ["card"],
+        payment_method_types: ["card", "klarna", "afterpay_clearpay", "affirm"],
         line_items: [
           {
             quantity: 1,
@@ -402,9 +420,14 @@ serve(async (req) => {
     const successUrl = `${baseUrl}${safeReturnPath}?success=true&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${baseUrl}${safeReturnPath}?cancelled=true&session_id={CHECKOUT_SESSION_ID}`;
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await createSessionWithBnplFallback({
       mode: "payment",
-      payment_method_types: ["card"],
+      // BNPL methods can't be combined with setup_future_usage (the split flow
+      // saves the card for the balance auto-charge), so they ride only on
+      // pay-in-full sessions. Stripe hides any method ineligible for the amount.
+      payment_method_types: isSplit
+        ? ["card"]
+        : ["card", "klarna", "afterpay_clearpay", "affirm"],
       line_items: appliedAmounts as any,
       customer_email: primary.booking.guest_email,
       automatic_tax: { enabled: true },

@@ -804,7 +804,9 @@ function PopupReviewStep({
 
   const [addons, setAddons] = useState<Addon[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [schedule, setSchedule] = useState<"full" | "deposit_50_balance_50">("full");
+  // "klarna" is a presentation choice only — it books as "full" and the guest
+  // picks Klarna on the Stripe payment screen.
+  const [schedule, setSchedule] = useState<"full" | "deposit_50_balance_50" | "klarna">("full");
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -851,7 +853,10 @@ function PopupReviewStep({
     try {
       // Record the payment choice before checkout so the session is built
       // as full or 50/50 (server re-validates the split cutoff date).
-      const choice = await setPopupPaymentChoice({ data: { bookingId, schedule } });
+      const effectiveSchedule = schedule === "klarna" ? "full" : schedule;
+      const choice = await setPopupPaymentChoice({
+        data: { bookingId, schedule: effectiveSchedule },
+      });
       if (!choice.ok) {
         setError("We couldn't save your payment choice — please try again.");
         return;
@@ -971,30 +976,50 @@ function PopupReviewStep({
       )}
 
       {/* Payment options */}
-      {ev.split_available && ev.balance_due_on && (
-        <div className="mt-4 rounded-[4px] border border-[#4A3737] bg-[#2A1C1C] p-6">
-          <h2 className="font-serif text-xl">How would you like to pay?</h2>
-          <div className="mt-4 space-y-2">
-            <label
-              className={`flex cursor-pointer items-start gap-3 rounded border p-4 transition-colors ${
-                !isSplit ? "border-[#F09B9C] bg-[#3A2626]" : "border-[#4A3737]"
-              }`}
-            >
-              <input
-                type="radio"
-                name="paymentSchedule"
-                checked={!isSplit}
-                onChange={() => setSchedule("full")}
-                className="mt-1 h-4 w-4 accent-[#F09B9C]"
-              />
-              <div>
-                <div className="text-sm font-medium">Pay in full today</div>
-                <div className="mt-0.5 text-xs text-[#B8AFA6]">
-                  {fmtMoney(calc.total)} — done and dusted. Pay-over-time options
-                  are available at checkout.
-                </div>
+      <div className="mt-4 rounded-[4px] border border-[#4A3737] bg-[#2A1C1C] p-6">
+        <h2 className="font-serif text-xl">How would you like to pay?</h2>
+        <div className="mt-4 space-y-2">
+          <label
+            className={`flex cursor-pointer items-start gap-3 rounded border p-4 transition-colors ${
+              schedule === "full" ? "border-[#F09B9C] bg-[#3A2626]" : "border-[#4A3737]"
+            }`}
+          >
+            <input
+              type="radio"
+              name="paymentSchedule"
+              checked={schedule === "full"}
+              onChange={() => setSchedule("full")}
+              className="mt-1 h-4 w-4 accent-[#F09B9C]"
+            />
+            <div>
+              <div className="text-sm font-medium">Pay in full today</div>
+              <div className="mt-0.5 text-xs text-[#B8AFA6]">
+                {fmtMoney(calc.total)} — done and dusted.
               </div>
-            </label>
+            </div>
+          </label>
+          <label
+            className={`flex cursor-pointer items-start gap-3 rounded border p-4 transition-colors ${
+              schedule === "klarna" ? "border-[#F09B9C] bg-[#3A2626]" : "border-[#4A3737]"
+            }`}
+          >
+            <input
+              type="radio"
+              name="paymentSchedule"
+              checked={schedule === "klarna"}
+              onChange={() => setSchedule("klarna")}
+              className="mt-1 h-4 w-4 accent-[#F09B9C]"
+            />
+            <div>
+              <div className="text-sm font-medium">Pay over time with Klarna</div>
+              <div className="mt-0.5 text-xs text-[#B8AFA6]">
+                Book today, pay in installments — from 4 interest-free payments to
+                monthly plans. Select Klarna on the payment screen and choose the
+                plan that fits.
+              </div>
+            </div>
+          </label>
+          {ev.split_available && ev.balance_due_on && (
             <label
               className={`flex cursor-pointer items-start gap-3 rounded border p-4 transition-colors ${
                 isSplit ? "border-[#F09B9C] bg-[#3A2626]" : "border-[#4A3737]"
@@ -1018,9 +1043,9 @@ function PopupReviewStep({
                 </div>
               </div>
             </label>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Totals */}
       <div className="mt-4 rounded-[4px] border border-[#4A3737] bg-[#2A1C1C] p-6">

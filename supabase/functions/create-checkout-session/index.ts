@@ -231,9 +231,10 @@ serve(async (req) => {
       if (balanceCents <= 0) throw new Error("No balance due");
 
       const baseUrl = getAppBaseUrl(req);
+      // No payment_method_types: Checkout offers whatever the Stripe dashboard
+      // has enabled (card, plus any BNPL/wallets) that fits the transaction.
       const session = await createSessionWithBnplFallback({
         mode: "payment",
-        payment_method_types: ["card", "klarna", "afterpay_clearpay", "affirm"],
         line_items: [
           {
             quantity: 1,
@@ -422,12 +423,11 @@ serve(async (req) => {
 
     const session = await createSessionWithBnplFallback({
       mode: "payment",
-      // BNPL methods can't be combined with setup_future_usage (the split flow
-      // saves the card for the balance auto-charge), so they ride only on
-      // pay-in-full sessions. Stripe hides any method ineligible for the amount.
-      payment_method_types: isSplit
-        ? ["card"]
-        : ["card", "klarna", "afterpay_clearpay", "affirm"],
+      // Split sessions save the card for the balance auto-charge, which Stripe
+      // forbids combining with BNPL — so they stay card-only. Pay-in-full
+      // sessions omit payment_method_types and offer whatever the dashboard
+      // has enabled (card, BNPL, wallets) that fits the transaction.
+      ...(isSplit ? { payment_method_types: ["card"] as Stripe.Checkout.SessionCreateParams["payment_method_types"] } : {}),
       line_items: appliedAmounts as any,
       customer_email: primary.booking.guest_email,
       automatic_tax: { enabled: true },

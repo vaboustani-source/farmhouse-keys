@@ -11,6 +11,7 @@ import {
 } from "@/lib/popup.functions";
 import { getSectionAddons, fetchSessionConfirmation } from "@/lib/booking.functions";
 import { createCheckoutSession, checkSessionStatus } from "@/lib/checkout";
+import { loadStripe } from "@stripe/stripe-js";
 import { ReviewErrorBoundary } from "@/components/ReviewErrorBoundary";
 
 export const Route = createFileRoute("/stay/$eventSlug")({
@@ -807,6 +808,7 @@ function PopupReviewStep({
   // "klarna" is a presentation choice only — it books as "full" and the guest
   // picks Klarna on the Stripe payment screen.
   const [schedule, setSchedule] = useState<"full" | "deposit_50_balance_50" | "klarna">("full");
+  const [embeddedSecret, setEmbeddedSecret] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -847,6 +849,52 @@ function PopupReviewStep({
       : 0;
   const discountLabel = rateType === "sale" ? "Sale discount" : "Waitlist discount";
 
+  // Mount Stripe's embedded checkout when a client secret arrives. On any
+  // failure fall back to the hosted redirect so payment is never blocked.
+  useEffect(() => {
+    if (!embeddedSecret) return;
+    let cancelled = false;
+    let instance: { destroy: () => void } | null = null;
+    (async () => {
+      try {
+        const pk = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined;
+        if (!pk) throw new Error("VITE_STRIPE_PUBLISHABLE_KEY missing");
+        const stripe = await loadStripe(pk);
+        if (!stripe) throw new Error("stripe.js failed to load");
+        const checkout = await stripe.createEmbeddedCheckoutPage({ clientSecret: embeddedSecret });
+        if (cancelled) {
+          checkout.destroy();
+          return;
+        }
+        instance = checkout;
+        checkout.mount("#embedded-checkout");
+      } catch (err) {
+        console.error("embedded checkout failed — falling back to hosted", err);
+        if (cancelled) return;
+        setEmbeddedSecret(null);
+        try {
+          const { url } = await createCheckoutSession({
+            bookingId,
+            addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
+            eventSlug,
+            sectionSlug: tier.booking_link_slug ?? tier.id,
+            cotRequested: false,
+            returnPath: `/stay/${eventSlug}`,
+          });
+          if (url) window.location.href = url;
+        } catch (fallbackErr) {
+          console.error("hosted fallback failed", fallbackErr);
+          setError("We couldn't open checkout — please try again.");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      instance?.destroy();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embeddedSecret]);
+
   const reserve = async () => {
     setSubmitting(true);
     setError(null);
@@ -861,14 +909,16 @@ function PopupReviewStep({
         setError("We couldn't save your payment choice — please try again.");
         return;
       }
-      const { url, alreadyPaid, redirectUrl, locked, lockedMessage } = await createCheckoutSession({
-        bookingId,
-        addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
-        eventSlug,
-        sectionSlug: tier.booking_link_slug ?? tier.id,
-        cotRequested: false,
-        returnPath: `/stay/${eventSlug}`,
-      });
+      const { url, clientSecret, alreadyPaid, redirectUrl, locked, lockedMessage } =
+        await createCheckoutSession({
+          bookingId,
+          addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
+          eventSlug,
+          sectionSlug: tier.booking_link_slug ?? tier.id,
+          cotRequested: false,
+          returnPath: `/stay/${eventSlug}`,
+          uiMode: "embedded",
+        });
       if (locked) {
         setError(
           lockedMessage ||
@@ -878,6 +928,11 @@ function PopupReviewStep({
       }
       if (alreadyPaid && redirectUrl) {
         window.location.href = redirectUrl;
+        return;
+      }
+      if (clientSecret) {
+        window.fbq?.("track", "InitiateCheckout", { content_name: eventSlug });
+        setEmbeddedSecret(clientSecret);
         return;
       }
       if (url) {
@@ -891,6 +946,29 @@ function PopupReviewStep({
       setSubmitting(false);
     }
   };
+
+  if (embeddedSecret) {
+    return (
+      <div className="mx-auto mt-10 max-w-md">
+        <button
+          onClick={() => setEmbeddedSecret(null)}
+          className="mb-6 inline-flex min-h-[44px] items-center -ml-1 px-2 py-2 text-xs uppercase tracking-[0.16em] text-[#B8AFA6] hover:text-[#F6F1E8]"
+        >
+          ← Back to your details
+        </button>
+        <div className="mb-4">
+          <div className="font-serif text-2xl">{guestName},</div>
+          <div className="mt-1 text-sm italic text-[#F09B9C]">Complete your payment below.</div>
+        </div>
+        <div className="overflow-hidden rounded-[4px] bg-white">
+          <div id="embedded-checkout" />
+        </div>
+        <p className="mt-3 text-center text-xs text-[#B8AFA6]">
+          Payment is handled securely by Stripe.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto mt-10 max-w-md">

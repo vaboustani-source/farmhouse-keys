@@ -15,6 +15,9 @@ export type CreateCheckoutSessionInput = {
    * (e.g. "/stay/<slug>" for pop-up weekends). Defaults to the
    * wedding /book path when omitted. */
   returnPath?: string;
+  /** "embedded" renders Checkout inside the page (returns clientSecret
+   * instead of url). Omit for the classic hosted redirect. */
+  uiMode?: "embedded";
 };
 
 /**
@@ -27,6 +30,7 @@ export async function createCheckoutSession(
   input: CreateCheckoutSessionInput,
 ): Promise<{
   url: string | null;
+  clientSecret?: string | null;
   alreadyPaid?: boolean;
   redirectUrl?: string;
   reused?: boolean;
@@ -35,6 +39,7 @@ export async function createCheckoutSession(
 }> {
   const { data, error } = await supabase.functions.invoke<{
     url: string | null;
+    client_secret?: string | null;
     error?: string;
     already_paid?: boolean;
     redirect_url?: string;
@@ -52,6 +57,7 @@ export async function createCheckoutSession(
   if (data?.error) throw new Error(data.error);
   return {
     url: data?.url ?? null,
+    clientSecret: data?.client_secret ?? null,
     alreadyPaid: data?.already_paid,
     redirectUrl: data?.redirect_url,
     reused: data?.reused,

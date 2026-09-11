@@ -192,7 +192,9 @@ serve(async (req) => {
       sectionSlug,
       paymentType = null,
       returnPath = null,
+      uiMode = null,
     } = data;
+    const wantEmbedded = uiMode === "embedded";
     parsedBookingId = bookingId;
 
     // Optional same-origin return path (e.g. /stay/<slug> for pop-up
@@ -300,11 +302,22 @@ serve(async (req) => {
     ) {
       try {
         const existing = await stripe.checkout.sessions.retrieve(existingBk.stripe_session_id);
-        if (existing.status === "open" && existing.url) {
-          return new Response(
-            JSON.stringify({ url: existing.url, reused: true }),
-            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
+        if (existing.status === "open") {
+          if (wantEmbedded && existing.ui_mode === "embedded" && existing.client_secret) {
+            return new Response(
+              JSON.stringify({ client_secret: existing.client_secret, reused: true }),
+              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
+          if (!wantEmbedded && existing.ui_mode !== "embedded" && existing.url) {
+            return new Response(
+              JSON.stringify({ url: existing.url, reused: true }),
+              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
+          // Requested mode differs from the open session's — expire it and
+          // fall through to mint a fresh one in the right mode.
+          await stripe.checkout.sessions.expire(existing.id).catch(() => {});
         }
         // 'expired' or 'complete' → fall through and create a new session
       } catch (_) {
@@ -428,11 +441,14 @@ serve(async (req) => {
       // sessions omit payment_method_types and offer whatever the dashboard
       // has enabled (card, BNPL, wallets) that fits the transaction.
       ...(isSplit ? { payment_method_types: ["card"] as Stripe.Checkout.SessionCreateParams["payment_method_types"] } : {}),
+      // Embedded mode renders inside the reservation page and only takes a
+      // return_url; hosted mode keeps the classic redirect pair.
+      ...(wantEmbedded
+        ? { ui_mode: "embedded" as const, return_url: successUrl }
+        : { success_url: successUrl, cancel_url: cancelUrl }),
       line_items: appliedAmounts as any,
       customer_email: primary.booking.guest_email,
       automatic_tax: { enabled: true },
-      success_url: successUrl,
-      cancel_url: cancelUrl,
       expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
       customer_creation: isSplit ? "always" : undefined,
       payment_intent_data: isSplit
@@ -518,10 +534,15 @@ serve(async (req) => {
         .eq("id", secondaryBookingId);
     }
 
-    return new Response(JSON.stringify({ url: session.url }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify(
+        wantEmbedded ? { client_secret: session.client_secret } : { url: session.url },
+      ),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (err) {
     console.error("create-checkout-session error", err);
     // Release any optimistic lock so the guest can retry immediately.

@@ -323,6 +323,16 @@ serve(async (req) => {
       } catch (_) {
         // session not retrievable → create a fresh one
       }
+      // Reaching here means the stamped id no longer points at a usable
+      // session (expired, completed-elsewhere, mode mismatch, or gone).
+      // Clear it so acquire_stripe_session_lock can take the lock — with a
+      // real cs_ id in place the lock refuses and the guest gets stuck on
+      // "being processed on another device" forever.
+      await supabaseAdmin
+        .from("lb_bookings")
+        .update({ stripe_session_id: null })
+        .eq("id", bookingId)
+        .eq("stripe_session_id", existingBk.stripe_session_id);
     }
 
     // ── Optimistic session lock: prevents two devices creating two sessions ──

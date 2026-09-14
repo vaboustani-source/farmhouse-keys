@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getPopupEvent,
   createPopupBookingFn,
@@ -808,10 +808,11 @@ function PopupReviewStep({
   // "klarna" is a presentation choice only — it books as "full" and the guest
   // picks Klarna on the Stripe payment screen.
   const [schedule, setSchedule] = useState<"full" | "deposit_50_balance_50" | "klarna">("full");
-  const [embeddedSecret, setEmbeddedSecret] = useState<string | null>(null);
-  const [agreed, setAgreed] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [payState, setPayState] = useState<"preparing" | "ready" | "failed">("preparing");
   const [error, setError] = useState<string | null>(null);
+  const checkoutRef = useRef<{ destroy: () => void } | null>(null);
+  const requestSeq = useRef(0);
+  const icFired = useRef(false);
 
   useEffect(() => {
     fetchAddons({ data: { sectionId: tier.id } }).then(({ addons }) => {
@@ -849,68 +850,21 @@ function PopupReviewStep({
       : 0;
   const discountLabel = rateType === "sale" ? "Sale discount" : "Waitlist discount";
 
-  // Mount Stripe's embedded checkout when a client secret arrives. On any
-  // failure fall back to the hosted redirect so payment is never blocked.
+  // One-page flow: the payment form mounts as soon as the review step loads
+  // and rebuilds (debounced) whenever add-ons or the payment schedule change,
+  // since both alter the session amounts. Failures offer a hosted redirect.
   useEffect(() => {
-    if (!embeddedSecret) return;
-    let cancelled = false;
-    let instance: { destroy: () => void } | null = null;
-    (async () => {
-      try {
-        const pk = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined;
-        if (!pk) throw new Error("VITE_STRIPE_PUBLISHABLE_KEY missing");
-        const stripe = await loadStripe(pk);
-        if (!stripe) throw new Error("stripe.js failed to load");
-        const checkout = await stripe.createEmbeddedCheckoutPage({ clientSecret: embeddedSecret });
-        if (cancelled) {
-          checkout.destroy();
-          return;
-        }
-        instance = checkout;
-        checkout.mount("#embedded-checkout");
-      } catch (err) {
-        console.error("embedded checkout failed — falling back to hosted", err);
-        if (cancelled) return;
-        setEmbeddedSecret(null);
-        try {
-          const { url } = await createCheckoutSession({
-            bookingId,
-            addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
-            eventSlug,
-            sectionSlug: tier.booking_link_slug ?? tier.id,
-            cotRequested: false,
-            returnPath: `/stay/${eventSlug}`,
-          });
-          if (url) window.location.href = url;
-        } catch (fallbackErr) {
-          console.error("hosted fallback failed", fallbackErr);
-          setError("We couldn't open checkout — please try again.");
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-      instance?.destroy();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [embeddedSecret]);
-
-  const reserve = async () => {
-    setSubmitting(true);
+    const seq = ++requestSeq.current;
+    setPayState("preparing");
     setError(null);
-    try {
-      // Record the payment choice before checkout so the session is built
-      // as full or 50/50 (server re-validates the split cutoff date).
-      const effectiveSchedule = schedule === "klarna" ? "full" : schedule;
-      const choice = await setPopupPaymentChoice({
-        data: { bookingId, schedule: effectiveSchedule },
-      });
-      if (!choice.ok) {
-        setError("We couldn't save your payment choice — please try again.");
-        return;
-      }
-      const { url, clientSecret, alreadyPaid, redirectUrl, locked, lockedMessage } =
-        await createCheckoutSession({
+    const timer = setTimeout(async () => {
+      try {
+        const effectiveSchedule = schedule === "klarna" ? "full" : schedule;
+        const choice = await setPopupPaymentChoice({
+          data: { bookingId, schedule: effectiveSchedule },
+        });
+        if (!choice.ok) throw new Error("payment choice not saved");
+        const { clientSecret, alreadyPaid, redirectUrl, locked } = await createCheckoutSession({
           bookingId,
           addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
           eventSlug,
@@ -918,57 +872,63 @@ function PopupReviewStep({
           cotRequested: false,
           returnPath: `/stay/${eventSlug}`,
           uiMode: "embedded",
+          forceNew: true,
         });
-      if (locked) {
-        setError(
-          lockedMessage ||
-            "Your reservation is already being processed on another device. Complete it there or wait a minute and try again.",
-        );
-        return;
+        if (seq !== requestSeq.current) return;
+        if (alreadyPaid && redirectUrl) {
+          window.location.href = redirectUrl;
+          return;
+        }
+        if (locked || !clientSecret) throw new Error(locked ? "locked" : "no client secret");
+        const pk = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined;
+        if (!pk) throw new Error("VITE_STRIPE_PUBLISHABLE_KEY missing");
+        const stripe = await loadStripe(pk);
+        if (!stripe) throw new Error("stripe.js failed to load");
+        const checkout = await stripe.createEmbeddedCheckoutPage({ clientSecret });
+        if (seq !== requestSeq.current) {
+          checkout.destroy();
+          return;
+        }
+        checkoutRef.current?.destroy();
+        checkoutRef.current = checkout;
+        checkout.mount("#embedded-checkout");
+        if (!icFired.current) {
+          icFired.current = true;
+          window.fbq?.("track", "InitiateCheckout", { content_name: eventSlug });
+        }
+        setPayState("ready");
+      } catch (err) {
+        console.error("embedded checkout setup failed", err);
+        if (seq === requestSeq.current) setPayState("failed");
       }
-      if (alreadyPaid && redirectUrl) {
-        window.location.href = redirectUrl;
-        return;
-      }
-      if (clientSecret) {
-        window.fbq?.("track", "InitiateCheckout", { content_name: eventSlug });
-        setEmbeddedSecret(clientSecret);
-        return;
-      }
-      if (url) {
-        window.fbq?.("track", "InitiateCheckout", { content_name: eventSlug });
-        window.location.href = url;
-      }
+    }, 500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingId, schedule, selectedIds, addons]);
+
+  // Tear down the payment iframe when leaving the review step.
+  useEffect(() => () => checkoutRef.current?.destroy(), []);
+
+  // Escape hatch when the embed can't load: classic hosted redirect.
+  const openHostedCheckout = async () => {
+    setError(null);
+    try {
+      const { url } = await createCheckoutSession({
+        bookingId,
+        addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
+        eventSlug,
+        sectionSlug: tier.booking_link_slug ?? tier.id,
+        cotRequested: false,
+        returnPath: `/stay/${eventSlug}`,
+        forceNew: true,
+      });
+      if (url) window.location.href = url;
+      else setError("We couldn't open checkout — please try again.");
     } catch (err) {
-      console.error("popup checkout failed", err);
+      console.error("hosted checkout failed", err);
       setError("We couldn't open checkout — please try again.");
-    } finally {
-      setSubmitting(false);
     }
   };
-
-  if (embeddedSecret) {
-    return (
-      <div className="mx-auto mt-10 max-w-md">
-        <button
-          onClick={() => setEmbeddedSecret(null)}
-          className="mb-6 inline-flex min-h-[44px] items-center -ml-1 px-2 py-2 text-xs uppercase tracking-[0.16em] text-[#B8AFA6] hover:text-[#F6F1E8]"
-        >
-          ← Back to your details
-        </button>
-        <div className="mb-4">
-          <div className="font-serif text-2xl">{guestName},</div>
-          <div className="mt-1 text-sm italic text-[#F09B9C]">Complete your payment below.</div>
-        </div>
-        <div className="overflow-hidden rounded-[4px] bg-white">
-          <div id="embedded-checkout" />
-        </div>
-        <p className="mt-3 text-center text-xs text-[#B8AFA6]">
-          Payment is handled securely by Stripe.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto mt-10 max-w-md">
@@ -1155,27 +1115,32 @@ function PopupReviewStep({
         )}
       </div>
 
-      <label className="mt-4 flex cursor-pointer items-start gap-3 px-1 text-xs text-[#B8AFA6]">
-        <input
-          type="checkbox"
-          checked={agreed}
-          onChange={(e) => setAgreed(e.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-[#F09B9C]"
-        />
-        <span>
-          I understand the cancellation policy: {cancellationPolicy(ev)} We highly recommend travel
-          insurance — typically 5–8% of your trip, about {fmtMoney(Math.round(calc.total * 0.05))}–
-          {fmtMoney(Math.round(calc.total * 0.08))} for this reservation.
-        </span>
-      </label>
+      <p className="mt-4 px-1 text-xs text-[#B8AFA6]">
+        {cancellationPolicy(ev)} We highly recommend travel insurance — typically 5–8% of your
+        trip, about {fmtMoney(Math.round(calc.total * 0.05))}–
+        {fmtMoney(Math.round(calc.total * 0.08))} for this reservation.
+      </p>
 
-      <button
-        onClick={reserve}
-        disabled={submitting || !agreed}
-        className="mt-4 w-full rounded bg-[#F09B9C] px-4 py-3 min-h-[44px] text-sm uppercase tracking-[0.16em] text-[#1E1313] transition-colors hover:bg-[#F09B9C]/85 disabled:opacity-50"
-      >
-        {submitting ? "Opening secure checkout…" : "Reserve & pay"}
-      </button>
+      {/* Payment — mounted in place so paying takes zero extra clicks */}
+      <div className="mt-4">
+        {payState === "preparing" && (
+          <p className="py-6 text-center text-sm text-[#B8AFA6]">Preparing secure payment…</p>
+        )}
+        {payState === "failed" && (
+          <div className="py-4 text-center">
+            <p className="text-sm text-[#B8AFA6]">The payment form didn't load.</p>
+            <button
+              onClick={openHostedCheckout}
+              className="mt-3 rounded bg-[#F09B9C] px-6 py-3 min-h-[44px] text-sm uppercase tracking-[0.16em] text-[#1E1313] transition-colors hover:bg-[#F09B9C]/85"
+            >
+              Open secure checkout
+            </button>
+          </div>
+        )}
+        <div className={payState === "ready" ? "overflow-hidden rounded-[4px] bg-white" : ""}>
+          <div id="embedded-checkout" />
+        </div>
+      </div>
       {error && <p className="mt-3 text-center text-sm text-[#B8AFA6]">{error}</p>}
       <p className="mt-3 text-center text-xs text-[#B8AFA6]">
         Payment is handled securely by Stripe.

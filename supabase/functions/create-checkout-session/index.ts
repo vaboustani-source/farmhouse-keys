@@ -70,7 +70,7 @@ async function lineItemsForBooking(
 
   const { data: eventRow } = await supabaseAdmin
     .from("lb_events")
-    .select("event_type, balance_due_on")
+    .select("event_type, balance_due_on, check_in_date, cancel_cutoff_days")
     .eq("id", booking.event_id)
     .single();
   const isPopup = eventRow?.event_type === "popup";
@@ -169,7 +169,18 @@ async function lineItemsForBooking(
     lineItems,
     isPopup,
     balanceDueOn: (eventRow?.balance_due_on as string | null) ?? null,
+    checkInDate: (eventRow?.check_in_date as string | null) ?? null,
+    cancelCutoffDays: (eventRow?.cancel_cutoff_days as number | null) ?? null,
   };
+}
+
+function cancellationMessage(checkInDate: string | null, cutoffDays: number | null): string {
+  if (checkInDate && cutoffDays != null) {
+    const by = new Date(new Date(checkInDate + "T00:00:00").getTime() - cutoffDays * 86400000);
+    const human = by.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    return `Free cancellation until ${human}. After that, this reservation is fully non-refundable. Travel insurance is recommended.`;
+  }
+  return "Cancellation is possible up to 45 days before check-in. After that, this reservation is fully non-refundable. Travel insurance is recommended.";
 }
 
 serve(async (req) => {
@@ -193,6 +204,7 @@ serve(async (req) => {
       paymentType = null,
       returnPath = null,
       uiMode = null,
+      forceNew = false,
     } = data;
     const wantEmbedded = uiMode === "embedded";
     parsedBookingId = bookingId;
@@ -303,20 +315,20 @@ serve(async (req) => {
       try {
         const existing = await stripe.checkout.sessions.retrieve(existingBk.stripe_session_id);
         if (existing.status === "open") {
-          if (wantEmbedded && existing.ui_mode === "embedded" && existing.client_secret) {
+          if (!forceNew && wantEmbedded && existing.ui_mode === "embedded" && existing.client_secret) {
             return new Response(
               JSON.stringify({ client_secret: existing.client_secret, reused: true }),
               { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
             );
           }
-          if (!wantEmbedded && existing.ui_mode !== "embedded" && existing.url) {
+          if (!forceNew && !wantEmbedded && existing.ui_mode !== "embedded" && existing.url) {
             return new Response(
               JSON.stringify({ url: existing.url, reused: true }),
               { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
             );
           }
-          // Requested mode differs from the open session's — expire it and
-          // fall through to mint a fresh one in the right mode.
+          // forceNew (amounts/schedule changed) or mode mismatch — expire the
+          // open session and fall through to mint a fresh one.
           await stripe.checkout.sessions.expire(existing.id).catch(() => {});
         }
         // 'expired' or 'complete' → fall through and create a new session
@@ -463,6 +475,11 @@ serve(async (req) => {
       customer_creation: isSplit ? "always" : undefined,
       payment_intent_data: isSplit
         ? { setup_future_usage: "off_session" }
+        : undefined,
+      // The one-page flow has no separate policy checkbox — the policy shows
+      // beside Stripe's pay button, so every payer sees it at payment time.
+      custom_text: primary.isPopup
+        ? { submit: { message: cancellationMessage(primary.checkInDate, primary.cancelCutoffDays) } }
         : undefined,
       metadata: {
         primary_booking_id: bookingId,

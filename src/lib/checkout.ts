@@ -18,6 +18,9 @@ export type CreateCheckoutSessionInput = {
   /** "embedded" renders Checkout inside the page (returns clientSecret
    * instead of url). Omit for the classic hosted redirect. */
   uiMode?: "embedded";
+  /** Expire any open session and mint a fresh one — required after the
+   * guest changes add-ons or payment schedule (amounts changed). */
+  forceNew?: boolean;
 };
 
 /**

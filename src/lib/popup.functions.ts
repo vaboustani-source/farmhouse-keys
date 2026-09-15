@@ -201,3 +201,43 @@ export async function setPopupPaymentChoice({
   }
   return { ok: true };
 }
+
+/** Updates name/phone/address on a pending hold without touching the email,
+ *  payment schedule, or Stripe session (one-page checkout: details may
+ *  change after the payment form is already on screen). */
+export async function updatePopupBookingDetails({
+  data,
+}: {
+  data: {
+    bookingId: string;
+    guestName: string;
+    guest2Name?: string;
+    guestPhone: string;
+    addressLine1: string;
+    addressCity: string;
+    addressState: string;
+    addressZip: string;
+  };
+}): Promise<{ ok: boolean }> {
+  const { error } = await sb.rpc("update_popup_booking_details", {
+    p_booking_id: data.bookingId,
+    p_guest_name: data.guestName,
+    p_guest2_name: data.guest2Name ?? null,
+    p_guest_phone: data.guestPhone,
+    p_address_line1: data.addressLine1,
+    p_address_city: data.addressCity,
+    p_address_state: data.addressState,
+    p_address_zip: data.addressZip,
+  });
+  if (error) {
+    console.error("update_popup_booking_details failed", error);
+    return { ok: false };
+  }
+  return { ok: true };
+}
+
+/** Frees a pending hold immediately (guest re-held under a different email). */
+export async function releasePopupHold({ data }: { data: { bookingId: string } }): Promise<void> {
+  const { error } = await sb.rpc("release_popup_hold", { p_booking_id: data.bookingId });
+  if (error) console.error("release_popup_hold failed", error);
+}

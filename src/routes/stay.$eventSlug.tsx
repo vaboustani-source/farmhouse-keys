@@ -5,6 +5,8 @@ import {
   createPopupBookingFn,
   checkPopupWaitlist,
   setPopupPaymentChoice,
+  updatePopupBookingDetails,
+  releasePopupHold,
   type PopupEventPayload,
   type PopupTier,
   type PopupItineraryItem,
@@ -85,18 +87,7 @@ const CONTACT_LINE = (
 
 /* ───────────────────────── Page shell + state machine ───────────────────────── */
 
-type Step =
-  | { kind: "landing" }
-  | { kind: "details"; tier: PopupTier }
-  | {
-      kind: "review";
-      tier: PopupTier;
-      bookingId: string;
-      guestName: string;
-      guestEmail: string;
-      baseAmount: number;
-      rateType: "waitlist" | "sale" | "regular";
-    };
+type Step = { kind: "landing" } | { kind: "book"; tier: PopupTier };
 
 function PopupWeekendPage() {
   const { eventSlug } = Route.useParams();
@@ -185,13 +176,13 @@ function PopupWeekendPage() {
                 payload={payload}
                 onReserve={(tier) => {
                   setBanner(null);
-                  setStep({ kind: "details", tier });
+                  setStep({ kind: "book", tier });
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
               />
             )}
-            {step.kind === "details" && (
-              <DetailsStep
+            {step.kind === "book" && (
+              <BookStep
                 eventSlug={eventSlug}
                 payload={payload}
                 tier={step.tier}
@@ -200,38 +191,9 @@ function PopupWeekendPage() {
                   loadEvent();
                   setBanner("That tier just sold out — here's what's still available.");
                   setStep({ kind: "landing" });
+                  window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
-                onReserved={(bookingId, guestName, guestEmail, baseAmount, rateType) =>
-                  setStep({
-                    kind: "review",
-                    tier: step.tier,
-                    bookingId,
-                    guestName,
-                    guestEmail,
-                    baseAmount,
-                    rateType,
-                  })
-                }
               />
-            )}
-            {step.kind === "review" && (
-              <ReviewErrorBoundary
-                onError={(err) => {
-                  console.error("Popup review crashed", err);
-                  setStep({ kind: "landing" });
-                }}
-              >
-                <PopupReviewStep
-                  eventSlug={eventSlug}
-                  payload={payload}
-                  tier={step.tier}
-                  bookingId={step.bookingId}
-                  guestName={step.guestName}
-                  baseAmount={step.baseAmount}
-                  rateType={step.rateType}
-                  onBack={() => setStep({ kind: "details", tier: step.tier })}
-                />
-              </ReviewErrorBoundary>
             )}
           </>
         )}
@@ -475,28 +437,29 @@ function TierCard({
   );
 }
 
-/* ───────────────────────── Step 2: guest details ───────────────────────── */
+/* ───────────────────────── Step 2: details + payment on one page ───────────────────────── */
 
-function DetailsStep({
+type Hold = {
+  bookingId: string;
+  guestEmail: string;
+  baseAmount: number;
+  rateType: "waitlist" | "sale" | "regular";
+};
+
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+function BookStep({
   eventSlug,
   payload,
   tier,
   onBack,
   onSoldOut,
-  onReserved,
 }: {
   eventSlug: string;
   payload: PopupEventPayload;
   tier: PopupTier;
   onBack: () => void;
   onSoldOut: () => void;
-  onReserved: (
-    bookingId: string,
-    guestName: string,
-    guestEmail: string,
-    baseAmount: number,
-    rateType: "waitlist" | "sale" | "regular",
-  ) => void;
 }) {
   const createBooking = createPopupBookingFn;
   const ev = payload.event!;
@@ -509,8 +472,11 @@ function DetailsStep({
   const [addrState, setAddrState] = useState("");
   const [addrZip, setAddrZip] = useState("");
   const [onWaitlist, setOnWaitlist] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [hold, setHold] = useState<Hold | null>(null);
+  const [holdState, setHoldState] = useState<"idle" | "holding" | "ready" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  const holdRef = useRef<Hold | null>(null);
+  const holdSeq = useRef(0);
 
   // Restore previously entered details (e.g. after an expired checkout)
   useEffect(() => {
@@ -546,7 +512,7 @@ function DetailsStep({
   // server re-verifies at booking and checkout — this is display only).
   useEffect(() => {
     const candidate = email.trim();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(candidate)) {
+    if (!EMAIL_RE.test(candidate)) {
       setOnWaitlist(false);
       return;
     }
@@ -562,20 +528,34 @@ function DetailsStep({
     };
   }, [email, eventSlug]);
 
-  const regular = tier.regular_package_price != null ? Number(tier.regular_package_price) : null;
-  const promo = tier.promo_package_price != null ? Number(tier.promo_package_price) : null;
-  // selling_price is server-computed: sale price while the sale runs, regular after.
-  const displayPrice = onWaitlist
-    ? (promo ?? tier.selling_price)
-    : ev.phase === "public"
-      ? tier.selling_price
-      : (promo ?? tier.selling_price);
+  const complete =
+    !!name.trim() &&
+    !!name2.trim() &&
+    EMAIL_RE.test(email.trim()) &&
+    !!phone.trim() &&
+    !!addr1.trim() &&
+    !!addrCity.trim() &&
+    !!addrState.trim() &&
+    !!addrZip.trim();
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    try {
+  // One-page flow: the moment the details are complete, hold the room and
+  // let the payment section mount beneath the form — no Continue button.
+  // Later edits update the hold in place; only a new email needs a new hold
+  // (Stripe's session is tied to the email), and the old one is released.
+  useEffect(() => {
+    if (!complete) return;
+    const seq = ++holdSeq.current;
+    const timer = setTimeout(async () => {
+      const details = {
+        guestName: name.trim(),
+        guest2Name: name2.trim() || undefined,
+        guestPhone: phone.trim(),
+        addressLine1: addr1.trim(),
+        addressCity: addrCity.trim(),
+        addressState: addrState.trim(),
+        addressZip: addrZip.trim(),
+      };
+      const normalizedEmail = email.trim().toLowerCase();
       try {
         sessionStorage.setItem(
           `gfh_popup_guest_${eventSlug}`,
@@ -584,66 +564,97 @@ function DetailsStep({
       } catch {
         /* sessionStorage unavailable — non-fatal */
       }
-      const res = await createBooking({
-        data: {
-          eventSlug,
-          sectionId: tier.id,
-          guestName: name.trim(),
-          guest2Name: name2.trim() || undefined,
-          guestEmail: email.trim(),
-          guestPhone: phone.trim(),
-          addressLine1: addr1.trim(),
-          addressCity: addrCity.trim(),
-          addressState: addrState.trim(),
-          addressZip: addrZip.trim(),
-        },
-      });
-      if (!res.ok) {
-        if (res.reason === "sold_out") {
-          onSoldOut();
+      const current = holdRef.current;
+      try {
+        if (current && current.guestEmail === normalizedEmail) {
+          const r = await updatePopupBookingDetails({
+            data: { bookingId: current.bookingId, ...details },
+          });
+          if (!r.ok) throw new Error("details update failed");
           return;
         }
-        if (res.reason === "already_booked") {
-          setError(
-            "You already have a reservation for this weekend — check your email for the confirmation, or reach out and we'll help.",
-          );
+        setHoldState("holding");
+        setError(null);
+        const res = await createBooking({
+          data: { eventSlug, sectionId: tier.id, guestEmail: email.trim(), ...details },
+        });
+        if (seq !== holdSeq.current) return;
+        if (!res.ok) {
+          if (res.reason === "sold_out") {
+            onSoldOut();
+            return;
+          }
+          if (res.reason === "already_booked") {
+            setError(
+              "You already have a reservation for this weekend — check your email for the confirmation, or reach out and we'll help.",
+            );
+          } else if (res.reason === "waitlist_only") {
+            setError(
+              `Right now booking is reserved for our waitlist — use the email you joined the waitlist with${
+                ev.public_opens_at
+                  ? `, or come back ${fmtDateTime(ev.public_opens_at)} when booking opens to everyone`
+                  : ""
+              }.`,
+            );
+          } else if (res.reason === "not_open") {
+            setError(
+              ev.waitlist_opens_at
+                ? `Booking hasn't opened yet — waitlist members can book starting ${fmtDateTime(ev.waitlist_opens_at)}.`
+                : "Booking hasn't opened yet.",
+            );
+          } else {
+            setError("Something went wrong — please check your details and try again.");
+          }
+          setHoldState("error");
           return;
         }
-        if (res.reason === "waitlist_only") {
-          setError(
-            `Right now booking is reserved for our waitlist — use the email you joined the waitlist with${
-              ev.public_opens_at
-                ? `, or come back ${fmtDateTime(ev.public_opens_at)} when booking opens to everyone`
-                : ""
-            }.`,
-          );
-          return;
+        if (current && current.bookingId !== res.booking.id) {
+          releasePopupHold({ data: { bookingId: current.bookingId } });
         }
-        if (res.reason === "not_open") {
-          setError(
-            ev.waitlist_opens_at
-              ? `Booking hasn't opened yet — waitlist members can book starting ${fmtDateTime(ev.waitlist_opens_at)}.`
-              : "Booking hasn't opened yet.",
-          );
-          return;
+        const next: Hold = {
+          bookingId: res.booking.id,
+          guestEmail: normalizedEmail,
+          baseAmount: res.booking.base_amount,
+          rateType: res.booking.rate_type,
+        };
+        holdRef.current = next;
+        setHold(next);
+        setHoldState("ready");
+      } catch (err) {
+        console.error("popup hold failed", err);
+        if (seq === holdSeq.current) {
+          setError("Something went wrong — please check your details and try again.");
+          setHoldState("error");
         }
-        setError("Something went wrong — please try again.");
-        return;
       }
-      onReserved(
-        res.booking.id,
-        res.booking.guest_name,
-        res.booking.guest_email,
-        res.booking.base_amount,
-        res.booking.rate_type,
-      );
-    } catch (err) {
-      console.error("createPopupBooking failed", err);
-      setError("Something went wrong — please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    }, 800);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    complete,
+    name,
+    name2,
+    email,
+    phone,
+    addr1,
+    addrCity,
+    addrState,
+    addrZip,
+    eventSlug,
+    tier.id,
+  ]);
+
+  const regular = tier.regular_package_price != null ? Number(tier.regular_package_price) : null;
+  const promo = tier.promo_package_price != null ? Number(tier.promo_package_price) : null;
+  // Once the room is held, show the server-stamped price; before that,
+  // selling_price is server-computed (sale price while the sale runs).
+  const displayPrice = hold
+    ? hold.baseAmount
+    : onWaitlist
+      ? (promo ?? tier.selling_price)
+      : ev.phase === "public"
+        ? tier.selling_price
+        : (promo ?? tier.selling_price);
 
   const inputCls =
     "w-full rounded border border-[#4A3737] bg-[#2A1C1C] px-4 py-3 text-base focus:border-[#F09B9C] focus:outline-none";
@@ -672,9 +683,15 @@ function DetailsStep({
             ✓ We recognize this email — your private rate is locked in.
           </div>
         )}
+        {hold?.rateType === "sale" && !onWaitlist && (
+          <div className="mt-2 text-xs text-[#B8956A]">
+            ✓ Sale price applied — {fmtMoney(hold.baseAmount)} per couple.
+          </div>
+        )}
       </div>
 
-      <form onSubmit={submit} className="mt-6 space-y-3">
+      <form onSubmit={(e) => e.preventDefault()} className="mt-6 space-y-3">
+        <SectionLabel>Your details</SectionLabel>
         <input
           type="text"
           required
@@ -753,52 +770,56 @@ function DetailsStep({
             className={inputCls}
           />
         </div>
-        <button
-          type="submit"
-          disabled={
-            submitting ||
-            !name ||
-            !name2 ||
-            !email ||
-            !phone ||
-            !addr1 ||
-            !addrCity ||
-            !addrState ||
-            !addrZip
-          }
-          className="w-full rounded bg-[#F09B9C] px-4 py-3 min-h-[44px] text-sm uppercase tracking-[0.16em] text-[#1E1313] transition-colors hover:bg-[#F09B9C]/85 disabled:opacity-50"
-        >
-          {submitting ? "Holding your room…" : "Continue"}
-        </button>
-        {error && <p className="pt-2 text-sm text-[#B8AFA6]">{error}</p>}
-        <p className="pt-1 text-center text-xs text-[#B8AFA6]">
-          Nothing is charged yet — your room is held while you review.
-        </p>
       </form>
+
+      {holdState !== "ready" && (
+        <p className="mt-4 text-center text-xs text-[#B8AFA6]">
+          {holdState === "holding"
+            ? "Holding your room…"
+            : holdState === "error"
+              ? error
+              : "Once your details are in, payment appears right here — nothing is charged until you confirm."}
+        </p>
+      )}
+
+      {hold && holdState === "ready" && (
+        <ReviewErrorBoundary
+          onError={(err) => {
+            console.error("Popup payment section crashed", err);
+            setHoldState("error");
+            setError("Something went wrong — please refresh and try again.");
+          }}
+        >
+          <PaymentSection
+            eventSlug={eventSlug}
+            payload={payload}
+            tier={tier}
+            bookingId={hold.bookingId}
+            baseAmount={hold.baseAmount}
+            rateType={hold.rateType}
+          />
+        </ReviewErrorBoundary>
+      )}
     </div>
   );
 }
 
-/* ───────────────────────── Step 3: review + add-ons + pay ───────────────────────── */
+/* ───────────────────────── Add-ons + pay options + embedded Stripe ───────────────────────── */
 
-function PopupReviewStep({
+function PaymentSection({
   eventSlug,
   payload,
   tier,
   bookingId,
-  guestName,
   baseAmount,
   rateType,
-  onBack,
 }: {
   eventSlug: string;
   payload: PopupEventPayload;
   tier: PopupTier;
   bookingId: string;
-  guestName: string;
   baseAmount: number;
   rateType: "waitlist" | "sale" | "regular";
-  onBack: () => void;
 }) {
   const fetchAddons = getSectionAddons;
   const ev = payload.event!;
@@ -850,9 +871,9 @@ function PopupReviewStep({
       : 0;
   const discountLabel = rateType === "sale" ? "Sale discount" : "Waitlist discount";
 
-  // One-page flow: the payment form mounts as soon as the review step loads
-  // and rebuilds (debounced) whenever add-ons or the payment schedule change,
-  // since both alter the session amounts. Failures offer a hosted redirect.
+  // The payment form mounts as soon as the hold exists and rebuilds
+  // (debounced) whenever the booking, add-ons or payment schedule change,
+  // since all alter the session. Failures offer a hosted redirect.
   useEffect(() => {
     const seq = ++requestSeq.current;
     setPayState("preparing");
@@ -906,7 +927,7 @@ function PopupReviewStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingId, schedule, selectedIds, addons]);
 
-  // Tear down the payment iframe when leaving the review step.
+  // Tear down the payment iframe when leaving the page.
   useEffect(() => () => checkoutRef.current?.destroy(), []);
 
   // Escape hatch when the embed can't load: classic hosted redirect.
@@ -931,36 +952,8 @@ function PopupReviewStep({
   };
 
   return (
-    <div className="mx-auto mt-10 max-w-md">
-      <button
-        onClick={onBack}
-        className="mb-6 inline-flex min-h-[44px] items-center -ml-1 px-2 py-2 text-xs uppercase tracking-[0.16em] text-[#B8AFA6] hover:text-[#F6F1E8]"
-      >
-        ← Back
-      </button>
-
-      <div className="mb-6">
-        <div className="font-serif text-2xl">{guestName},</div>
-        <div className="mt-1 text-sm italic text-[#F09B9C]">Your room is held for you.</div>
-      </div>
-
-      <div className="rounded-[4px] border border-[#4A3737] bg-[#2A1C1C] p-6">
-        <div className="font-serif text-2xl">{tier.section_name}</div>
-        <div className="mt-2 text-sm text-[#B8AFA6]">
-          {fmtDate(ev.check_in_date)} → {fmtDate(ev.check_out_date)} · {calc.nights}{" "}
-          {calc.nights === 1 ? "night" : "nights"}
-        </div>
-        {rateType === "waitlist" && (
-          <div className="mt-2 text-xs text-[#B8956A]">
-            ✓ Your private rate applied — {fmtMoney(calc.base)} per couple.
-          </div>
-        )}
-        {rateType === "sale" && (
-          <div className="mt-2 text-xs text-[#B8956A]">
-            ✓ Sale price applied — {fmtMoney(calc.base)} per couple.
-          </div>
-        )}
-      </div>
+    <div className="mt-6">
+      <p className="text-center text-sm italic text-[#F09B9C]">Your room is held for you.</p>
 
       {addons.length > 0 && (
         <div className="mt-4 rounded-[4px] border border-[#4A3737] bg-[#2A1C1C] p-6">
@@ -1051,9 +1044,8 @@ function PopupReviewStep({
             <div>
               <div className="text-sm font-medium">Pay over time with Klarna</div>
               <div className="mt-0.5 text-xs text-[#B8AFA6]">
-                Book today, pay in installments — from 4 interest-free payments to
-                monthly plans. Select Klarna on the payment screen and choose the
-                plan that fits.
+                Book today, pay in installments — from 4 interest-free payments to monthly plans.
+                Select Klarna on the payment screen and choose the plan that fits.
               </div>
             </div>
           </label>
@@ -1116,9 +1108,9 @@ function PopupReviewStep({
       </div>
 
       <p className="mt-4 px-1 text-xs text-[#B8AFA6]">
-        {cancellationPolicy(ev)} We highly recommend travel insurance — typically 5–8% of your
-        trip, about {fmtMoney(Math.round(calc.total * 0.05))}–
-        {fmtMoney(Math.round(calc.total * 0.08))} for this reservation.
+        {cancellationPolicy(ev)} We highly recommend travel insurance — typically 5–8% of your trip,
+        about {fmtMoney(Math.round(calc.total * 0.05))}–{fmtMoney(Math.round(calc.total * 0.08))}{" "}
+        for this reservation.
       </p>
 
       {/* Payment — mounted in place so paying takes zero extra clicks */}
@@ -1291,9 +1283,7 @@ function PopupConfirmation({
                   <>
                     <Row label="Package" value={Number(booking.section?.regular_package_price)} />
                     <Row
-                      label={
-                        booking.rate_type === "sale" ? "Sale discount" : "Waitlist discount"
-                      }
+                      label={booking.rate_type === "sale" ? "Sale discount" : "Waitlist discount"}
                       value={
                         (Number(booking.base_amount) || 0) -
                         Number(booking.section?.regular_package_price)

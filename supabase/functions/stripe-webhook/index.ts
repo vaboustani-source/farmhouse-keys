@@ -40,10 +40,17 @@ const fmtDate = (d: string | null | undefined) =>
 async function sendMail(
   to: string,
   payload: { subject: string; html: string },
+  cc?: string[],
 ) {
+  // Staff copies (e.g. lb_events.confirmation_cc_emails) ride along as CC so
+  // the guest still sees a normal one-to-one confirmation.
+  const ccList = (cc ?? [])
+    .map((e) => (e || "").trim())
+    .filter((e) => e && e.toLowerCase() !== to.toLowerCase());
   await getResend().emails.send({
     from: FROM,
     to,
+    ...(ccList.length ? { cc: ccList } : {}),
     subject: payload.subject,
     html: payload.html,
   });
@@ -72,6 +79,7 @@ async function sendDepositConfirmation(opts: {
   };
   finalChargeDate?: string;
   cancellationPolicy?: string;
+  cc?: string[];
 }) {
   const total = opts.breakdown?.totalAmount ?? opts.amountPaid + opts.remaining;
   await sendMail(
@@ -98,6 +106,7 @@ async function sendDepositConfirmation(opts: {
       coveredGuestSection: opts.coveredGuestName ? opts.sectionName : undefined,
       cancellationPolicy: opts.cancellationPolicy,
     }),
+    opts.cc,
   );
 }
 
@@ -121,6 +130,7 @@ async function sendPaidInFullConfirmation(opts: {
     addonsSelected: { name: string; price: number }[];
   };
   cancellationPolicy?: string;
+  cc?: string[];
 }) {
   await sendMail(
     opts.to,
@@ -143,6 +153,7 @@ async function sendPaidInFullConfirmation(opts: {
       coveredGuestSection: opts.coveredGuestName ? opts.sectionName : undefined,
       cancellationPolicy: opts.cancellationPolicy,
     }),
+    opts.cc,
   );
 }
 
@@ -480,10 +491,18 @@ serve(async (req) => {
         const { data: ev } = await supabaseAdmin
           .from("lb_events")
           .select(
-            "wedding_name, check_in_date, check_out_date, balance_due_on, cancel_cutoff_days",
+            "wedding_name, check_in_date, check_out_date, balance_due_on, cancel_cutoff_days, confirmation_cc_emails",
           )
           .eq("id", primary.event_id)
           .single();
+        // Staff CC'd on this event's guest confirmations (e.g. the Event
+        // Coordinator compiling the Couples Weekend guest list).
+        const confirmationCc: string[] = Array.isArray(
+          (ev as { confirmation_cc_emails?: unknown })?.confirmation_cc_emails,
+        )
+          ? ((ev as { confirmation_cc_emails: unknown[] }).confirmation_cc_emails
+              .filter((e) => typeof e === "string") as string[])
+          : [];
 
         const totalCharged = (session.amount_total ?? 0) / 100;
         const fullPrimaryTotal = Number(primary.total_amount || 0);
@@ -574,6 +593,7 @@ serve(async (req) => {
               ? fmtDate(ev.balance_due_on)
               : undefined,
             cancellationPolicy: cancelPolicy,
+            cc: confirmationCc,
           });
         } else {
           await sendPaidInFullConfirmation({
@@ -587,6 +607,7 @@ serve(async (req) => {
             coveredGuestName: secondary?.guest_name ?? null,
             breakdown,
             cancellationPolicy: cancelPolicy,
+            cc: confirmationCc,
           });
         }
 

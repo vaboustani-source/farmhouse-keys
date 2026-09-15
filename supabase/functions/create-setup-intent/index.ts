@@ -127,6 +127,8 @@ Deno.serve(async (req) => {
       clientSecret: setupIntent.client_secret,
       customerId,
       booking: summary,
+      // Lets the page mount Stripe Elements without a build-time key.
+      publishableKey: Deno.env.get("STRIPE_PUBLISHABLE_KEY") ?? null,
     });
   } catch (err) {
     console.error("create-setup-intent error", err);

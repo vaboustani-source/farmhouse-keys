@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,8 +21,7 @@ type Summary = {
   guestName: string;
 };
 
-const fmtMoney = (n: number) =>
-  n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+const fmtMoney = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 const fmtDate = (d: string | null | undefined) =>
   d
     ? new Date(d + "T00:00:00").toLocaleDateString("en-US", {
@@ -68,14 +67,14 @@ function UpdatePaymentPage() {
     | { status: "invalid" }
     | { status: "expired" }
     | { status: "paid"; booking: Summary }
-    | { status: "valid"; clientSecret: string; booking: Summary }
+    | {
+        status: "valid";
+        clientSecret: string;
+        booking: Summary;
+        stripePromise: Promise<Stripe | null>;
+      }
     | { status: "error"; message: string }
   >({ status: "loading" });
-
-  const stripePromise = useMemo<Promise<Stripe | null> | null>(
-    () => (STRIPE_PK ? loadStripe(STRIPE_PK) : null),
-    [],
-  );
 
   useEffect(() => {
     let cancelled = false;
@@ -90,7 +89,21 @@ function UpdatePaymentPage() {
           return;
         }
         if (data?.status === "valid") {
-          setState({ status: "valid", clientSecret: data.clientSecret, booking: data.booking });
+          // Build-time key first; otherwise the edge function's STRIPE_PUBLISHABLE_KEY.
+          const pk = STRIPE_PK || (data.publishableKey as string | null | undefined) || "";
+          if (!pk) {
+            setState({
+              status: "error",
+              message: "The payment form is unavailable right now — please try again shortly.",
+            });
+            return;
+          }
+          setState({
+            status: "valid",
+            clientSecret: data.clientSecret,
+            booking: data.booking,
+            stripePromise: loadStripe(pk),
+          });
         } else if (data?.status === "paid") {
           setState({ status: "paid", booking: data.booking });
         } else if (data?.status === "expired") {
@@ -116,10 +129,7 @@ function UpdatePaymentPage() {
   }
   if (state.status === "invalid") {
     return (
-      <MessagePanel
-        title="This link doesn't seem right."
-        body="Reach out to your planning team."
-      />
+      <MessagePanel title="This link doesn't seem right." body="Reach out to your planning team." />
     );
   }
   if (state.status === "expired") {
@@ -132,26 +142,14 @@ function UpdatePaymentPage() {
   }
   if (state.status === "paid") {
     return (
-      <MessagePanel
-        title="Your reservation is paid in full."
-        body="No further action needed."
-      />
+      <MessagePanel title="Your reservation is paid in full." body="No further action needed." />
     );
   }
   if (state.status === "error") {
     return <MessagePanel title="Something went wrong." body={state.message} />;
   }
 
-  if (!stripePromise) {
-    return (
-      <MessagePanel
-        title="Card update temporarily unavailable."
-        body="Stripe is not configured. Reach out to your planning team."
-      />
-    );
-  }
-
-  const { booking, clientSecret } = state;
+  const { booking, clientSecret, stripePromise } = state;
   const isFailed = booking.paymentStatus === "payment_failed";
 
   return (
@@ -170,8 +168,8 @@ function UpdatePaymentPage() {
           className="mt-8 rounded-sm border-l-[3px] px-4 py-3 text-sm"
           style={{ background: "#FDF3F0", borderLeftColor: "#C0392B", color: "#3a1a14" }}
         >
-          Your scheduled payment of <strong>{fmtMoney(booking.balance)}</strong> was
-          declined. Please update your payment method to keep your reservation.
+          Your scheduled payment of <strong>{fmtMoney(booking.balance)}</strong> was declined.
+          Please update your payment method to keep your reservation.
         </div>
       )}
 
@@ -180,13 +178,21 @@ function UpdatePaymentPage() {
         <div className="mt-1 font-serif text-xl text-[#1A1A1A]">{booking.sectionName}</div>
         <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-sm">
           <dt className="text-[#6B6B6B]">Check-in</dt>
-          <dd className="min-w-0 break-words text-right tabular-nums">{fmtDate(booking.checkInDate)}</dd>
+          <dd className="min-w-0 break-words text-right tabular-nums">
+            {fmtDate(booking.checkInDate)}
+          </dd>
           <dt className="text-[#6B6B6B]">Check-out</dt>
-          <dd className="min-w-0 break-words text-right tabular-nums">{fmtDate(booking.checkOutDate)}</dd>
+          <dd className="min-w-0 break-words text-right tabular-nums">
+            {fmtDate(booking.checkOutDate)}
+          </dd>
           <dt className="text-[#6B6B6B]">Balance due</dt>
-          <dd className="min-w-0 break-words text-right tabular-nums">{fmtMoney(booking.balance)}</dd>
+          <dd className="min-w-0 break-words text-right tabular-nums">
+            {fmtMoney(booking.balance)}
+          </dd>
           <dt className="text-[#6B6B6B]">Charge date</dt>
-          <dd className="min-w-0 break-words text-right tabular-nums">{fmtDate(booking.chargeDate)}</dd>
+          <dd className="min-w-0 break-words text-right tabular-nums">
+            {fmtDate(booking.chargeDate)}
+          </dd>
         </dl>
       </div>
 

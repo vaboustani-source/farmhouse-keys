@@ -448,6 +448,12 @@ type Hold = {
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
+/** How long the on-page hold lasts before the room is released (Victoria: 3 min). */
+const HOLD_SECONDS = 3 * 60;
+
+const fmtCountdown = (s: number) =>
+  `${Math.floor(Math.max(0, s) / 60)}:${String(Math.max(0, s) % 60).padStart(2, "0")}`;
+
 function BookStep({
   eventSlug,
   payload,
@@ -473,8 +479,15 @@ function BookStep({
   const [addrZip, setAddrZip] = useState("");
   const [onWaitlist, setOnWaitlist] = useState(false);
   const [hold, setHold] = useState<Hold | null>(null);
-  const [holdState, setHoldState] = useState<"idle" | "holding" | "ready" | "error">("idle");
+  const [holdState, setHoldState] = useState<"idle" | "holding" | "ready" | "expired" | "error">(
+    "idle",
+  );
   const [error, setError] = useState<string | null>(null);
+  // Countdown shown beside "Your room is held for you." — when it runs out
+  // the hold is released for real and the guest can re-hold with one click.
+  const [holdDeadline, setHoldDeadline] = useState<number | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(HOLD_SECONDS);
+  const [reholdTick, setReholdTick] = useState(0);
   const holdRef = useRef<Hold | null>(null);
   const holdSeq = useRef(0);
 
@@ -619,6 +632,8 @@ function BookStep({
         };
         holdRef.current = next;
         setHold(next);
+        setHoldDeadline(Date.now() + HOLD_SECONDS * 1000);
+        setSecondsLeft(HOLD_SECONDS);
         setHoldState("ready");
       } catch (err) {
         console.error("popup hold failed", err);
@@ -642,7 +657,28 @@ function BookStep({
     addrZip,
     eventSlug,
     tier.id,
+    reholdTick,
   ]);
+
+  // Tick the countdown once a second; at zero release the hold server-side,
+  // drop the payment form, and offer a one-click re-hold.
+  useEffect(() => {
+    if (holdState !== "ready" || holdDeadline == null) return;
+    const tick = () => {
+      const left = Math.ceil((holdDeadline - Date.now()) / 1000);
+      setSecondsLeft(left);
+      if (left <= 0) {
+        const current = holdRef.current;
+        holdRef.current = null;
+        if (current) releasePopupHold({ data: { bookingId: current.bookingId } });
+        setHold(null);
+        setHoldState("expired");
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [holdState, holdDeadline]);
 
   const regular = tier.regular_package_price != null ? Number(tier.regular_package_price) : null;
   const promo = tier.promo_package_price != null ? Number(tier.promo_package_price) : null;
@@ -772,13 +808,41 @@ function BookStep({
         </div>
       </form>
 
-      {holdState !== "ready" && (
+      {holdState === "expired" && (
+        <div className="mt-6 rounded-[4px] border border-[#F09B9C]/50 bg-[#2A1C1C] p-5 text-center">
+          <p className="text-sm text-[#F6F1E8]">Your hold ran out and the room was released.</p>
+          <p className="mt-1 text-xs text-[#B8AFA6]">
+            Still here? Hold it again and you'll have another {fmtCountdown(HOLD_SECONDS)} to
+            complete payment.
+          </p>
+          <button
+            type="button"
+            onClick={() => setReholdTick((n) => n + 1)}
+            className="mt-3 rounded bg-[#F09B9C] px-6 py-3 min-h-[44px] text-xs uppercase tracking-[0.16em] text-[#1E1313] transition-colors hover:bg-[#F09B9C]/85"
+          >
+            Hold my room again
+          </button>
+        </div>
+      )}
+
+      {holdState !== "ready" && holdState !== "expired" && (
         <p className="mt-4 text-center text-xs text-[#B8AFA6]">
           {holdState === "holding"
             ? "Holding your room…"
             : holdState === "error"
               ? error
               : "Once your details are in, payment appears right here — nothing is charged until you confirm."}
+        </p>
+      )}
+
+      {hold && holdState === "ready" && (
+        <p className="mt-6 text-center text-sm italic text-[#F09B9C]">
+          Your room is held for you.{" "}
+          <span
+            className={`not-italic tabular-nums ${secondsLeft <= 30 ? "text-[#F6F1E8]" : "text-[#B8AFA6]"}`}
+          >
+            {fmtCountdown(secondsLeft)} to complete payment
+          </span>
         </p>
       )}
 
@@ -952,9 +1016,7 @@ function PaymentSection({
   };
 
   return (
-    <div className="mt-6">
-      <p className="text-center text-sm italic text-[#F09B9C]">Your room is held for you.</p>
-
+    <div className="mt-2">
       {addons.length > 0 && (
         <div className="mt-4 rounded-[4px] border border-[#4A3737] bg-[#2A1C1C] p-6">
           <h2 className="font-serif text-xl">Enhance your stay</h2>

@@ -454,6 +454,117 @@ const HOLD_SECONDS = 3 * 60;
 const fmtCountdown = (s: number) =>
   `${Math.floor(Math.max(0, s) / 60)}:${String(Math.max(0, s) % 60).padStart(2, "0")}`;
 
+// "klarna" is a presentation choice only — it books as "full" and the guest
+// picks Klarna on the Stripe payment screen.
+type PaySchedule = "full" | "deposit_50_balance_50" | "klarna";
+
+function computeTotals(
+  tier: PopupTier,
+  baseAmount: number,
+  addons: Addon[],
+  selectedIds: string[],
+) {
+  const nights = tier.nights || 2;
+  const base = baseAmount;
+  const addonAmt = addons
+    .filter((a) => selectedIds.includes(a.id))
+    .reduce(
+      (sum, a) => sum + Number(a.addon_price) * (a.addon_type === "per_night" ? nights : 1),
+      0,
+    );
+  const subtotal = base + addonAmt;
+  const resortFee = (subtotal * Number(tier.resort_fee_percent || 0)) / 100;
+  const tax = (subtotal + resortFee) * 0.08;
+  const total = subtotal + resortFee + tax;
+  return { nights, base, addonAmt, resortFee, tax, total };
+}
+
+/** "How would you like to pay?" — shown first, before the guest types anything. */
+function PaymentOptions({
+  ev,
+  schedule,
+  onChange,
+  total,
+}: {
+  ev: NonNullable<PopupEventPayload["event"]>;
+  schedule: PaySchedule;
+  onChange: (s: PaySchedule) => void;
+  total: number;
+}) {
+  const isSplit = schedule === "deposit_50_balance_50";
+  return (
+    <div className="mt-4 rounded-[4px] border border-[#4A3737] bg-[#2A1C1C] p-6">
+      <h2 className="font-serif text-xl">How would you like to pay?</h2>
+      <div className="mt-4 space-y-2">
+        <label
+          className={`flex cursor-pointer items-start gap-3 rounded border p-4 transition-colors ${
+            schedule === "full" ? "border-[#F09B9C] bg-[#3A2626]" : "border-[#4A3737]"
+          }`}
+        >
+          <input
+            type="radio"
+            name="paymentSchedule"
+            checked={schedule === "full"}
+            onChange={() => onChange("full")}
+            className="mt-1 h-4 w-4 accent-[#F09B9C]"
+          />
+          <div>
+            <div className="text-sm font-medium">Pay in full today</div>
+            <div className="mt-0.5 text-xs text-[#B8AFA6]">
+              {fmtMoney(total)} — done and dusted.
+            </div>
+          </div>
+        </label>
+        <label
+          className={`flex cursor-pointer items-start gap-3 rounded border p-4 transition-colors ${
+            schedule === "klarna" ? "border-[#F09B9C] bg-[#3A2626]" : "border-[#4A3737]"
+          }`}
+        >
+          <input
+            type="radio"
+            name="paymentSchedule"
+            checked={schedule === "klarna"}
+            onChange={() => onChange("klarna")}
+            className="mt-1 h-4 w-4 accent-[#F09B9C]"
+          />
+          <div>
+            <div className="text-sm font-medium">Pay over time with Klarna</div>
+            <div className="mt-0.5 text-xs text-[#B8AFA6]">
+              Book today, pay in installments — from 4 interest-free payments to monthly plans.
+              Select Klarna on the payment screen and choose the plan that fits.
+            </div>
+          </div>
+        </label>
+        {ev.split_available && ev.balance_due_on && (
+          <label
+            className={`flex cursor-pointer items-start gap-3 rounded border p-4 transition-colors ${
+              isSplit ? "border-[#F09B9C] bg-[#3A2626]" : "border-[#4A3737]"
+            }`}
+          >
+            <input
+              type="radio"
+              name="paymentSchedule"
+              checked={isSplit}
+              onChange={() => onChange("deposit_50_balance_50")}
+              className="mt-1 h-4 w-4 accent-[#F09B9C]"
+            />
+            <div>
+              <div className="text-sm font-medium">
+                50% today, 50% on {fmtDate(ev.balance_due_on)}
+              </div>
+              <div className="mt-0.5 text-xs text-[#B8AFA6]">
+                {fmtMoney(total / 2)} today. The remaining {fmtMoney(total / 2)} is automatically
+                charged to the same card on {fmtDate(ev.balance_due_on)} — we'll email you a
+                reminder the week before.
+              </div>
+            </div>
+          </label>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function BookStep({
   eventSlug,
   payload,
@@ -468,7 +579,13 @@ function BookStep({
   onSoldOut: () => void;
 }) {
   const createBooking = createPopupBookingFn;
+  const fetchAddons = getSectionAddons;
   const ev = payload.event!;
+  // Payment choice + add-ons live here so "How would you like to pay?" can
+  // sit above the details form, before a hold exists.
+  const [schedule, setSchedule] = useState<PaySchedule>("full");
+  const [addons, setAddons] = useState<Addon[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [name, setName] = useState("");
   const [name2, setName2] = useState("");
   const [email, setEmail] = useState("");
@@ -490,6 +607,14 @@ function BookStep({
   const [reholdTick, setReholdTick] = useState(0);
   const holdRef = useRef<Hold | null>(null);
   const holdSeq = useRef(0);
+
+  useEffect(() => {
+    fetchAddons({ data: { sectionId: tier.id } }).then(({ addons }) => {
+      setAddons(addons);
+      setSelectedIds(addons.filter((a) => a.is_required).map((a) => a.id));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tier.id]);
 
   // Restore previously entered details (e.g. after an expired checkout)
   useEffect(() => {
@@ -692,6 +817,12 @@ function BookStep({
         ? tier.selling_price
         : (promo ?? tier.selling_price);
 
+  // Estimated until the room is held; then the server-stamped price.
+  const totals = useMemo(
+    () => computeTotals(tier, displayPrice, addons, selectedIds),
+    [tier, displayPrice, addons, selectedIds],
+  );
+
   const inputCls =
     "w-full rounded border border-[#4A3737] bg-[#2A1C1C] px-4 py-3 text-base focus:border-[#F09B9C] focus:outline-none";
 
@@ -725,6 +856,8 @@ function BookStep({
           </div>
         )}
       </div>
+
+      <PaymentOptions ev={ev} schedule={schedule} onChange={setSchedule} total={totals.total} />
 
       <form onSubmit={(e) => e.preventDefault()} className="mt-6 space-y-3">
         <SectionLabel>Your details</SectionLabel>
@@ -861,6 +994,10 @@ function BookStep({
             bookingId={hold.bookingId}
             baseAmount={hold.baseAmount}
             rateType={hold.rateType}
+            schedule={schedule}
+            addons={addons}
+            selectedIds={selectedIds}
+            setSelectedIds={setSelectedIds}
           />
         </ReviewErrorBoundary>
       )}
@@ -877,6 +1014,10 @@ function PaymentSection({
   bookingId,
   baseAmount,
   rateType,
+  schedule,
+  addons,
+  selectedIds,
+  setSelectedIds,
 }: {
   eventSlug: string;
   payload: PopupEventPayload;
@@ -884,44 +1025,23 @@ function PaymentSection({
   bookingId: string;
   baseAmount: number;
   rateType: "waitlist" | "sale" | "regular";
+  schedule: PaySchedule;
+  addons: Addon[];
+  selectedIds: string[];
+  setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
 }) {
-  const fetchAddons = getSectionAddons;
   const ev = payload.event!;
 
-  const [addons, setAddons] = useState<Addon[]>([]);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  // "klarna" is a presentation choice only — it books as "full" and the guest
-  // picks Klarna on the Stripe payment screen.
-  const [schedule, setSchedule] = useState<"full" | "deposit_50_balance_50" | "klarna">("full");
   const [payState, setPayState] = useState<"preparing" | "ready" | "failed">("preparing");
   const [error, setError] = useState<string | null>(null);
   const checkoutRef = useRef<{ destroy: () => void } | null>(null);
   const requestSeq = useRef(0);
   const icFired = useRef(false);
 
-  useEffect(() => {
-    fetchAddons({ data: { sectionId: tier.id } }).then(({ addons }) => {
-      setAddons(addons);
-      setSelectedIds(addons.filter((a) => a.is_required).map((a) => a.id));
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tier.id]);
-
-  const calc = useMemo(() => {
-    const nights = tier.nights || 2;
-    const base = baseAmount;
-    const addonAmt = addons
-      .filter((a) => selectedIds.includes(a.id))
-      .reduce(
-        (sum, a) => sum + Number(a.addon_price) * (a.addon_type === "per_night" ? nights : 1),
-        0,
-      );
-    const subtotal = base + addonAmt;
-    const resortFee = (subtotal * Number(tier.resort_fee_percent || 0)) / 100;
-    const tax = (subtotal + resortFee) * 0.08;
-    const total = subtotal + resortFee + tax;
-    return { nights, base, addonAmt, resortFee, tax, total };
-  }, [tier, addons, selectedIds, baseAmount]);
+  const calc = useMemo(
+    () => computeTotals(tier, baseAmount, addons, selectedIds),
+    [tier, addons, selectedIds, baseAmount],
+  );
 
   const isSplit = schedule === "deposit_50_balance_50";
   const dueToday = isSplit ? calc.total / 2 : calc.total;
@@ -949,24 +1069,33 @@ function PaymentSection({
           data: { bookingId, schedule: effectiveSchedule },
         });
         if (!choice.ok) throw new Error("payment choice not saved");
-        const { clientSecret, alreadyPaid, redirectUrl, locked } = await createCheckoutSession({
-          bookingId,
-          addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
-          eventSlug,
-          sectionSlug: tier.booking_link_slug ?? tier.id,
-          cotRequested: false,
-          returnPath: `/stay/${eventSlug}`,
-          uiMode: "embedded",
-          forceNew: true,
-        });
+        const { clientSecret, alreadyPaid, redirectUrl, locked, publishableKey } =
+          await createCheckoutSession({
+            bookingId,
+            addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
+            eventSlug,
+            sectionSlug: tier.booking_link_slug ?? tier.id,
+            cotRequested: false,
+            returnPath: `/stay/${eventSlug}`,
+            uiMode: "embedded",
+            forceNew: true,
+          });
         if (seq !== requestSeq.current) return;
         if (alreadyPaid && redirectUrl) {
           window.location.href = redirectUrl;
           return;
         }
         if (locked || !clientSecret) throw new Error(locked ? "locked" : "no client secret");
-        const pk = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined;
-        if (!pk) throw new Error("VITE_STRIPE_PUBLISHABLE_KEY missing");
+        // Build-time key first; otherwise the edge function's STRIPE_PUBLISHABLE_KEY.
+        const pk =
+          (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined) ||
+          publishableKey ||
+          undefined;
+        if (!pk) {
+          throw new Error(
+            "Stripe publishable key missing — set VITE_STRIPE_PUBLISHABLE_KEY in .env or STRIPE_PUBLISHABLE_KEY in the edge function secrets",
+          );
+        }
         const stripe = await loadStripe(pk);
         if (!stripe) throw new Error("stripe.js failed to load");
         const checkout = await stripe.createEmbeddedCheckoutPage({ clientSecret });
@@ -1068,77 +1197,6 @@ function PaymentSection({
         </div>
       )}
 
-      {/* Payment options */}
-      <div className="mt-4 rounded-[4px] border border-[#4A3737] bg-[#2A1C1C] p-6">
-        <h2 className="font-serif text-xl">How would you like to pay?</h2>
-        <div className="mt-4 space-y-2">
-          <label
-            className={`flex cursor-pointer items-start gap-3 rounded border p-4 transition-colors ${
-              schedule === "full" ? "border-[#F09B9C] bg-[#3A2626]" : "border-[#4A3737]"
-            }`}
-          >
-            <input
-              type="radio"
-              name="paymentSchedule"
-              checked={schedule === "full"}
-              onChange={() => setSchedule("full")}
-              className="mt-1 h-4 w-4 accent-[#F09B9C]"
-            />
-            <div>
-              <div className="text-sm font-medium">Pay in full today</div>
-              <div className="mt-0.5 text-xs text-[#B8AFA6]">
-                {fmtMoney(calc.total)} — done and dusted.
-              </div>
-            </div>
-          </label>
-          <label
-            className={`flex cursor-pointer items-start gap-3 rounded border p-4 transition-colors ${
-              schedule === "klarna" ? "border-[#F09B9C] bg-[#3A2626]" : "border-[#4A3737]"
-            }`}
-          >
-            <input
-              type="radio"
-              name="paymentSchedule"
-              checked={schedule === "klarna"}
-              onChange={() => setSchedule("klarna")}
-              className="mt-1 h-4 w-4 accent-[#F09B9C]"
-            />
-            <div>
-              <div className="text-sm font-medium">Pay over time with Klarna</div>
-              <div className="mt-0.5 text-xs text-[#B8AFA6]">
-                Book today, pay in installments — from 4 interest-free payments to monthly plans.
-                Select Klarna on the payment screen and choose the plan that fits.
-              </div>
-            </div>
-          </label>
-          {ev.split_available && ev.balance_due_on && (
-            <label
-              className={`flex cursor-pointer items-start gap-3 rounded border p-4 transition-colors ${
-                isSplit ? "border-[#F09B9C] bg-[#3A2626]" : "border-[#4A3737]"
-              }`}
-            >
-              <input
-                type="radio"
-                name="paymentSchedule"
-                checked={isSplit}
-                onChange={() => setSchedule("deposit_50_balance_50")}
-                className="mt-1 h-4 w-4 accent-[#F09B9C]"
-              />
-              <div>
-                <div className="text-sm font-medium">
-                  50% today, 50% on {fmtDate(ev.balance_due_on)}
-                </div>
-                <div className="mt-0.5 text-xs text-[#B8AFA6]">
-                  {fmtMoney(calc.total / 2)} today. The remaining {fmtMoney(calc.total / 2)} is
-                  automatically charged to the same card on {fmtDate(ev.balance_due_on)} — we'll
-                  email you a reminder the week before.
-                </div>
-              </div>
-            </label>
-          )}
-        </div>
-      </div>
-
       {/* Totals */}
       <div className="mt-4 rounded-[4px] border border-[#4A3737] bg-[#2A1C1C] p-6">
         <SectionLabel>Your total</SectionLabel>
@@ -1182,12 +1240,14 @@ function PaymentSection({
         )}
         {payState === "failed" && (
           <div className="py-4 text-center">
-            <p className="text-sm text-[#B8AFA6]">The payment form didn't load.</p>
+            <p className="text-sm text-[#B8AFA6]">
+              Enter your card details on Stripe's secure checkout page — it takes about a minute.
+            </p>
             <button
               onClick={openHostedCheckout}
               className="mt-3 rounded bg-[#F09B9C] px-6 py-3 min-h-[44px] text-sm uppercase tracking-[0.16em] text-[#1E1313] transition-colors hover:bg-[#F09B9C]/85"
             >
-              Open secure checkout
+              Continue to secure checkout
             </button>
           </div>
         )}

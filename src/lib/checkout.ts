@@ -29,9 +29,7 @@ export type CreateCheckoutSessionInput = {
  * Returns the hosted Checkout URL. STRIPE_SECRET_KEY lives only in the
  * edge function environment, never in the client bundle.
  */
-export async function createCheckoutSession(
-  input: CreateCheckoutSessionInput,
-): Promise<{
+export async function createCheckoutSession(input: CreateCheckoutSessionInput): Promise<{
   url: string | null;
   clientSecret?: string | null;
   alreadyPaid?: boolean;
@@ -39,6 +37,9 @@ export async function createCheckoutSession(
   reused?: boolean;
   locked?: boolean;
   lockedMessage?: string;
+  /** Stripe publishable key supplied by the edge function (fallback when
+   * the client bundle was built without VITE_STRIPE_PUBLISHABLE_KEY). */
+  publishableKey?: string | null;
 }> {
   const { data, error } = await supabase.functions.invoke<{
     url: string | null;
@@ -49,6 +50,7 @@ export async function createCheckoutSession(
     reused?: boolean;
     locked?: boolean;
     message?: string;
+    publishable_key?: string | null;
   }>("create-checkout-session", { body: input });
 
   // 409 from edge fn arrives as a non-2xx; supabase-js may surface as error w/ context.
@@ -64,6 +66,7 @@ export async function createCheckoutSession(
     alreadyPaid: data?.already_paid,
     redirectUrl: data?.redirect_url,
     reused: data?.reused,
+    publishableKey: data?.publishable_key ?? null,
   };
 }
 

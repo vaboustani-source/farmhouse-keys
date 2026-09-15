@@ -31,6 +31,10 @@ async function createSessionWithBnplFallback(
 }
 
 
+// Publishable key handed to the browser so embedded Checkout can mount even
+// when the client bundle was built without VITE_STRIPE_PUBLISHABLE_KEY.
+const publishableKey = Deno.env.get("STRIPE_PUBLISHABLE_KEY") ?? null;
+
 const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -317,7 +321,11 @@ serve(async (req) => {
         if (existing.status === "open") {
           if (!forceNew && wantEmbedded && existing.ui_mode === "embedded" && existing.client_secret) {
             return new Response(
-              JSON.stringify({ client_secret: existing.client_secret, reused: true }),
+              JSON.stringify({
+                client_secret: existing.client_secret,
+                reused: true,
+                publishable_key: publishableKey,
+              }),
               { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
             );
           }
@@ -563,7 +571,9 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify(
-        wantEmbedded ? { client_secret: session.client_secret } : { url: session.url },
+        wantEmbedded
+          ? { client_secret: session.client_secret, publishable_key: publishableKey }
+          : { url: session.url },
       ),
       {
         status: 200,

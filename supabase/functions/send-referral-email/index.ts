@@ -36,17 +36,17 @@ const SERIF = "'Cormorant Garamond',Georgia,'Times New Roman',serif";
 function shell(inner: string): string {
   return `<div style="margin:0;padding:0;background:#1E1313;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#1E1313" style="background:#1E1313;">
-    <tr><td align="center" style="padding:40px 16px 44px;">
+    <tr><td align="center" style="padding:56px 16px 60px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
-        <tr><td align="center" style="padding:0 0 28px;">
+        <tr><td align="center" style="padding:0 0 40px;">
           <img src="${SITE}/gf-wordmark-white.png" width="260" alt="Gilbertsville Farmhouse"
             style="display:block;width:260px;max-width:70%;height:auto;border:0;">
           <p style="margin:12px 0 0;font-family:${SANS};font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#B8AFA6;">A private estate</p>
         </td></tr>
-        <tr><td bgcolor="#2A1C1C" style="background:#2A1C1C;border:1px solid #4A3737;border-radius:4px;padding:32px 28px;font-family:${SANS};color:#F6F1E8;">
+        <tr><td bgcolor="#2A1C1C" style="background:#2A1C1C;border:1px solid #4A3737;border-radius:4px;padding:52px 40px 48px;font-family:${SANS};color:#F6F1E8;">
           ${inner}
         </td></tr>
-        <tr><td align="center" style="padding:24px 8px 0;font-family:${SANS};font-size:12px;line-height:1.7;color:#B8AFA6;">
+        <tr><td align="center" style="padding:36px 8px 0;font-family:${SANS};font-size:12px;line-height:1.7;color:#B8AFA6;">
           Questions? Write to <a href="mailto:events@gilbertsvillefarmhouse.com" style="color:#B8AFA6;">events@gilbertsvillefarmhouse.com</a>
         </td></tr>
       </table>
@@ -54,31 +54,31 @@ function shell(inner: string): string {
   </table></div>`;
 }
 const label = (t: string) =>
-  `<p style="margin:0 0 10px;font-family:${SANS};font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#B8956A;">${t}</p>`;
+  `<p style="margin:0 0 18px;font-family:${SANS};font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#B8956A;">${t}</p>`;
 const h1 = (t: string) =>
-  `<h1 style="margin:0 0 18px;font-family:${SERIF};font-weight:500;font-size:30px;line-height:1.2;color:#F6F1E8;">${t}</h1>`;
+  `<h1 style="margin:0 0 32px;font-family:${SERIF};font-weight:500;font-size:32px;line-height:1.25;color:#F6F1E8;">${t}</h1>`;
 const p = (t: string) =>
-  `<p style="margin:0 0 16px;font-family:${SANS};font-size:14px;line-height:1.75;color:#E8E0D4;font-weight:300;">${t}</p>`;
+  `<p style="margin:0 0 26px;font-family:${SANS};font-size:15px;line-height:1.9;color:#E8E0D4;font-weight:300;">${t}</p>`;
 const codeBox = (code: string) =>
-  `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 22px;">
-    <tr><td align="center" bgcolor="#1E1313" style="background:#1E1313;border:1px solid #B8956A;border-radius:4px;padding:22px 16px;">
-      <p style="margin:0 0 6px;font-family:${SANS};font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#B8956A;">Your invitation code</p>
+  `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:10px 0 40px;">
+    <tr><td align="center" bgcolor="#1E1313" style="background:#1E1313;border:1px solid #B8956A;border-radius:4px;padding:34px 16px;">
+      <p style="margin:0 0 12px;font-family:${SANS};font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#B8956A;">Your referral code</p>
       <p style="margin:0;font-family:${SERIF};font-size:30px;letter-spacing:3px;color:#F6F1E8;">${code}</p>
     </td></tr></table>`;
 const button = (href: string, text: string) =>
-  `<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:6px auto 18px;">
+  `<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:14px auto 28px;">
     <tr><td align="center" bgcolor="#F09B9C" style="background:#F09B9C;border-radius:4px;">
       <a href="${href}" style="display:inline-block;padding:14px 28px;font-family:${SANS};font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:#1E1313;text-decoration:none;">${text}</a>
     </td></tr></table>`;
 const fine = (t: string) =>
   `<p style="margin:0;font-family:${SANS};font-size:12px;line-height:1.7;color:#B8AFA6;font-weight:300;text-align:center;">${t}</p>`;
 const figures = (rows: [string, string][]) =>
-  `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 20px;border-top:1px solid #4A3737;">
+  `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 34px;border-top:1px solid #4A3737;">
     ${rows
       .map(
         ([k, v]) =>
-          `<tr><td style="padding:12px 0;border-bottom:1px solid #4A3737;font-family:${SANS};font-size:13px;color:#B8AFA6;">${k}</td>
-           <td align="right" style="padding:12px 0;border-bottom:1px solid #4A3737;font-family:${SERIF};font-size:18px;color:#F6F1E8;">${v}</td></tr>`,
+          `<tr><td style="padding:18px 0;border-bottom:1px solid #4A3737;font-family:${SANS};font-size:13px;color:#B8AFA6;">${k}</td>
+           <td align="right" style="padding:18px 0;border-bottom:1px solid #4A3737;font-family:${SERIF};font-size:20px;color:#F6F1E8;">${v}</td></tr>`,
       )
       .join("")}
   </table>`;
@@ -123,6 +123,8 @@ Deno.serve(async (req) => {
   if (!ev || ev.event_type !== "popup" || (reward <= 0 && friendPct <= 0)) return json({ skipped: "program_off" });
 
   const weekend = esc(ev.wedding_name ?? "the weekend");
+  // "The Couples Weekend" -> "the couples weekend", for use mid-sentence.
+  const weekendLower = esc(`the ${(ev.wedding_name ?? "weekend").replace(/^the\s+/i, "").toLowerCase()}`);
   const code = esc(b.referral_code);
   const link = `${SITE}/stay/${ev.slug}?ref=${encodeURIComponent(b.referral_code)}`;
   const hasBalance = b.payment_status === "deposit_paid" && !b.final_paid_at;
@@ -134,22 +136,25 @@ Deno.serve(async (req) => {
       label(weekend) +
         h1(`Bring another couple along`) +
         p(`Hi ${esc(firstName(b.guest_name))},`) +
-        p(`Your reservation is set. If there is a couple you would like at the next fire over, this code is yours to share.`) +
+        p(`Your reservation is set. We are so excited to have you join us for ${weekendLower}. If there is a couple you would like to share the experience with, use the code below.`) +
         codeBox(code) +
         p(
           hasBalance && reward > 0
-            ? `For every couple who reserves the weekend with it, ${money(reward)} comes off the remaining balance of your stay${friendPct > 0 ? `, and they receive ${friendPct}% off their own weekend` : ""}. It is applied automatically before your balance is charged${ev.balance_due_on ? ` on ${longDate(ev.balance_due_on)}` : ""}.`
+            ? `For every couple who reserves a room with your referral code, you receive ${money(reward)} off the remaining balance of your stay${friendPct > 0 ? `, and they receive ${friendPct}% off their own weekend` : ""}.`
             : friendPct > 0
-              ? `Any couple who reserves with it receives ${friendPct}% off their weekend.`
+              ? `Every couple who reserves a room with your referral code receives ${friendPct}% off their own weekend.`
               : `They enter it as they reserve, so we know you are coming together.`,
         ) +
-        button(link, "Your invitation link") +
+        (hasBalance && reward > 0
+          ? p(`It is applied automatically before your balance is charged${ev.balance_due_on ? ` on ${longDate(ev.balance_due_on)}` : ""}.`)
+          : "") +
+        button(link, "Your referral link") +
         fine(`They can also enter the code as they reserve at<br><a href="${link}" style="color:#F09B9C;">${link.replace("https://", "")}</a>`),
     );
     await resend.emails.send({
       from: FROM,
       to: b.guest_email,
-      subject: `Your invitation code for ${ev.wedding_name ?? "the weekend"}`,
+      subject: `Your referral code for ${ev.wedding_name ?? "the weekend"}`,
       html,
     });
     await supabase.from("lb_bookings").update({ referral_code_emailed_at: new Date().toISOString() }).eq("id", b.id);
@@ -174,9 +179,9 @@ Deno.serve(async (req) => {
     label(weekend) +
       h1(`${friend} will be joining you`) +
       p(`Hi ${esc(firstName(b.guest_name))},`) +
-      p(`${friend} reserved ${weekend} with your invitation code. As a thank-you, ${money(Number(body.amount) > 0 ? Number(body.amount) : reward)} has come off the remaining balance of your stay.`) +
+      p(`${friend} reserved ${weekend} with your referral code. As a thank-you, ${money(Number(body.amount) > 0 ? Number(body.amount) : reward)} has come off the remaining balance of your stay.`) +
       figures([
-        ["Invitation credit so far", money(credit)],
+        ["Referral credit so far", money(credit)],
         ["Remaining balance, before tax", money(newBalance)],
       ]) +
       p(`${ev.balance_due_on ? `Your balance is charged automatically on ${longDate(ev.balance_due_on)}. ` : ""}There is nothing you need to do.`),

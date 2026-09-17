@@ -1,7 +1,8 @@
 // Referral program emails for pop-up weekends. Fired by the database (pg_net)
 // from trg_lb_bookings_referral_notify — never by the browser:
 //   kind "code"   → a couple's first payment landed; send them their personal code.
-//   kind "credit" → a friend booked with their code; tell them what came off the balance.
+//   kind "credit" → a friend booked with their code; tell them what came off the balance
+//                   (a flat amount per invited couple, sent every time the credit grows).
 // Deliberately separate from stripe-webhook so the payment path is untouched.
 // Auth: x-referral-secret must match lb_private_config.referral_email_secret.
 
@@ -17,7 +18,8 @@ const SITE = "https://stay.gilbertsvillefarmhouse.com";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-const money = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+const money = (n: number) =>
+  n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: n % 1 === 0 ? 0 : 2 });
 const firstName = (full: string) => (full || "").trim().split(/\s+/)[0] || "there";
 const longDate = (d: string | null) =>
   d
@@ -60,7 +62,7 @@ Deno.serve(async (req) => {
   const secret = (cfg as { value?: string } | null)?.value ?? "";
   if (!secret || req.headers.get("x-referral-secret") !== secret) return json({ error: "unauthorized" }, 401);
 
-  let body: { booking_id?: string; kind?: string; force?: boolean };
+  let body: { booking_id?: string; kind?: string; force?: boolean; amount?: number };
   try {
     body = await req.json();
   } catch {
@@ -81,11 +83,12 @@ Deno.serve(async (req) => {
 
   const { data: ev } = await supabase
     .from("lb_events")
-    .select("slug, wedding_name, event_type, referral_percent, balance_due_on")
+    .select("slug, wedding_name, event_type, referral_reward_amount, referral_friend_percent, balance_due_on")
     .eq("id", b.event_id)
     .maybeSingle();
-  const pct = Number(ev?.referral_percent) || 0;
-  if (!ev || ev.event_type !== "popup" || pct <= 0) return json({ skipped: "program_off" });
+  const reward = Number(ev?.referral_reward_amount) || 0;
+  const friendPct = Number(ev?.referral_friend_percent) || 0;
+  if (!ev || ev.event_type !== "popup" || (reward <= 0 && friendPct <= 0)) return json({ skipped: "program_off" });
 
   const weekend = esc(ev.wedding_name ?? "the weekend");
   const code = esc(b.referral_code);
@@ -101,9 +104,11 @@ Deno.serve(async (req) => {
         p(`Your reservation is set. If there is a couple you would like at the next fire over, this code is yours to share.`) +
         codeBox(code) +
         p(
-          hasBalance
-            ? `When a couple you invite reserves the weekend with it, ${pct}% comes off the remaining balance of your stay. It is applied automatically before your balance is charged${ev.balance_due_on ? ` on ${longDate(ev.balance_due_on)}` : ""}.`
-            : `They enter it as they reserve, so we know you are coming together.`,
+          hasBalance && reward > 0
+            ? `For every couple who reserves the weekend with it, ${money(reward)} comes off the remaining balance of your stay${friendPct > 0 ? `, and they receive ${friendPct}% off their own weekend` : ""}. It is applied automatically before your balance is charged${ev.balance_due_on ? ` on ${longDate(ev.balance_due_on)}` : ""}.`
+            : friendPct > 0
+              ? `Any couple who reserves with it receives ${friendPct}% off their weekend.`
+              : `They enter it as they reserve, so we know you are coming together.`,
         ) +
         p(`They can enter the code as they book, or simply use your link:<br><a href="${link}" style="color:#1A1A1A;">${link.replace("https://", "")}</a>`),
     );
@@ -134,8 +139,8 @@ Deno.serve(async (req) => {
   const html = shell(
     h1(`${friend} will be joining you`) +
       p(`Hi ${esc(firstName(b.guest_name))},`) +
-      p(`${friend} reserved ${weekend} with your invitation code. As a thank-you, ${Number(b.referral_credit_percent) || pct}% has come off the remaining balance of your stay.`) +
-      p(`Credit applied: <strong>${money(credit)}</strong><br>Remaining balance: <strong>${money(newBalance)}</strong> plus tax${ev.balance_due_on ? `, charged automatically on ${longDate(ev.balance_due_on)}` : ""}.`) +
+      p(`${friend} reserved ${weekend} with your invitation code. As a thank-you, ${money(Number(body.amount) > 0 ? Number(body.amount) : reward)} has come off the remaining balance of your stay.`) +
+      p(`Invitation credit so far: <strong>${money(credit)}</strong><br>Remaining balance: <strong>${money(newBalance)}</strong> plus tax${ev.balance_due_on ? `, charged automatically on ${longDate(ev.balance_due_on)}` : ""}.`) +
       p(`There is nothing you need to do.`),
   );
   await resend.emails.send({

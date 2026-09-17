@@ -71,7 +71,7 @@ export type ConfirmationBooking = {
   guest_email: string;
   payment_status: string;
   payment_schedule: string | null;
-  rate_type: "waitlist" | "sale" | "regular" | "group" | null;
+  rate_type: "waitlist" | "sale" | "regular" | "group" | "referral" | null;
   total_amount: number | null;
   base_amount: number | null;
   addon_amount: number | null;
@@ -105,7 +105,8 @@ export type ConfirmationBooking = {
     check_in_date: string | null;
     check_out_date: string | null;
     group_offer_name?: string | null;
-    referral_percent?: number | null;
+    referral_reward_amount?: number | null;
+    referral_friend_percent?: number | null;
   } | null;
   payer_name: string | null;
 };

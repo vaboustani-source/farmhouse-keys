@@ -69,8 +69,9 @@ export type PopupEventPayload = {
     sale_ends_at: string | null;
     /** Two-room group offer (e.g. "The Quartet"): percent off every room. */
     group_offer?: { name: string; percent: number; rooms: number } | null;
-    /** Referral program: percent off the referring couple's remaining balance. */
-    referral_percent?: number | null;
+    /** Referral program: $ off the referrer's remaining balance per invited
+     *  couple, and the invited couple's percent off the regular price. */
+    referral?: { reward_amount: number | null; friend_percent: number | null } | null;
   } | null;
   tiers: PopupTier[];
   itinerary: PopupItineraryItem[];
@@ -88,8 +89,9 @@ export async function getPopupEvent({
   return (payload as PopupEventPayload | null) ?? { event: null, tiers: [], itinerary: [] };
 }
 
-/** "group" = the two-room offer; base_amount then covers every room. */
-export type PopupRateType = "waitlist" | "sale" | "regular" | "group";
+/** "group" = the two-room offer (base_amount covers every room);
+ *  "referral" = an invited couple's rate. */
+export type PopupRateType = "waitlist" | "sale" | "regular" | "group" | "referral";
 
 export type PopupBookingResult =
   | {
@@ -218,17 +220,21 @@ export async function checkPopupReferral({
   data,
 }: {
   data: { eventSlug: string; code: string };
-}): Promise<{ valid: boolean; firstName: string | null }> {
+}): Promise<{ valid: boolean; firstName: string | null; friendPercent: number }> {
   const { data: result, error } = await sb.rpc("check_popup_referral", {
     p_event_slug: data.eventSlug,
     p_code: data.code,
   });
   if (error) {
     console.error("check_popup_referral failed", error);
-    return { valid: false, firstName: null };
+    return { valid: false, firstName: null, friendPercent: 0 };
   }
-  const r = result as { valid?: boolean; first_name?: string } | null;
-  return { valid: !!r?.valid, firstName: r?.first_name ?? null };
+  const r = result as { valid?: boolean; first_name?: string; friend_percent?: number } | null;
+  return {
+    valid: !!r?.valid,
+    firstName: r?.first_name ?? null,
+    friendPercent: Number(r?.friend_percent) || 0,
+  };
 }
 
 /** Records the guest's payment choice (full vs 50/50) before checkout opens. */

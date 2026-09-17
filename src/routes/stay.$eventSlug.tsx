@@ -717,7 +717,7 @@ function BookStep({
   // Live invitation-code check (display only — the server re-resolves it).
   useEffect(() => {
     const candidate = refInput.trim().toUpperCase();
-    if (!ev.referral_percent || candidate.length < 5) {
+    if (!ev.referral || candidate.length < 5) {
       setRefCheck(null);
       return;
     }
@@ -739,7 +739,7 @@ function BookStep({
       cancelled = true;
       clearTimeout(t);
     };
-  }, [refInput, eventSlug, ev.referral_percent]);
+  }, [refInput, eventSlug, !!ev.referral]);
   const validRef =
     refCheck?.valid && refCheck.code === refInput.trim().toUpperCase() ? refCheck.code : "";
 
@@ -924,11 +924,19 @@ function BookStep({
   const promo = tier.promo_package_price != null ? Number(tier.promo_package_price) : null;
   // Once the room is held, show the server-stamped price; before that,
   // selling_price is server-computed (sale price while the sale runs).
-  const singlePrice = onWaitlist
+  const ownPrice = onWaitlist
     ? (promo ?? tier.selling_price)
     : ev.phase === "public"
       ? tier.selling_price
       : (promo ?? tier.selling_price);
+  // An invited couple gets X% off the regular price — never stacked, the best
+  // single rate wins (mirrors create_popup_booking).
+  const friendPercent = Number(ev.referral?.friend_percent) || 0;
+  const invitedPrice =
+    validRef && friendPercent > 0 && regular != null
+      ? Math.round(regular * (1 - friendPercent / 100) * 100) / 100
+      : null;
+  const singlePrice = invitedPrice != null && invitedPrice < ownPrice ? invitedPrice : ownPrice;
   // Group offer: X% off the regular price on every room, never more than the
   // guest's own rate (mirrors create_popup_booking).
   const groupPerRoom =
@@ -969,8 +977,7 @@ function BookStep({
         <div className="mt-1 text-sm text-[#B8AFA6]">
           {fmtDate(ev.check_in_date)} → {fmtDate(ev.check_out_date)} · {fmtMoney(displayPrice)} per
           couple
-          {((onWaitlist && promo != null && regular != null && promo < regular) ||
-            (wantTwo && regular != null && displayPrice < regular)) && (
+          {regular != null && displayPrice < regular && (
             <span className="ml-2 text-[#B8AFA6] line-through">{fmtMoney(regular!)}</span>
           )}
         </div>
@@ -1118,7 +1125,7 @@ function BookStep({
             className={inputCls}
           />
         </div>
-        {ev.referral_percent ? (
+        {ev.referral ? (
           <div>
             <input
               type="text"
@@ -1131,7 +1138,10 @@ function BookStep({
             />
             {validRef && (
               <div className="mt-2 text-xs text-[#B8956A]">
-                ✓ {refCheck?.firstName ?? "Your friends"} invited you — we'll thank them for it.
+                ✓ {refCheck?.firstName ?? "Your friends"} invited you
+                {friendPercent > 0 && !wantTwo
+                  ? ` — ${friendPercent}% off your weekend is applied.`
+                  : " — we'll thank them for it."}
               </div>
             )}
             {refCheck && !refCheck.valid && refCheck.code === refInput.trim().toUpperCase() && (
@@ -1256,7 +1266,10 @@ function PaymentSection({
   const regularPrice =
     tier.regular_package_price != null ? Number(tier.regular_package_price) * roomCount : null;
   const rateDiscount =
-    (rateType === "waitlist" || rateType === "sale" || rateType === "group") &&
+    (rateType === "waitlist" ||
+      rateType === "sale" ||
+      rateType === "group" ||
+      rateType === "referral") &&
     regularPrice != null &&
     regularPrice > calc.base
       ? regularPrice - calc.base
@@ -1264,9 +1277,11 @@ function PaymentSection({
   const discountLabel =
     rateType === "group"
       ? `${ev.group_offer?.name ?? "Two-room rate"} · ${ev.group_offer?.percent ?? 0}% off`
-      : rateType === "sale"
-        ? "Sale discount"
-        : "Waitlist discount";
+      : rateType === "referral"
+        ? `Invitation rate · ${Number(ev.referral?.friend_percent) || 0}% off`
+        : rateType === "sale"
+          ? "Sale discount"
+          : "Waitlist discount";
   const stayLabel = `${roomCount > 1 ? `${roomCount} guesthouses · ` : ""}${tier.section_name} · ${calc.nights} nights`;
 
   // The payment form mounts as soon as the hold exists and rebuilds
@@ -1626,7 +1641,8 @@ function PopupConfirmation({
               <div className="mt-6 border-t border-[#4A3737] pt-5 text-sm">
                 {(booking.rate_type === "waitlist" ||
                   booking.rate_type === "sale" ||
-                  booking.rate_type === "group") &&
+                  booking.rate_type === "group" ||
+                  booking.rate_type === "referral") &&
                 Number(booking.section?.regular_package_price) * (booking.room_count ?? 1) >
                   (Number(booking.base_amount) || 0) ? (
                   <>
@@ -1640,7 +1656,9 @@ function PopupConfirmation({
                       label={
                         booking.rate_type === "group"
                           ? (booking.event?.group_offer_name ?? "Two-room rate")
-                          : booking.rate_type === "sale"
+                          : booking.rate_type === "referral"
+                            ? "Invitation rate"
+                            : booking.rate_type === "sale"
                             ? "Sale discount"
                             : "Waitlist discount"
                       }
@@ -1688,16 +1706,25 @@ function PopupConfirmation({
                 )}
               </div>
 
-              {booking.referral_code && Number(booking.event?.referral_percent) > 0 && (
+              {booking.referral_code &&
+                (Number(booking.event?.referral_reward_amount) > 0 ||
+                  Number(booking.event?.referral_friend_percent) > 0) && (
                 <div className="mt-6 rounded-[4px] border border-[#B8956A]/60 p-5">
                   <SectionLabel>Bring friends along</SectionLabel>
                   <div className="mt-2 font-serif text-2xl tracking-wide text-[#F6F1E8]">
                     {booking.referral_code}
                   </div>
                   <p className="mt-2 text-xs leading-relaxed text-[#B8AFA6]">
-                    {booking.payment_status === "deposit_paid"
-                      ? `This is your personal invitation code. When a couple you invite reserves the weekend with it, ${Number(booking.event?.referral_percent)}% comes off the remaining balance of your stay.`
-                      : "This is your personal invitation code. Share it with a couple you would like to have along, and they can enter it as they reserve."}
+                    {booking.payment_status === "deposit_paid" &&
+                    Number(booking.event?.referral_reward_amount) > 0
+                      ? `This is your personal invitation code. For every couple who reserves the weekend with it, $${Number(booking.event?.referral_reward_amount)} comes off the remaining balance of your stay${
+                          Number(booking.event?.referral_friend_percent) > 0
+                            ? `, and they receive ${Number(booking.event?.referral_friend_percent)}% off their own weekend`
+                            : ""
+                        }.`
+                      : Number(booking.event?.referral_friend_percent) > 0
+                        ? `This is your personal invitation code. Any couple who reserves with it receives ${Number(booking.event?.referral_friend_percent)}% off their weekend.`
+                        : "This is your personal invitation code. Share it with a couple you would like to have along."}
                   </p>
                   <button
                     type="button"

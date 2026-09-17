@@ -71,7 +71,7 @@ export type ConfirmationBooking = {
   guest_email: string;
   payment_status: string;
   payment_schedule: string | null;
-  rate_type: "waitlist" | "sale" | "regular" | null;
+  rate_type: "waitlist" | "sale" | "regular" | "group" | null;
   total_amount: number | null;
   base_amount: number | null;
   addon_amount: number | null;
@@ -86,6 +86,10 @@ export type ConfirmationBooking = {
   section_id: string;
   event_id: string;
   payment_update_token: string | null;
+  room_count?: number | null;
+  room2_guest1_name?: string | null;
+  room2_guest2_name?: string | null;
+  referral_code?: string | null;
   section: {
     id: string;
     section_name: string;
@@ -97,8 +101,11 @@ export type ConfirmationBooking = {
   event: {
     id: string;
     wedding_name: string;
+    slug?: string | null;
     check_in_date: string | null;
     check_out_date: string | null;
+    group_offer_name?: string | null;
+    referral_percent?: number | null;
   } | null;
   payer_name: string | null;
 };

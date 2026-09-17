@@ -19,6 +19,8 @@ export type PopupTier = {
   selling_price: number;
   total_rooms: number;
   remaining: number;
+  /** True rooms left (never the cosmetic stock number) — gates the two-room offer. */
+  rooms_available?: number;
   show_scarcity: boolean;
   is_featured: boolean;
   nights: number;
@@ -65,6 +67,10 @@ export type PopupEventPayload = {
     sale_extended: boolean;
     sale_original_ends_at: string | null;
     sale_ends_at: string | null;
+    /** Two-room group offer (e.g. "The Quartet"): percent off every room. */
+    group_offer?: { name: string; percent: number; rooms: number } | null;
+    /** Referral program: percent off the referring couple's remaining balance. */
+    referral_percent?: number | null;
   } | null;
   tiers: PopupTier[];
   itinerary: PopupItineraryItem[];
@@ -82,6 +88,9 @@ export async function getPopupEvent({
   return (payload as PopupEventPayload | null) ?? { event: null, tiers: [], itinerary: [] };
 }
 
+/** "group" = the two-room offer; base_amount then covers every room. */
+export type PopupRateType = "waitlist" | "sale" | "regular" | "group";
+
 export type PopupBookingResult =
   | {
       ok: true;
@@ -91,7 +100,10 @@ export type PopupBookingResult =
         guest_email: string;
         section_id: string;
         base_amount: number;
-        rate_type: "waitlist" | "sale" | "regular";
+        rate_type: PopupRateType;
+        room_count: number;
+        per_room_amount: number;
+        referral_applied: boolean;
       };
     }
   | {
@@ -119,6 +131,11 @@ export async function createPopupBookingFn({
     addressCity: string;
     addressState: string;
     addressZip: string;
+    /** 1, or the group offer's room count (second couple's names required). */
+    roomCount?: number;
+    room2Guest1Name?: string;
+    room2Guest2Name?: string;
+    referralCode?: string;
   };
 }): Promise<PopupBookingResult> {
   const { data: result, error } = await sb.rpc("create_popup_booking", {
@@ -133,6 +150,10 @@ export async function createPopupBookingFn({
     p_address_city: data.addressCity,
     p_address_state: data.addressState,
     p_address_zip: data.addressZip,
+    p_room_count: data.roomCount ?? 1,
+    p_room2_guest1_name: data.room2Guest1Name ?? null,
+    p_room2_guest2_name: data.room2Guest2Name ?? null,
+    p_referral_code: data.referralCode ?? null,
   });
   if (error) {
     const msg = String(error.message ?? "");
@@ -150,7 +171,10 @@ export async function createPopupBookingFn({
   const r = result as {
     booking_id: string;
     base_amount: number;
-    rate_type: "waitlist" | "sale" | "regular";
+    rate_type: PopupRateType;
+    room_count?: number;
+    per_room_amount?: number;
+    referral_applied?: boolean;
   };
   const displayName = data.guest2Name?.trim()
     ? `${data.guestName.trim()} & ${data.guest2Name.trim()}`
@@ -164,6 +188,9 @@ export async function createPopupBookingFn({
       section_id: data.sectionId,
       base_amount: Number(r.base_amount),
       rate_type: r.rate_type,
+      room_count: Number(r.room_count) || 1,
+      per_room_amount: Number(r.per_room_amount ?? r.base_amount),
+      referral_applied: !!r.referral_applied,
     },
   };
 }
@@ -183,6 +210,25 @@ export async function checkPopupWaitlist({
     return { onWaitlist: false };
   }
   return { onWaitlist: !!(result as { on_waitlist?: boolean } | null)?.on_waitlist };
+}
+
+/** Live check of a friend's invitation code (display only — the server
+ *  re-resolves the code when the room is held). */
+export async function checkPopupReferral({
+  data,
+}: {
+  data: { eventSlug: string; code: string };
+}): Promise<{ valid: boolean; firstName: string | null }> {
+  const { data: result, error } = await sb.rpc("check_popup_referral", {
+    p_event_slug: data.eventSlug,
+    p_code: data.code,
+  });
+  if (error) {
+    console.error("check_popup_referral failed", error);
+    return { valid: false, firstName: null };
+  }
+  const r = result as { valid?: boolean; first_name?: string } | null;
+  return { valid: !!r?.valid, firstName: r?.first_name ?? null };
 }
 
 /** Records the guest's payment choice (full vs 50/50) before checkout opens. */
@@ -217,6 +263,8 @@ export async function updatePopupBookingDetails({
     addressCity: string;
     addressState: string;
     addressZip: string;
+    room2Guest1Name?: string;
+    room2Guest2Name?: string;
   };
 }): Promise<{ ok: boolean }> {
   const { error } = await sb.rpc("update_popup_booking_details", {
@@ -228,6 +276,8 @@ export async function updatePopupBookingDetails({
     p_address_city: data.addressCity,
     p_address_state: data.addressState,
     p_address_zip: data.addressZip,
+    p_room2_guest1_name: data.room2Guest1Name ?? null,
+    p_room2_guest2_name: data.room2Guest2Name ?? null,
   });
   if (error) {
     console.error("update_popup_booking_details failed", error);

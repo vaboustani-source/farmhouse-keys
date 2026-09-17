@@ -381,7 +381,7 @@ export async function listPopupEvents() {
       .order("sort_order"),
     sb
       .from("lb_bookings")
-      .select("event_id, section_id, payment_status, hold_expires_at, removed")
+      .select("event_id, section_id, payment_status, hold_expires_at, removed, room_count")
       .in("event_id", ids),
   ]);
 
@@ -396,7 +396,8 @@ export async function listPopupEvents() {
       (b.payment_status === "pending" &&
         b.hold_expires_at &&
         new Date(b.hold_expires_at).getTime() > now);
-    if (held) bySection[b.section_id] = (bySection[b.section_id] ?? 0) + 1;
+    // Group bookings hold more than one room on a single row.
+    if (held) bySection[b.section_id] = (bySection[b.section_id] ?? 0) + (Number(b.room_count) || 1);
   }
 
   return {

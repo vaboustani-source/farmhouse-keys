@@ -353,6 +353,45 @@ function SectionBookingsPage() {
                   <td className="px-3 py-3">
                     <div className="text-foreground">{b.guest_name}</div>
                     <div className="text-xs text-muted-foreground">{b.guest_email}</div>
+                    {(() => {
+                      // Two-room group bookings + referral program (pop-up weekends).
+                      const x = b as unknown as {
+                        room_count?: number | null;
+                        room2_guest1_name?: string | null;
+                        room2_guest2_name?: string | null;
+                        referral_code?: string | null;
+                        referred_by_booking_id?: string | null;
+                        referral_credit_amount?: number | null;
+                      };
+                      const referrer = x.referred_by_booking_id
+                        ? bookings.find((o) => o.id === x.referred_by_booking_id)
+                        : null;
+                      return (
+                        <>
+                          {(x.room_count ?? 1) > 1 && (
+                            <div className="mt-1 text-xs text-foreground">
+                              <span className="rounded bg-muted px-1.5 py-0.5 font-medium">
+                                {x.room_count} rooms
+                              </span>{" "}
+                              2nd room: {x.room2_guest1_name}
+                              {x.room2_guest2_name ? ` & ${x.room2_guest2_name}` : ""}
+                            </div>
+                          )}
+                          {x.referral_code && (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              Invite code: <span className="font-mono">{x.referral_code}</span>
+                              {Number(x.referral_credit_amount) > 0 &&
+                                ` · referral credit −${formatMoney(Number(x.referral_credit_amount))} on balance`}
+                            </div>
+                          )}
+                          {x.referred_by_booking_id && (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              Invited by {referrer?.guest_name ?? "another couple"}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </td>
                   <td className="px-3 py-3 tabular-nums">{b.nights_booked}</td>
                   <td className="px-3 py-3 text-xs text-muted-foreground">

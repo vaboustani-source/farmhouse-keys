@@ -130,14 +130,19 @@ Deno.serve(async (req) => {
     if (eventIds.length > 0) {
       const { data: rows } = await supabase
         .from("lb_bookings")
-        .select("id, event_id, guest_email, guest_name, total_amount, reminder_count")
+        .select("id, event_id, guest_email, guest_name, total_amount, reminder_count, referral_credit_amount")
         .in("event_id", eventIds)
         .eq("payment_status", "deposit_paid")
         .eq("payment_schedule", "deposit_50_balance_50")
         .is("final_paid_at", null)
         .lt("reminder_count", 1);
       for (const b of rows ?? []) {
-        const balance = Number(b.total_amount || 0) / 2;
+        // A referral credit (a friend booked with this couple's code) comes
+        // straight off the remaining balance.
+        const balance = Math.max(
+          0,
+          Number(b.total_amount || 0) / 2 - Number(b.referral_credit_amount || 0),
+        );
         try {
           await sendReminder({
             to: b.guest_email,
@@ -183,7 +188,7 @@ Deno.serve(async (req) => {
     const { data: rows } = await supabase
       .from("lb_bookings")
       .select(
-        "id, guest_email, guest_name, total_amount, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, event_id",
+        "id, guest_email, guest_name, total_amount, referral_credit_amount, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, event_id",
       )
       .in("event_id", eventIds)
       .eq("payment_status", "deposit_paid")
@@ -191,7 +196,9 @@ Deno.serve(async (req) => {
       .is("final_paid_at", null);
 
     for (const b of rows ?? []) {
-      const balanceCents = Math.round((Number(b.total_amount || 0) / 2) * 100);
+      const balanceCents = Math.round(
+        Math.max(0, Number(b.total_amount || 0) / 2 - Number(b.referral_credit_amount || 0)) * 100,
+      );
       const ev = events!.find((e) => e.id === b.event_id);
       if (!b.stripe_payment_intent_id || balanceCents <= 0) {
         summary.skipped++;

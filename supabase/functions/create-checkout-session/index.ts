@@ -66,7 +66,7 @@ async function lineItemsForBooking(
   const { data: booking, error: bErr } = await supabaseAdmin
     .from("lb_bookings")
     .select(
-      "id, event_id, section_id, guest_name, guest_email, payment_schedule, rate_type, base_amount, cot_requested",
+      "id, event_id, section_id, guest_name, guest_email, payment_schedule, rate_type, base_amount, cot_requested, room_count",
     )
     .eq("id", bookingId)
     .single();
@@ -74,7 +74,7 @@ async function lineItemsForBooking(
 
   const { data: eventRow } = await supabaseAdmin
     .from("lb_events")
-    .select("event_type, balance_due_on, check_in_date, cancel_cutoff_days")
+    .select("event_type, balance_due_on, check_in_date, cancel_cutoff_days, group_offer_name, group_offer_percent")
     .eq("id", booking.event_id)
     .single();
   const isPopup = eventRow?.event_type === "popup";
@@ -110,7 +110,13 @@ async function lineItemsForBooking(
       ? " (waitlist rate)"
       : isPopup && booking.rate_type === "sale"
         ? " (sale rate)"
-        : "";
+        : isPopup && booking.rate_type === "group"
+          ? ` (${(eventRow as any)?.group_offer_name ?? "two-room rate"} · ${Number((eventRow as any)?.group_offer_percent) || 0}% off)`
+          : "";
+  // A group booking is one row covering several rooms; the stamped base
+  // already includes all of them, so only the label changes.
+  const roomCount = isPopup ? Math.max(1, Number((booking as any).room_count) || 1) : 1;
+  const roomsLabel = roomCount > 1 ? `${roomCount} rooms · ` : "";
 
   lineItems.push({
     quantity: 1,
@@ -119,7 +125,7 @@ async function lineItemsForBooking(
       unit_amount: Math.round(baseAmount * 100),
       tax_behavior: "exclusive",
       product_data: {
-        name: `${prefix}${section.section_name} lodging · ${nights} night${nights === 1 ? "" : "s"}${rateSuffix}`,
+        name: `${prefix}${roomsLabel}${section.section_name} lodging · ${nights} night${nights === 1 ? "" : "s"}${rateSuffix}`,
         tax_code: "txcd_20030000",
       },
     },
@@ -224,7 +230,7 @@ serve(async (req) => {
     if (paymentType === "balance") {
       const { data: bk } = await supabaseAdmin
         .from("lb_bookings")
-        .select("id, event_id, section_id, guest_email, guest_name, payment_status, total_amount, final_paid_at")
+        .select("id, event_id, section_id, guest_email, guest_name, payment_status, total_amount, final_paid_at, referral_credit_amount")
         .eq("id", bookingId)
         .single();
       if (!bk) throw new Error("Booking not found");
@@ -245,7 +251,10 @@ serve(async (req) => {
         .single();
 
       // Balance = 50% of total_amount (pre-tax). Stripe auto-tax adds tax on top.
-      const balanceCents = Math.round((Number(bk.total_amount) || 0) * 0.5 * 100);
+      // A referral credit comes straight off the remaining balance.
+      const balanceCents = Math.round(
+        Math.max(0, (Number(bk.total_amount) || 0) * 0.5 - (Number(bk.referral_credit_amount) || 0)) * 100,
+      );
       if (balanceCents <= 0) throw new Error("No balance due");
 
       const baseUrl = getAppBaseUrl(req);

@@ -4,10 +4,12 @@ import {
   getPopupEvent,
   createPopupBookingFn,
   checkPopupWaitlist,
+  checkPopupReferral,
   setPopupPaymentChoice,
   updatePopupBookingDetails,
   releasePopupHold,
   type PopupEventPayload,
+  type PopupRateType,
   type PopupTier,
   type PopupItineraryItem,
 } from "@/lib/popup.functions";
@@ -258,6 +260,18 @@ function Landing({
         </div>
       )}
 
+      {/* Two-room group offer */}
+      {ev.group_offer && phase !== "preopen" && (
+        <div className="mx-auto mt-10 max-w-xl rounded-md border border-[#B8956A]/60 bg-[#2A1C1C] p-4 text-center text-sm text-[#F6F1E8]">
+          <span className="font-medium uppercase tracking-[0.12em] text-[#B8956A]">
+            {ev.group_offer.name}
+          </span>
+          <span className="mx-2">·</span>
+          Come with another couple. Reserve {ev.group_offer.rooms === 2 ? "two" : ev.group_offer.rooms}{" "}
+          guesthouses together and both are {ev.group_offer.percent}% off.
+        </div>
+      )}
+
       {/* Booking-window notice */}
       {phase === "preopen" && ev.waitlist_opens_at && (
         <div className="mx-auto mt-10 max-w-xl rounded-md border border-[#F09B9C]/50 bg-[#F9EDED] p-4 text-center text-sm text-[#1E1313]">
@@ -442,8 +456,13 @@ function TierCard({
 type Hold = {
   bookingId: string;
   guestEmail: string;
+  /** Covers every room on the hold (two for a group booking). */
   baseAmount: number;
-  rateType: "waitlist" | "sale" | "regular";
+  perRoomAmount: number;
+  roomCount: number;
+  /** The validated invitation code this hold was made with ("" = none). */
+  refCode: string;
+  rateType: PopupRateType;
 };
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -595,6 +614,29 @@ function BookStep({
   const [addrState, setAddrState] = useState("");
   const [addrZip, setAddrZip] = useState("");
   const [onWaitlist, setOnWaitlist] = useState(false);
+  // Two-room group offer ("The Quartet"): one reservation, two guesthouses.
+  const offer = ev.group_offer ?? null;
+  const offerAvailable =
+    !!offer && ev.phase !== "preopen" && (tier.rooms_available ?? tier.remaining) >= offer.rooms;
+  const [twoRooms, setTwoRooms] = useState(false);
+  const [r2name1, setR2name1] = useState("");
+  const [r2name2, setR2name2] = useState("");
+  const wantTwo = twoRooms && offerAvailable;
+  // Friend's invitation code — prefilled from an invite link (?ref=CODE).
+  const [refInput, setRefInput] = useState(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      const fromUrl = new URLSearchParams(window.location.search).get("ref");
+      return (fromUrl ?? sessionStorage.getItem(`gfh_popup_ref_${eventSlug}`) ?? "").toUpperCase();
+    } catch {
+      return "";
+    }
+  });
+  const [refCheck, setRefCheck] = useState<{
+    code: string;
+    valid: boolean;
+    firstName: string | null;
+  } | null>(null);
   const [hold, setHold] = useState<Hold | null>(null);
   const [holdState, setHoldState] = useState<"idle" | "holding" | "ready" | "expired" | "error">(
     "idle",
@@ -631,7 +673,13 @@ function BookStep({
           addrCity?: string;
           addrState?: string;
           addrZip?: string;
+          twoRooms?: boolean;
+          r2name1?: string;
+          r2name2?: string;
         };
+        if (g.twoRooms) setTwoRooms(true);
+        if (g.r2name1) setR2name1(g.r2name1);
+        if (g.r2name2) setR2name2(g.r2name2);
         if (g.name) setName(g.name);
         if (g.name2) setName2(g.name2);
         if (g.email) setEmail(g.email);
@@ -666,7 +714,37 @@ function BookStep({
     };
   }, [email, eventSlug]);
 
+  // Live invitation-code check (display only — the server re-resolves it).
+  useEffect(() => {
+    const candidate = refInput.trim().toUpperCase();
+    if (!ev.referral_percent || candidate.length < 5) {
+      setRefCheck(null);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(() => {
+      checkPopupReferral({ data: { eventSlug, code: candidate } }).then((r) => {
+        if (cancelled) return;
+        setRefCheck({ code: candidate, valid: r.valid, firstName: r.firstName });
+        if (r.valid) {
+          try {
+            sessionStorage.setItem(`gfh_popup_ref_${eventSlug}`, candidate);
+          } catch {
+            /* sessionStorage unavailable — non-fatal */
+          }
+        }
+      });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [refInput, eventSlug, ev.referral_percent]);
+  const validRef =
+    refCheck?.valid && refCheck.code === refInput.trim().toUpperCase() ? refCheck.code : "";
+
   const complete =
+    (!wantTwo || (!!r2name1.trim() && !!r2name2.trim())) &&
     !!name.trim() &&
     !!name2.trim() &&
     EMAIL_RE.test(email.trim()) &&
@@ -692,19 +770,42 @@ function BookStep({
         addressCity: addrCity.trim(),
         addressState: addrState.trim(),
         addressZip: addrZip.trim(),
+        room2Guest1Name: wantTwo ? r2name1.trim() : undefined,
+        room2Guest2Name: wantTwo ? r2name2.trim() : undefined,
       };
+      const wantRooms = wantTwo && offer ? offer.rooms : 1;
       const normalizedEmail = email.trim().toLowerCase();
       try {
         sessionStorage.setItem(
           `gfh_popup_guest_${eventSlug}`,
-          JSON.stringify({ name, name2, email, phone, addr1, addrCity, addrState, addrZip }),
+          JSON.stringify({
+            name,
+            name2,
+            email,
+            phone,
+            addr1,
+            addrCity,
+            addrState,
+            addrZip,
+            twoRooms,
+            r2name1,
+            r2name2,
+          }),
         );
       } catch {
         /* sessionStorage unavailable — non-fatal */
       }
       const current = holdRef.current;
       try {
-        if (current && current.guestEmail === normalizedEmail) {
+        // Same email, same room count, same invitation code: just update the
+        // details. Anything that changes the price or the referral re-holds
+        // (the server updates the pending booking in place).
+        if (
+          current &&
+          current.guestEmail === normalizedEmail &&
+          current.roomCount === wantRooms &&
+          current.refCode === validRef
+        ) {
           const r = await updatePopupBookingDetails({
             data: { bookingId: current.bookingId, ...details },
           });
@@ -714,7 +815,14 @@ function BookStep({
         setHoldState("holding");
         setError(null);
         const res = await createBooking({
-          data: { eventSlug, sectionId: tier.id, guestEmail: email.trim(), ...details },
+          data: {
+            eventSlug,
+            sectionId: tier.id,
+            guestEmail: email.trim(),
+            ...details,
+            roomCount: wantRooms,
+            referralCode: validRef || undefined,
+          },
         });
         if (seq !== holdSeq.current) return;
         if (!res.ok) {
@@ -753,6 +861,9 @@ function BookStep({
           bookingId: res.booking.id,
           guestEmail: normalizedEmail,
           baseAmount: res.booking.base_amount,
+          perRoomAmount: res.booking.per_room_amount,
+          roomCount: res.booking.room_count,
+          refCode: validRef,
           rateType: res.booking.rate_type,
         };
         holdRef.current = next;
@@ -783,6 +894,10 @@ function BookStep({
     eventSlug,
     tier.id,
     reholdTick,
+    wantTwo,
+    r2name1,
+    r2name2,
+    validRef,
   ]);
 
   // Tick the countdown once a second; at zero release the hold server-side,
@@ -809,18 +924,31 @@ function BookStep({
   const promo = tier.promo_package_price != null ? Number(tier.promo_package_price) : null;
   // Once the room is held, show the server-stamped price; before that,
   // selling_price is server-computed (sale price while the sale runs).
-  const displayPrice = hold
-    ? hold.baseAmount
-    : onWaitlist
-      ? (promo ?? tier.selling_price)
-      : ev.phase === "public"
-        ? tier.selling_price
-        : (promo ?? tier.selling_price);
+  const singlePrice = onWaitlist
+    ? (promo ?? tier.selling_price)
+    : ev.phase === "public"
+      ? tier.selling_price
+      : (promo ?? tier.selling_price);
+  // Group offer: X% off the regular price on every room, never more than the
+  // guest's own rate (mirrors create_popup_booking).
+  const groupPerRoom =
+    offer && regular != null
+      ? Math.min(singlePrice, Math.round(regular * (1 - offer.percent / 100) * 100) / 100)
+      : singlePrice;
+  const holdMatches = !!hold && hold.roomCount === (wantTwo && offer ? offer.rooms : 1);
+  // Per couple, for the header line.
+  const displayPrice = holdMatches ? hold!.perRoomAmount : wantTwo ? groupPerRoom : singlePrice;
+  // Everything on the reservation, for the totals.
+  const baseForTotals = holdMatches
+    ? hold!.baseAmount
+    : wantTwo && offer
+      ? groupPerRoom * offer.rooms
+      : singlePrice;
 
   // Estimated until the room is held; then the server-stamped price.
   const totals = useMemo(
-    () => computeTotals(tier, displayPrice, addons, selectedIds),
-    [tier, displayPrice, addons, selectedIds],
+    () => computeTotals(tier, baseForTotals, addons, selectedIds),
+    [tier, baseForTotals, addons, selectedIds],
   );
 
   const inputCls =
@@ -841,10 +969,16 @@ function BookStep({
         <div className="mt-1 text-sm text-[#B8AFA6]">
           {fmtDate(ev.check_in_date)} → {fmtDate(ev.check_out_date)} · {fmtMoney(displayPrice)} per
           couple
-          {onWaitlist && regular != null && promo != null && promo < regular && (
-            <span className="ml-2 text-[#B8AFA6] line-through">{fmtMoney(regular)}</span>
+          {((onWaitlist && promo != null && regular != null && promo < regular) ||
+            (wantTwo && regular != null && displayPrice < regular)) && (
+            <span className="ml-2 text-[#B8AFA6] line-through">{fmtMoney(regular!)}</span>
           )}
         </div>
+        {wantTwo && offer && (
+          <div className="mt-2 text-xs text-[#B8956A]">
+            ✓ {offer.name} — two guesthouses, {offer.percent}% off both.
+          </div>
+        )}
         {onWaitlist && (
           <div className="mt-2 text-xs text-[#B8956A]">
             ✓ We recognize this email — your private rate is locked in.
@@ -856,6 +990,31 @@ function BookStep({
           </div>
         )}
       </div>
+
+      {offer && offerAvailable && (
+        <label
+          className={`mt-4 flex cursor-pointer items-start gap-3 rounded-[4px] border bg-[#2A1C1C] p-5 transition-colors ${
+            wantTwo ? "border-[#B8956A]" : "border-[#4A3737] hover:border-[#B8956A]/60"
+          }`}
+        >
+          <input
+            type="checkbox"
+            checked={twoRooms}
+            onChange={(e) => setTwoRooms(e.target.checked)}
+            className="mt-1 h-4 w-4 accent-[#B8956A]"
+          />
+          <div>
+            <div className="text-xs uppercase tracking-[0.16em] text-[#B8956A]">{offer.name}</div>
+            <div className="mt-1 font-serif text-lg">
+              Coming with another couple? {offer.percent}% off both guesthouses.
+            </div>
+            <div className="mt-1 text-xs text-[#B8AFA6]">
+              Two private guesthouses on one reservation — {fmtMoney(groupPerRoom)} per couple
+              {regular != null && groupPerRoom < regular ? ` instead of ${fmtMoney(regular)}` : ""}.
+            </div>
+          </div>
+        </label>
+      )}
 
       <PaymentOptions ev={ev} schedule={schedule} onChange={setSchedule} total={totals.total} />
 
@@ -879,6 +1038,26 @@ function BookStep({
           placeholder="Guest 2 — full name"
           className={inputCls}
         />
+        {wantTwo && (
+          <>
+            <input
+              type="text"
+              required
+              value={r2name1}
+              onChange={(e) => setR2name1(e.target.value)}
+              placeholder="Second guesthouse — guest 1 full name"
+              className={inputCls}
+            />
+            <input
+              type="text"
+              required
+              value={r2name2}
+              onChange={(e) => setR2name2(e.target.value)}
+              placeholder="Second guesthouse — guest 2 full name"
+              className={inputCls}
+            />
+          </>
+        )}
         <input
           type="email"
           required
@@ -939,11 +1118,36 @@ function BookStep({
             className={inputCls}
           />
         </div>
+        {ev.referral_percent ? (
+          <div>
+            <input
+              type="text"
+              autoComplete="off"
+              autoCapitalize="characters"
+              value={refInput}
+              onChange={(e) => setRefInput(e.target.value.toUpperCase())}
+              placeholder="Invited by a couple? Their code (optional)"
+              className={inputCls}
+            />
+            {validRef && (
+              <div className="mt-2 text-xs text-[#B8956A]">
+                ✓ {refCheck?.firstName ?? "Your friends"} invited you — we'll thank them for it.
+              </div>
+            )}
+            {refCheck && !refCheck.valid && refCheck.code === refInput.trim().toUpperCase() && (
+              <div className="mt-2 text-xs text-[#B8AFA6]">
+                We don't recognize that code. You can still reserve without it.
+              </div>
+            )}
+          </div>
+        ) : null}
       </form>
 
       {holdState === "expired" && (
         <div className="mt-6 rounded-[4px] border border-[#F09B9C]/50 bg-[#2A1C1C] p-5 text-center">
-          <p className="text-sm text-[#F6F1E8]">Your hold ran out and the room was released.</p>
+          <p className="text-sm text-[#F6F1E8]">
+            Your hold ran out and the {wantTwo ? "rooms were" : "room was"} released.
+          </p>
           <p className="mt-1 text-xs text-[#B8AFA6]">
             Still here? Hold it again and you'll have another {fmtCountdown(HOLD_SECONDS)} to
             complete payment.
@@ -970,7 +1174,7 @@ function BookStep({
 
       {hold && holdState === "ready" && (
         <p className="mt-6 text-center text-sm italic text-[#F09B9C]">
-          Your room is held for you.{" "}
+          {hold.roomCount > 1 ? "Your rooms are held for you." : "Your room is held for you."}{" "}
           <span
             className={`not-italic tabular-nums ${secondsLeft <= 30 ? "text-[#F6F1E8]" : "text-[#B8AFA6]"}`}
           >
@@ -994,6 +1198,7 @@ function BookStep({
             bookingId={hold.bookingId}
             baseAmount={hold.baseAmount}
             rateType={hold.rateType}
+            roomCount={hold.roomCount}
             schedule={schedule}
             addons={addons}
             selectedIds={selectedIds}
@@ -1014,6 +1219,7 @@ function PaymentSection({
   bookingId,
   baseAmount,
   rateType,
+  roomCount,
   schedule,
   addons,
   selectedIds,
@@ -1024,7 +1230,8 @@ function PaymentSection({
   tier: PopupTier;
   bookingId: string;
   baseAmount: number;
-  rateType: "waitlist" | "sale" | "regular";
+  rateType: PopupRateType;
+  roomCount: number;
   schedule: PaySchedule;
   addons: Addon[];
   selectedIds: string[];
@@ -1045,15 +1252,22 @@ function PaymentSection({
 
   const isSplit = schedule === "deposit_50_balance_50";
   const dueToday = isSplit ? calc.total / 2 : calc.total;
+  // A group booking covers several rooms: compare against regular × rooms.
   const regularPrice =
-    tier.regular_package_price != null ? Number(tier.regular_package_price) : null;
+    tier.regular_package_price != null ? Number(tier.regular_package_price) * roomCount : null;
   const rateDiscount =
-    (rateType === "waitlist" || rateType === "sale") &&
+    (rateType === "waitlist" || rateType === "sale" || rateType === "group") &&
     regularPrice != null &&
     regularPrice > calc.base
       ? regularPrice - calc.base
       : 0;
-  const discountLabel = rateType === "sale" ? "Sale discount" : "Waitlist discount";
+  const discountLabel =
+    rateType === "group"
+      ? `${ev.group_offer?.name ?? "Two-room rate"} · ${ev.group_offer?.percent ?? 0}% off`
+      : rateType === "sale"
+        ? "Sale discount"
+        : "Waitlist discount";
+  const stayLabel = `${roomCount > 1 ? `${roomCount} guesthouses · ` : ""}${tier.section_name} · ${calc.nights} nights`;
 
   // The payment form mounts as soon as the hold exists and rebuilds
   // (debounced) whenever the booking, add-ons or payment schedule change,
@@ -1118,7 +1332,7 @@ function PaymentSection({
     }, 500);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookingId, schedule, selectedIds, addons]);
+  }, [bookingId, schedule, selectedIds, addons, baseAmount]);
 
   // Tear down the payment iframe when leaving the page.
   useEffect(() => () => checkoutRef.current?.destroy(), []);
@@ -1203,11 +1417,11 @@ function PaymentSection({
         <div className="mt-3 space-y-2 text-sm">
           {rateDiscount > 0 && regularPrice != null ? (
             <>
-              <Row label={`${tier.section_name} · ${calc.nights} nights`} value={regularPrice} />
+              <Row label={stayLabel} value={regularPrice} />
               <Row label={discountLabel} value={-rateDiscount} />
             </>
           ) : (
-            <Row label={`${tier.section_name} · ${calc.nights} nights`} value={calc.base} />
+            <Row label={stayLabel} value={calc.base} />
           )}
           {calc.addonAmt > 0 && <Row label="Enhancements" value={calc.addonAmt} />}
           {calc.resortFee > 0 && (
@@ -1284,6 +1498,7 @@ function PopupConfirmation({
   const fetchConfirmation = fetchSessionConfirmation;
   const [loading, setLoading] = useState(true);
   const [timedOut, setTimedOut] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [booking, setBooking] = useState<
     Awaited<ReturnType<typeof fetchSessionConfirmation>>["bookings"][number] | null
   >(null);
@@ -1388,10 +1603,20 @@ function PopupConfirmation({
 
               <div className="mt-6">
                 <SectionLabel>Your stay</SectionLabel>
-                <div className="mt-2 font-serif text-xl">{booking.section?.section_name}</div>
+                <div className="mt-2 font-serif text-xl">
+                  {(booking.room_count ?? 1) > 1 ? `${booking.room_count} guesthouses · ` : ""}
+                  {booking.section?.section_name}
+                </div>
                 <div className="mt-1 text-sm text-[#E8E0D4]">
                   {fmtDate(booking.event?.check_in_date)} → {fmtDate(booking.event?.check_out_date)}
                 </div>
+                {(booking.room_count ?? 1) > 1 && booking.room2_guest1_name && (
+                  <div className="mt-1 text-sm text-[#E8E0D4]">
+                    With {booking.room2_guest1_name}
+                    {booking.room2_guest2_name ? ` & ${booking.room2_guest2_name}` : ""} in the
+                    second guesthouse
+                  </div>
+                )}
                 <div className="mt-1 text-xs text-[#B8AFA6]">
                   Your room is assigned by the estate — arrival details land in your inbox before
                   the weekend.
@@ -1399,16 +1624,29 @@ function PopupConfirmation({
               </div>
 
               <div className="mt-6 border-t border-[#4A3737] pt-5 text-sm">
-                {(booking.rate_type === "waitlist" || booking.rate_type === "sale") &&
-                Number(booking.section?.regular_package_price) >
+                {(booking.rate_type === "waitlist" ||
+                  booking.rate_type === "sale" ||
+                  booking.rate_type === "group") &&
+                Number(booking.section?.regular_package_price) * (booking.room_count ?? 1) >
                   (Number(booking.base_amount) || 0) ? (
                   <>
-                    <Row label="Package" value={Number(booking.section?.regular_package_price)} />
                     <Row
-                      label={booking.rate_type === "sale" ? "Sale discount" : "Waitlist discount"}
+                      label="Package"
+                      value={
+                        Number(booking.section?.regular_package_price) * (booking.room_count ?? 1)
+                      }
+                    />
+                    <Row
+                      label={
+                        booking.rate_type === "group"
+                          ? (booking.event?.group_offer_name ?? "Two-room rate")
+                          : booking.rate_type === "sale"
+                            ? "Sale discount"
+                            : "Waitlist discount"
+                      }
                       value={
                         (Number(booking.base_amount) || 0) -
-                        Number(booking.section?.regular_package_price)
+                        Number(booking.section?.regular_package_price) * (booking.room_count ?? 1)
                       }
                     />
                   </>
@@ -1449,6 +1687,33 @@ function PopupConfirmation({
                   </p>
                 )}
               </div>
+
+              {booking.referral_code && Number(booking.event?.referral_percent) > 0 && (
+                <div className="mt-6 rounded-[4px] border border-[#B8956A]/60 p-5">
+                  <SectionLabel>Bring friends along</SectionLabel>
+                  <div className="mt-2 font-serif text-2xl tracking-wide text-[#F6F1E8]">
+                    {booking.referral_code}
+                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-[#B8AFA6]">
+                    This is your personal invitation code. When a couple you invite reserves the
+                    weekend with it, {Number(booking.event?.referral_percent)}% comes off the
+                    remaining balance of your stay.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const link = `${window.location.origin}/stay/${eventSlug}?ref=${encodeURIComponent(booking.referral_code ?? "")}`;
+                      navigator.clipboard?.writeText(link).then(
+                        () => setCopied(true),
+                        () => setCopied(false),
+                      );
+                    }}
+                    className="mt-3 min-h-[44px] rounded border border-[#B8956A]/60 px-4 py-2 text-xs uppercase tracking-[0.16em] text-[#F6F1E8] transition-colors hover:border-[#B8956A]"
+                  >
+                    {copied ? "Link copied" : "Copy your invitation link"}
+                  </button>
+                </div>
+              )}
 
               {includedItems.length > 0 && (
                 <div className="mt-6 border-t border-[#4A3737] pt-5">

@@ -79,6 +79,7 @@ async function sendDepositConfirmation(opts: {
   };
   finalChargeDate?: string;
   cancellationPolicy?: string;
+  referral?: { code: string; percent: number; url: string };
   cc?: string[];
 }) {
   const total = opts.breakdown?.totalAmount ?? opts.amountPaid + opts.remaining;
@@ -105,6 +106,7 @@ async function sendDepositConfirmation(opts: {
       coveredGuestName: opts.coveredGuestName ?? undefined,
       coveredGuestSection: opts.coveredGuestName ? opts.sectionName : undefined,
       cancellationPolicy: opts.cancellationPolicy,
+      referral: opts.referral,
     }),
     opts.cc,
   );
@@ -130,6 +132,7 @@ async function sendPaidInFullConfirmation(opts: {
     addonsSelected: { name: string; price: number }[];
   };
   cancellationPolicy?: string;
+  referral?: { code: string; percent: number; url: string };
   cc?: string[];
 }) {
   await sendMail(
@@ -152,6 +155,7 @@ async function sendPaidInFullConfirmation(opts: {
       coveredGuestName: opts.coveredGuestName ?? undefined,
       coveredGuestSection: opts.coveredGuestName ? opts.sectionName : undefined,
       cancellationPolicy: opts.cancellationPolicy,
+      referral: opts.referral,
     }),
     opts.cc,
   );
@@ -473,7 +477,7 @@ serve(async (req) => {
       const { data: bookings } = await supabaseAdmin
         .from("lb_bookings")
         .select(
-          "id, guest_name, guest_email, total_amount, base_amount, addon_amount, resort_fee, addons_selected, rate_type, event_id, section_id, cot_requested, cot_fee",
+          "id, guest_name, guest_email, total_amount, base_amount, addon_amount, resort_fee, addons_selected, rate_type, event_id, section_id, cot_requested, cot_fee, room_count, room2_guest1_name, room2_guest2_name, referral_code",
         )
         .in("id", [primaryId, ...(secondaryId ? [secondaryId] : [])]);
 
@@ -491,7 +495,7 @@ serve(async (req) => {
         const { data: ev } = await supabaseAdmin
           .from("lb_events")
           .select(
-            "wedding_name, check_in_date, check_out_date, balance_due_on, cancel_cutoff_days, confirmation_cc_emails",
+            "wedding_name, slug, event_type, check_in_date, check_out_date, balance_due_on, cancel_cutoff_days, confirmation_cc_emails, group_offer_name, group_offer_percent, referral_percent",
           )
           .eq("id", primary.event_id)
           .single();
@@ -530,17 +534,41 @@ serve(async (req) => {
         const regularPrice = Number(section?.regular_package_price) || 0;
         const paidBase = Number(primary.base_amount) || 0;
         const rateType = (primary as { rate_type?: string }).rate_type;
+        // A group booking ("The Quartet") is one row covering several rooms.
+        const roomCount = Math.max(1, Number((primary as { room_count?: number }).room_count) || 1);
+        const regularForStay = regularPrice * roomCount;
         const rateDiscount =
-          (rateType === "waitlist" || rateType === "sale") &&
-          regularPrice > paidBase
-            ? regularPrice - paidBase
+          (rateType === "waitlist" || rateType === "sale" || rateType === "group") &&
+          regularForStay > paidBase
+            ? regularForStay - paidBase
             : 0;
+        const evx = (ev ?? {}) as {
+          slug?: string; event_type?: string; group_offer_name?: string | null;
+          group_offer_percent?: number | null; referral_percent?: number | null;
+        };
+        const sectionLabel =
+          roomCount > 1
+            ? `${roomCount} rooms · ${section?.section_name ?? "your section"}`
+            : (section?.section_name ?? "your section");
+        const referralCode = (primary as { referral_code?: string | null }).referral_code;
+        const referral =
+          evx.event_type === "popup" && referralCode && Number(evx.referral_percent) > 0 && evx.slug
+            ? {
+                code: referralCode,
+                percent: Number(evx.referral_percent),
+                url: `https://stay.gilbertsvillefarmhouse.com/stay/${evx.slug}?ref=${encodeURIComponent(referralCode)}`,
+              }
+            : undefined;
         const breakdown = {
           baseAmount: paidBase,
-          regularAmount: rateDiscount > 0 ? regularPrice : undefined,
+          regularAmount: rateDiscount > 0 ? regularForStay : undefined,
           discountAmount: rateDiscount > 0 ? rateDiscount : undefined,
           discountLabel:
-            rateType === "sale" ? "Sale discount" : "Waitlist discount",
+            rateType === "group"
+              ? `${evx.group_offer_name ?? "Two-room rate"} · ${Number(evx.group_offer_percent) || 0}% off`
+              : rateType === "sale"
+                ? "Sale discount"
+                : "Waitlist discount",
           addonAmount: Number(primary.addon_amount) || 0,
           resortFee: Number(primary.resort_fee) || 0,
           taxAmount: fullTaxEstimate,
@@ -581,7 +609,8 @@ serve(async (req) => {
             to: primary.guest_email,
             guestName: primary.guest_name,
             weddingName: ev?.wedding_name ?? "your wedding weekend",
-            sectionName: section?.section_name ?? "your section",
+            sectionName: sectionLabel,
+            referral,
             checkIn: ev?.check_in_date ?? "",
             checkOut: ev?.check_out_date ?? "",
             amountPaid: totalCharged,
@@ -600,7 +629,8 @@ serve(async (req) => {
             to: primary.guest_email,
             guestName: primary.guest_name,
             weddingName: ev?.wedding_name ?? "your wedding weekend",
-            sectionName: section?.section_name ?? "your section",
+            sectionName: sectionLabel,
+            referral,
             checkIn: ev?.check_in_date ?? "",
             checkOut: ev?.check_out_date ?? "",
             amountPaid: totalCharged,
@@ -611,9 +641,13 @@ serve(async (req) => {
           });
         }
 
+        const room2 = primary as { room2_guest1_name?: string | null; room2_guest2_name?: string | null };
         await sendAdminNotification({
-          guestName: primary.guest_name,
-          sectionName: section?.section_name ?? "",
+          guestName:
+            roomCount > 1 && room2.room2_guest1_name
+              ? `${primary.guest_name} + ${room2.room2_guest1_name} & ${room2.room2_guest2_name ?? ""} (second room)`
+              : primary.guest_name,
+          sectionName: roomCount > 1 ? sectionLabel : (section?.section_name ?? ""),
           amount: totalCharged,
           paymentType: isSplit ? "deposit" : "full",
           weddingName: ev?.wedding_name ?? "",

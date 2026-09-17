@@ -34,7 +34,7 @@ function shell(inner: string): string {
       <p style="margin:0 0 24px;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#C9A84C;">Gilbertsville Farmhouse</p>
       ${inner}
       <p style="margin:28px 0 0;font-size:12px;line-height:1.7;color:#9A9188;font-weight:300;">
-        Questions? Write to stay@gilbertsvillefarmhouse.com.</p>
+        Questions? Write to events@gilbertsvillefarmhouse.com.</p>
     </td></tr>
   </table></div>`;
 }

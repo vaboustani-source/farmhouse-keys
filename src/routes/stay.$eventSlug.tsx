@@ -1695,9 +1695,9 @@ function PopupConfirmation({
                     {booking.referral_code}
                   </div>
                   <p className="mt-2 text-xs leading-relaxed text-[#B8AFA6]">
-                    This is your personal invitation code. When a couple you invite reserves the
-                    weekend with it, {Number(booking.event?.referral_percent)}% comes off the
-                    remaining balance of your stay.
+                    {booking.payment_status === "deposit_paid"
+                      ? `This is your personal invitation code. When a couple you invite reserves the weekend with it, ${Number(booking.event?.referral_percent)}% comes off the remaining balance of your stay.`
+                      : "This is your personal invitation code. Share it with a couple you would like to have along, and they can enter it as they reserve."}
                   </p>
                   <button
                     type="button"

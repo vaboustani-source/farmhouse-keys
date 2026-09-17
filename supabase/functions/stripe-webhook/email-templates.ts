@@ -195,37 +195,6 @@ function statusBadge(text: string, type: 'confirmed' | 'pending' | 'alert'): str
     letter-spacing:2px;text-transform:uppercase;color:${c.text};font-weight:500;">${text}</span>`;
 }
 
-export interface ReferralInfo {
-  code: string;
-  percent: number;
-  url: string;
-}
-
-/** "Bring friends" card: the couple's personal code and what it earns them. */
-function referralCard(r: ReferralInfo): string {
-  return `<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%"
-    style="margin:24px 0;background-color:#FAF8F4;border:1px solid #E8E2D9;
-    border-left:3px solid #C9A84C;border-radius:2px;">
-    <tr>
-      <td style="padding:20px 24px;">
-        <p style="margin:0 0 4px;font-family:'Jost',Helvetica,Arial,sans-serif;
-          font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#C9A84C;">
-          Bring friends along
-        </p>
-        <p style="margin:0 0 10px;font-family:'Cormorant Garamond',Georgia,serif;
-          font-size:22px;letter-spacing:1px;color:#1A1A1A;">${r.code}</p>
-        <p style="margin:0;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:13px;
-          line-height:1.7;color:#5A534B;font-weight:300;">
-          This is your personal invitation code. When a couple you invite reserves
-          the weekend with it, ${r.percent}% comes off the remaining balance of your stay.
-          They enter it as they book:
-          <a href="${r.url}" style="color:#1A1A1A;">${r.url.replace(/^https?:\/\//, '')}</a>
-        </p>
-      </td>
-    </tr>
-  </table>`;
-}
-
 function coveredGuestCard(guestName: string, sectionName: string): string {
   return `<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%"
     style="margin:24px 0;background-color:#FAF8F4;border:1px solid #E8E2D9;
@@ -350,7 +319,6 @@ export interface DepositConfirmedEmailProps {
   coveredGuestName?: string;
   coveredGuestSection?: string;
   cancellationPolicy?: string;
-  referral?: ReferralInfo;
 }
 
 export function depositConfirmedEmail(p: DepositConfirmedEmailProps): { subject: string; html: string } {
@@ -396,8 +364,6 @@ export function depositConfirmedEmail(p: DepositConfirmedEmailProps): { subject:
 
     ${p.coveredGuestName ? coveredGuestCard(p.coveredGuestName, p.coveredGuestSection || '') : ''}
 
-    ${p.referral ? referralCard(p.referral) : ''}
-
     ${goldRule()}
 
     <p style="margin:0 0 8px;font-family:'Jost',Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#9A9188;">CANCELLATION POLICY</p>
@@ -431,7 +397,6 @@ export interface PaidConfirmedEmailProps {
   coveredGuestName?: string;
   coveredGuestSection?: string;
   cancellationPolicy?: string;
-  referral?: ReferralInfo;
 }
 
 export function paidConfirmedEmail(p: PaidConfirmedEmailProps): { subject: string; html: string } {
@@ -474,8 +439,6 @@ export function paidConfirmedEmail(p: PaidConfirmedEmailProps): { subject: strin
     </table>
 
     ${p.coveredGuestName ? coveredGuestCard(p.coveredGuestName, p.coveredGuestSection || '') : ''}
-
-    ${p.referral ? referralCard(p.referral) : ''}
 
     ${goldRule()}
 

@@ -28,28 +28,60 @@ const longDate = (d: string | null) =>
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
 
+// Branding mirrors the reservation page (stay.gilbertsvillefarmhouse.com):
+// oxblood ground, raised card, cream type, gold labels, blush call to action.
+const SANS = "'Jost',Helvetica,Arial,sans-serif";
+const SERIF = "'Cormorant Garamond',Georgia,'Times New Roman',serif";
+
 function shell(inner: string): string {
-  return `<div style="background:#F4F0E8;padding:32px 12px;">
-  <table role="presentation" align="center" width="100%" cellpadding="0" cellspacing="0"
-    style="max-width:560px;margin:0 auto;background:#FFFFFF;border:1px solid #E8E2D9;">
-    <tr><td style="padding:36px 36px 32px;font-family:'Jost',Helvetica,Arial,sans-serif;color:#1A1A1A;">
-      <p style="margin:0 0 24px;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#C9A84C;">Gilbertsville Farmhouse</p>
-      ${inner}
-      <p style="margin:28px 0 0;font-size:12px;line-height:1.7;color:#9A9188;font-weight:300;">
-        Questions? Write to events@gilbertsvillefarmhouse.com.</p>
+  return `<div style="margin:0;padding:0;background:#1E1313;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#1E1313" style="background:#1E1313;">
+    <tr><td align="center" style="padding:40px 16px 44px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
+        <tr><td align="center" style="padding:0 0 28px;">
+          <img src="${SITE}/gf-wordmark-white.png" width="260" alt="Gilbertsville Farmhouse"
+            style="display:block;width:260px;max-width:70%;height:auto;border:0;">
+          <p style="margin:12px 0 0;font-family:${SANS};font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#B8AFA6;">A private estate</p>
+        </td></tr>
+        <tr><td bgcolor="#2A1C1C" style="background:#2A1C1C;border:1px solid #4A3737;border-radius:4px;padding:32px 28px;font-family:${SANS};color:#F6F1E8;">
+          ${inner}
+        </td></tr>
+        <tr><td align="center" style="padding:24px 8px 0;font-family:${SANS};font-size:12px;line-height:1.7;color:#B8AFA6;">
+          Questions? Write to <a href="mailto:events@gilbertsvillefarmhouse.com" style="color:#B8AFA6;">events@gilbertsvillefarmhouse.com</a>
+        </td></tr>
+      </table>
     </td></tr>
   </table></div>`;
 }
+const label = (t: string) =>
+  `<p style="margin:0 0 10px;font-family:${SANS};font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#B8956A;">${t}</p>`;
 const h1 = (t: string) =>
-  `<h1 style="margin:0 0 16px;font-family:'Cormorant Garamond',Georgia,serif;font-weight:400;font-size:28px;line-height:1.25;color:#1A1A1A;">${t}</h1>`;
+  `<h1 style="margin:0 0 18px;font-family:${SERIF};font-weight:500;font-size:30px;line-height:1.2;color:#F6F1E8;">${t}</h1>`;
 const p = (t: string) =>
-  `<p style="margin:0 0 16px;font-size:14px;line-height:1.75;color:#3A352F;font-weight:300;">${t}</p>`;
+  `<p style="margin:0 0 16px;font-family:${SANS};font-size:14px;line-height:1.75;color:#E8E0D4;font-weight:300;">${t}</p>`;
 const codeBox = (code: string) =>
-  `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;background:#FAF8F4;border:1px solid #E8E2D9;border-left:3px solid #C9A84C;">
-    <tr><td style="padding:20px 24px;">
-      <p style="margin:0 0 4px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#C9A84C;">Your invitation code</p>
-      <p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;letter-spacing:2px;color:#1A1A1A;">${code}</p>
+  `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 22px;">
+    <tr><td align="center" bgcolor="#1E1313" style="background:#1E1313;border:1px solid #B8956A;border-radius:4px;padding:22px 16px;">
+      <p style="margin:0 0 6px;font-family:${SANS};font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#B8956A;">Your invitation code</p>
+      <p style="margin:0;font-family:${SERIF};font-size:30px;letter-spacing:3px;color:#F6F1E8;">${code}</p>
     </td></tr></table>`;
+const button = (href: string, text: string) =>
+  `<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:6px auto 18px;">
+    <tr><td align="center" bgcolor="#F09B9C" style="background:#F09B9C;border-radius:4px;">
+      <a href="${href}" style="display:inline-block;padding:14px 28px;font-family:${SANS};font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:#1E1313;text-decoration:none;">${text}</a>
+    </td></tr></table>`;
+const fine = (t: string) =>
+  `<p style="margin:0;font-family:${SANS};font-size:12px;line-height:1.7;color:#B8AFA6;font-weight:300;text-align:center;">${t}</p>`;
+const figures = (rows: [string, string][]) =>
+  `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 20px;border-top:1px solid #4A3737;">
+    ${rows
+      .map(
+        ([k, v]) =>
+          `<tr><td style="padding:12px 0;border-bottom:1px solid #4A3737;font-family:${SANS};font-size:13px;color:#B8AFA6;">${k}</td>
+           <td align="right" style="padding:12px 0;border-bottom:1px solid #4A3737;font-family:${SERIF};font-size:18px;color:#F6F1E8;">${v}</td></tr>`,
+      )
+      .join("")}
+  </table>`;
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -99,7 +131,8 @@ Deno.serve(async (req) => {
   if (kind === "code") {
     if (b.referral_code_emailed_at && !body.force) return json({ skipped: "already_sent" });
     const html = shell(
-      h1(`Bring another couple to ${weekend}`) +
+      label(weekend) +
+        h1(`Bring another couple along`) +
         p(`Hi ${esc(firstName(b.guest_name))},`) +
         p(`Your reservation is set. If there is a couple you would like at the next fire over, this code is yours to share.`) +
         codeBox(code) +
@@ -110,7 +143,8 @@ Deno.serve(async (req) => {
               ? `Any couple who reserves with it receives ${friendPct}% off their weekend.`
               : `They enter it as they reserve, so we know you are coming together.`,
         ) +
-        p(`They can enter the code as they book, or simply use your link:<br><a href="${link}" style="color:#1A1A1A;">${link.replace("https://", "")}</a>`),
+        button(link, "Your invitation link") +
+        fine(`They can also enter the code as they reserve at<br><a href="${link}" style="color:#F09B9C;">${link.replace("https://", "")}</a>`),
     );
     await resend.emails.send({
       from: FROM,
@@ -137,11 +171,15 @@ Deno.serve(async (req) => {
   }
   const newBalance = Math.max(0, (Number(b.total_amount) || 0) / 2 - credit);
   const html = shell(
-    h1(`${friend} will be joining you`) +
+    label(weekend) +
+      h1(`${friend} will be joining you`) +
       p(`Hi ${esc(firstName(b.guest_name))},`) +
       p(`${friend} reserved ${weekend} with your invitation code. As a thank-you, ${money(Number(body.amount) > 0 ? Number(body.amount) : reward)} has come off the remaining balance of your stay.`) +
-      p(`Invitation credit so far: <strong>${money(credit)}</strong><br>Remaining balance: <strong>${money(newBalance)}</strong> plus tax${ev.balance_due_on ? `, charged automatically on ${longDate(ev.balance_due_on)}` : ""}.`) +
-      p(`There is nothing you need to do.`),
+      figures([
+        ["Invitation credit so far", money(credit)],
+        ["Remaining balance, before tax", money(newBalance)],
+      ]) +
+      p(`${ev.balance_due_on ? `Your balance is charged automatically on ${longDate(ev.balance_due_on)}. ` : ""}There is nothing you need to do.`),
   );
   await resend.emails.send({
     from: FROM,

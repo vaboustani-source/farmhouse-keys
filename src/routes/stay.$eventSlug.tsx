@@ -77,13 +77,13 @@ function cancellationPolicy(ev: NonNullable<PopupEventPayload["event"]>): string
 
 const FULL_STORY_URL = "https://gilbertsvillefarmhouse.com/couples-weekend";
 
+// Victoria's standing rule: every guest-facing contact line reads exactly this.
 const CONTACT_LINE = (
   <>
-    Questions? Email{" "}
-    <a className="underline" href="mailto:stay@gilbertsvillefarmhouse.com">
-      stay@gilbertsvillefarmhouse.com
-    </a>{" "}
-    and we'll take care of you.
+    Questions? Write to{" "}
+    <a className="underline" href="mailto:events@gilbertsvillefarmhouse.com">
+      events@gilbertsvillefarmhouse.com
+    </a>
   </>
 );
 

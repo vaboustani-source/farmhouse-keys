@@ -140,13 +140,13 @@ Deno.serve(async (req) => {
         codeBox(code) +
         p(
           hasBalance && reward > 0
-            ? `For every couple who reserves a room with your referral code, you receive ${money(reward)} off the remaining balance of your stay${friendPct > 0 ? `, and they receive ${friendPct}% off their own weekend` : ""}.`
+            ? `<strong style="font-weight:600;color:#F6F1E8;">For every couple who reserves a room with your referral code, you receive ${money(reward)} off the remaining balance of your stay${friendPct > 0 ? `, and they receive ${friendPct}% off their own weekend` : ""}.</strong>`
             : friendPct > 0
               ? `Every couple who reserves a room with your referral code receives ${friendPct}% off their own weekend.`
               : `They enter it as they reserve, so we know you are coming together.`,
         ) +
         (hasBalance && reward > 0
-          ? p(`It is applied automatically before your balance is charged${ev.balance_due_on ? ` on ${longDate(ev.balance_due_on)}` : ""}.`)
+          ? p(`<em>It is applied automatically before your balance is charged${ev.balance_due_on ? ` on ${longDate(ev.balance_due_on)}` : ""}.</em>`)
           : "") +
         button(link, "Your referral link") +
         fine(`They can also enter the code as they reserve at<br><a href="${link}" style="color:#F09B9C;">${link.replace("https://", "")}</a>`),

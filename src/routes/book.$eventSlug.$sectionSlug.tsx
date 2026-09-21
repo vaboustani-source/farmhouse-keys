@@ -384,6 +384,16 @@ function ReviewStep({
   // arrives on the booking row. Guests cannot add one here.
   const cotRequested = !!booking.cot_requested;
   const [reserveError, setReserveError] = useState<string | null>(null);
+  // Mobile number: required, so our team can text arrival details and guests can reach us all weekend.
+  const [mobile, setMobile] = useState("");
+  const mobileDigits = mobile.replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
+  const mobileValid = mobileDigits.length === 10;
+  const formatMobile = (raw: string) => {
+    const d = raw.replace(/\D/g, "").replace(/^1(?=\d{10})/, "").slice(0, 10);
+    if (d.length <= 3) return d;
+    if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+    return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  };
   const [agreedToCancellation, setAgreedToCancellation] = useState(false);
 
   const cotFee = useMemo(() => {
@@ -473,6 +483,19 @@ function ReviewStep({
     setSubmitting(true);
     setReserveError(null);
     try {
+      if (!mobileValid) {
+        setReserveError("Please add a 10-digit mobile number so we can reach you on arrival day.");
+        return;
+      }
+      const { data: saved, error: phoneErr } = await supabase.rpc("set_guest_booking_phone" as never, {
+        p_booking_id: booking.booking_id,
+        p_email: booking.guest_email,
+        p_phone: mobileDigits,
+      } as never);
+      if (phoneErr || !saved) {
+        setReserveError("We couldn't save your mobile number. Please check it and try again.");
+        return;
+      }
       const { url, alreadyPaid, redirectUrl, locked, lockedMessage } = await createCheckoutSession({
         bookingId: booking.booking_id,
         addonIds: selectedIds.filter((id) => !addons.find((a) => a.id === id)?.is_required),
@@ -744,6 +767,50 @@ function ReviewStep({
         </div>
       </div>
 
+      {/* Mobile number */}
+      <div className="mt-6">
+        <label
+          htmlFor="guest-mobile"
+          style={{
+            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 11,
+            letterSpacing: 2,
+            textTransform: "uppercase",
+            color: "#9A9188",
+          }}
+        >
+          MOBILE NUMBER
+        </label>
+        <input
+          id="guest-mobile"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          required
+          value={mobile}
+          onChange={(e) => setMobile(formatMobile(e.target.value))}
+          placeholder="(607) 555-0123"
+          className="mt-2 w-full rounded border border-[#E8E2D9] bg-white px-3 py-3 text-base text-[#2C3E2D] outline-none focus:border-[#2C3E2D]"
+        />
+        <p
+          style={{
+            fontFamily: "'Jost', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 12,
+            color: "#6B6B6B",
+            fontWeight: 300,
+            marginTop: 8,
+            lineHeight: 1.5,
+          }}
+        >
+          By providing your mobile number you agree to receive text messages from Gilbertsville Farmhouse about your
+          stay: arrival details on check-in day and replies from our team during the weekend. Message frequency varies.
+          Message and data rates may apply. Reply STOP to opt out, HELP for help. Consent is not a condition of purchase.{" "}
+          <a className="underline" href="https://marketing.gilbertsvillefarmhouse.com/sms-terms" target="_blank" rel="noreferrer">SMS Terms</a>
+          {" · "}
+          <a className="underline" href="https://gilbertsvillefarmhouse.com/privacy-policy" target="_blank" rel="noreferrer">Privacy Policy</a>
+        </p>
+      </div>
+
       {/* Cancellation policy */}
       <div className="mt-6">
         <p
@@ -792,9 +859,9 @@ function ReviewStep({
 
       <button
         onClick={reserve}
-        disabled={submitting || !agreedToCancellation}
+        disabled={submitting || !agreedToCancellation || !mobileValid}
         className={`mt-6 w-full rounded px-4 py-4 text-sm uppercase tracking-[0.16em] text-white transition-colors ${
-          agreedToCancellation
+          agreedToCancellation && mobileValid
             ? "bg-[#2C3E2D] hover:bg-[#2C3E2D]/90"
             : "bg-[#2C3E2D]/50"
         } disabled:opacity-50`}
